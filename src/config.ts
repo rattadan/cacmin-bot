@@ -1,4 +1,58 @@
-// src/config.ts
-export const BOT_TOKEN = '7701482317:AAHVn5JlZfDowMQLgdRmgbWtNEAu6QCkkao';
-export const JUNO_RPC_URL = 'https://rpc.juno.basementnodes.ca';
-export const ADMIN_CHAT_ID = 1540576068;
+import * as dotenv from 'dotenv';
+import { resolve } from 'path';
+
+dotenv.config({ path: resolve(__dirname, '../.env') });
+
+interface Config {
+  botToken: string;
+  junoRpcUrl: string;
+  adminChatId: number;
+  ownerId: number;
+  junoWalletAddress?: string;
+  junoWalletMnemonic?: string;
+  databasePath: string;
+  logLevel: string;
+  fineAmounts: {
+    sticker: number;
+    url: number;
+    regex: number;
+    blacklist: number;
+  };
+  restrictionDurations: {
+    warning: number; // milliseconds
+    mute: number;
+    tempBan: number;
+  };
+}
+
+export const config: Config = {
+  botToken: process.env.BOT_TOKEN || '',
+  junoRpcUrl: process.env.JUNO_RPC_URL || 'https://rpc.juno.basementnodes.ca',
+  adminChatId: parseInt(process.env.ADMIN_CHAT_ID || '0'),
+  ownerId: parseInt(process.env.OWNER_ID || '0'),
+  junoWalletAddress: process.env.JUNO_WALLET_ADDRESS,
+  junoWalletMnemonic: process.env.JUNO_WALLET_MNEMONIC,
+  databasePath: process.env.DATABASE_PATH || './data/bot.db',
+  logLevel: process.env.LOG_LEVEL || 'info',
+  fineAmounts: {
+    sticker: 1.0,
+    url: 2.0,
+    regex: 1.5,
+    blacklist: 5.0
+  },
+  restrictionDurations: {
+    warning: 24 * 60 * 60 * 1000, // 24 hours
+    mute: 60 * 60 * 1000, // 1 hour
+    tempBan: 7 * 24 * 60 * 60 * 1000 // 7 days
+  }
+};
+
+// Validate configuration
+export function validateConfig(): void {
+  if (!config.botToken) {
+    throw new Error('BOT_TOKEN is required in environment variables');
+  }
+  if (!config.ownerId) {
+    throw new Error('OWNER_ID is required in environment variables');
+  }
+}

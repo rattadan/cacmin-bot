@@ -3,6 +3,7 @@ import { Telegraf, Context } from 'telegraf';
 import { User } from '../types';
 import { query, execute } from '../database';
 import { ownerOnly, elevatedAdminOnly } from '../middleware/index';
+import { logger } from '../utils/logger';
 
 export const registerRoleHandlers = (bot: Telegraf<Context>) => {
   // Command to set the group owner
@@ -23,78 +24,80 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
   });
 
   // Command to elevate a user
-  bot.command('elevate', elevatedAdminOnly, (ctx) => {
+  bot.command('elevate', elevatedAdminOnly, async (ctx) => {
     const userId = ctx.from?.id;
     const [username] = ctx.message?.text.split(' ').slice(1);
-  
+
     if (!username) {
-      console.warn(`Elevate command used by user ${userId} with missing username.`);
+      logger.warn('Elevate command used with missing username', { userId });
       return ctx.reply('Usage: /elevate <username>');
     }
-  
+
     try {
       const user = query<User>('SELECT * FROM users WHERE username = ?', [username])[0];
       if (!user) {
-        console.warn(`Elevate command failed: User ${username} not found.`);
+        logger.warn('Elevate command failed: User not found', { userId, username });
         return ctx.reply('User not found.');
       }
-  
+
       execute('UPDATE users SET role = ? WHERE id = ?', ['elevated', user.id]);
-      console.log(`User ${username} elevated successfully by user ${userId}.`);
-      ctx.reply(`${username} has been granted elevated privileges.`);
+      logger.info('User elevated', { adminId: userId, targetUser: username, targetId: user.id });
+      await ctx.reply(`${username} has been granted elevated privileges.`);
     } catch (error) {
-      console.error(`Error processing elevate command for ${username} by user ${userId}:`, error);
-      ctx.reply('An error occurred while processing the request.');
+      logger.error('Error processing elevate command', { userId, username, error });
+      await ctx.reply('An error occurred while processing the request.');
     }
   });
 
   // Command to assign admin role
-  bot.command('makeadmin', ownerOnly, (ctx) => {
+  bot.command('makeadmin', ownerOnly, async (ctx) => {
+    const ownerId = ctx.from?.id;
     const [username] = ctx.message?.text.split(' ').slice(1);
-  
+
     if (!username) {
-      console.warn('Makeadmin command invoked without a username.');
+      logger.warn('Makeadmin command invoked without a username', { ownerId });
       return ctx.reply('Usage: /makeadmin <username>');
     }
-  
+
     try {
       const user = query<User>('SELECT * FROM users WHERE username = ?', [username])[0];
       if (!user) {
-        console.warn(`Makeadmin command failed: User ${username} not found.`);
+        logger.warn('Makeadmin command failed: User not found', { ownerId, username });
         return ctx.reply('User not found.');
       }
-  
+
       execute('UPDATE users SET role = ? WHERE id = ?', ['admin', user.id]);
-      console.log(`User ${username} promoted to admin by owner.`);
-      ctx.reply(`${username} has been made an admin.`);
+      logger.info('User promoted to admin', { ownerId, targetUser: username, targetId: user.id });
+      await ctx.reply(`${username} has been made an admin.`);
     } catch (error) {
-      console.error(`Error promoting user ${username} to admin:`, error);
-      ctx.reply('An error occurred while processing the request.');
+      logger.error('Error promoting user to admin', { ownerId, username, error });
+      await ctx.reply('An error occurred while processing the request.');
     }
   });
 
   // Command to revoke elevated/admin roles
-  bot.command('revoke', ownerOnly, (ctx) => {
+  bot.command('revoke', ownerOnly, async (ctx) => {
+    const ownerId = ctx.from?.id;
     const [username] = ctx.message?.text.split(' ').slice(1);
-  
+
     if (!username) {
-      console.warn('Revoke command invoked without a username.');
+      logger.warn('Revoke command invoked without a username', { ownerId });
       return ctx.reply('Usage: /revoke <username>');
     }
-  
+
     try {
       const user = query<User>('SELECT * FROM users WHERE username = ?', [username])[0];
       if (!user) {
-        console.warn(`Revoke command failed: User ${username} not found.`);
+        logger.warn('Revoke command failed: User not found', { ownerId, username });
         return ctx.reply('User not found.');
       }
-  
+
       execute('UPDATE users SET role = ? WHERE id = ?', ['pleb', user.id]);
-      console.log(`User ${username}'s privileges revoked by owner.`);
-      ctx.reply(`${username}'s privileges have been revoked.`);
+      logger.info('User privileges revoked', { ownerId, targetUser: username, targetId: user.id });
+      await ctx.reply(`${username}'s privileges have been revoked.`);
     } catch (error) {
-      console.error(`Error revoking user ${username}'s privileges:`, error);
-      ctx.reply('An error occurred while processing the request.');
+      logger.error('Error revoking user privileges', { ownerId, username, error });
+      await ctx.reply('An error occurred while processing the request.');
     }
   });
 };

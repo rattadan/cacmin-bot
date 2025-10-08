@@ -1,99 +1,121 @@
-// src/database.ts
 import Database from 'better-sqlite3';
-import { User, Rule, Violation } from './types';
+import { config } from './config';
+import { logger } from './utils/logger';
 
-const db = new Database('./data/bot.db', { verbose: console.log });
+const db = new Database(config.databasePath);
 
-// Typed queries return typed results, which avoids additional manual casting, for example:
-// const violations = query<Violation>('SELECT * FROM violations WHERE user_id = ?', [userId]);
-// returns an array of objects that adhere to the 'Violation' interface:
-// [
-//   {
-//     "id": 1,
-//     "userId": 12345,
-//     "ruleId": 2,
-//     "timestamp": 1679515800,
-//     "bailAmount": 50.5,
-//     "paid": false
-//   }
-// ]
+// Enable foreign keys
+db.exec('PRAGMA foreign_keys = ON');
 
-// Helper function for typed queries
 export const query = <T>(sql: string, params: unknown[] = []): T[] => {
   try {
     const stmt = db.prepare(sql);
     return stmt.all(params) as T[];
   } catch (error) {
-    console.error(`Database query failed: ${sql}`, error);
-    throw error; // Propagate the error for higher-level handling
-  }
-};
-
-// Insert/Update helpers
-export const execute = (sql: string, params: unknown[] = []): void => {
-  try {
-    const stmt = db.prepare(sql);
-    stmt.run(params);
-  } catch (error) {
-    console.error(`Database execution failed: ${sql}`, error);
+    logger.error(`Database query failed: ${sql}`, error);
     throw error;
   }
 };
 
-export const initDb = () => {
-  // Create tables
+export const execute = (sql: string, params: unknown[] = []): Database.RunResult => {
+  try {
+    const stmt = db.prepare(sql);
+    return stmt.run(params);
+  } catch (error) {
+    logger.error(`Database execution failed: ${sql}`, error);
+    throw error;
+  }
+};
+
+export const get = <T>(sql: string, params: unknown[] = []): T | undefined => {
+  try {
+    const stmt = db.prepare(sql);
+    return stmt.get(params) as T | undefined;
+  } catch (error) {
+    logger.error(`Database get failed: ${sql}`, error);
+    throw error;
+  }
+};
+
+export const initDb = (): void => {
+  // Enhanced users table
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY,
       username TEXT,
       role TEXT DEFAULT 'pleb',
       whitelist INTEGER DEFAULT 0,
-      blacklist INTEGER DEFAULT 0
+      blacklist INTEGER DEFAULT 0,
+      warning_count INTEGER DEFAULT 0,
+      muted_until INTEGER,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      updated_at INTEGER DEFAULT (strftime('%s', 'now'))
     );
   `);
 
+  // Enhanced rules table
   db.exec(`
     CREATE TABLE IF NOT EXISTS rules (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT,
+      type TEXT NOT NULL,
       description TEXT,
-      specific_action TEXT
+      specific_action TEXT,
+      severity INTEGER DEFAULT 1,
+      created_at INTEGER DEFAULT (strftime('%s', 'now'))
     );
   `);
 
+  // Enhanced violations table
   db.exec(`
     CREATE TABLE IF NOT EXISTS violations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
+      user_id INTEGER NOT NULL,
       rule_id INTEGER,
-      timestamp INTEGER,
-      bail_amount REAL,
-      paid INTEGER DEFAULT 0
-    );
-  `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS user_restrictions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,              -- Reference to the users table
-      restriction TEXT,             -- General type of restriction (e.g., "no_stickers", "no_urls", "regex_block")
-      restricted_action TEXT,       -- Specific target (e.g., "sticker_pack_id", "example.com", regex pattern)
-      metadata TEXT,                -- Additional metadata (JSON format for extensibility)
-      restricted_until INTEGER,     -- Epoch timestamp for when the restriction expires (NULL for permanent)
+      restriction TEXT,
+      message TEXT,
+      timestamp INTEGER DEFAULT (strftime('%s', 'now')),
+      bail_amount REAL DEFAULT 0,
+      paid INTEGER DEFAULT 0,
+      payment_tx TEXT,
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
   `);
 
+  // Enhanced user_restrictions table
   db.exec(`
-    CREATE TABLE IF NOT EXISTS global_restrictions (
+    CREATE TABLE IF NOT EXISTS user_restrictions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      restriction TEXT,             -- General type of restriction
-      restricted_action TEXT,       -- Specific target
-      metadata TEXT,                -- Additional metadata (JSON format for extensibility)
-      restricted_until INTEGER      -- Expiry timestamp (NULL for permanent)
+      user_id INTEGER NOT NULL,
+      restriction TEXT NOT NULL,
+      restricted_action TEXT,
+      metadata TEXT,
+      restricted_until INTEGER,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      FOREIGN KEY (user_id) REFERENCES users(id)
     );
   `);
 
-  console.log('Database initialized successfully.');
-  return db;
+  // Enhanced global_restrictions table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS global_restrictions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      restriction TEXT NOT NULL,
+      restricted_action TEXT,
+      metadata TEXT,
+      restricted_until INTEGER,
+      created_at INTEGER DEFAULT (strftime('%s', 'now'))
+    );
+  `);
+
+  // Create indexes for performance
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+    CREATE INDEX IF NOT EXISTS idx_users_blacklist ON users(blacklist);
+    CREATE INDEX IF NOT EXISTS idx_violations_user ON violations(user_id);
+    CREATE INDEX IF NOT EXISTS idx_violations_paid ON violations(paid);
+    CREATE INDEX IF NOT EXISTS idx_restrictions_user ON user_restrictions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_restrictions_until ON user_restrictions(restricted_until);
+  `);
+
+  logger.info('Database initialized successfully');
 };

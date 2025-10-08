@@ -1,17 +1,57 @@
 {
-  "name": "cacmin-bot",
-  "version": "1.0.0",
-  "main": "index.js",
+  "name": "cac-admin-bot",
+  "version": "2.0.0",
+  "description": "Cosmos Airdrops Chat Admin Bot - Production Ready",
+  "main": "dist/bot.js",
+  "scripts": {
+    "start": "node dist/bot.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/bot.ts",
+    "build": "tsc",
+    "setup-db": "ts-node scripts/setup-db.ts",
+    "migrate": "ts-node scripts/migrate.ts",
+    "validate": "ts-node scripts/validate.ts",
+    "prestart": "npm run validate",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write src/**/*.ts",
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "admin",
+    "cosmos",
+    "juno",
+    "moderation"
+  ],
+  "author": "Cordtus",
   "license": "MIT",
   "dependencies": {
     "better-sqlite3": "^11.5.0",
     "cosmos-client": "^0.42.14",
-    "telegraf": "^4.16.3"
+    "telegraf": "^4.16.3",
+    "dotenv": "^16.3.1",
+    "winston": "^3.11.0",
+    "node-cron": "^3.0.3"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.9.3",
+    "@types/node-cron": "^3.0.10",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.10",
+    "ts-jest": "^29.1.1",
     "ts-node": "^10.9.2",
-    "typescript": "^5.7.2"
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.7.2",
+    "prettier": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   }
 }

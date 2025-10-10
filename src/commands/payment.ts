@@ -15,20 +15,20 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
 
     // Only allow in DM
     if (ctx.chat?.type !== 'private') {
-      return ctx.reply('⚠️ Fine payment can only be done in direct messages with the bot.');
+      return ctx.reply(' Fine payment can only be done in direct messages with the bot.');
     }
 
     try {
       const violations = getUnpaidViolations(userId);
 
       if (violations.length === 0) {
-        return ctx.reply('✅ You have no unpaid fines!');
+        return ctx.reply(' You have no unpaid fines!');
       }
 
       const totalFines = getTotalFines(userId);
       const balance = await WalletService.getUserBalance(userId);
 
-      let message = `💰 *Your Unpaid Fines*\n\n`;
+      let message = ` *Your Unpaid Fines*\n\n`;
       violations.forEach(v => {
         message += `• ID ${v.id}: ${v.restriction} - ${v.bailAmount.toFixed(2)} JUNO\n`;
       });
@@ -37,16 +37,16 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
       message += `Your wallet balance: ${balance.toFixed(6)} JUNO\n\n`;
 
       if (balance >= totalFines) {
-        message += `✅ You have sufficient funds.\n\nUse /payallfi nes to pay all fines at once.`;
+        message += ` You have sufficient funds.\n\nUse /payallfi nes to pay all fines at once.`;
       } else {
-        message += `❌ Insufficient funds. Please deposit more JUNO.\n\n`;
+        message += ` Insufficient funds. Please deposit more JUNO.\n\n`;
         message += `Use /deposit to get your wallet address.`;
       }
 
       await ctx.reply(message, { parse_mode: 'Markdown' });
     } catch (error) {
       logger.error('Error showing fines', { userId, error });
-      await ctx.reply('❌ Error fetching fines.');
+      await ctx.reply(' Error fetching fines.');
     }
   });
 
@@ -56,14 +56,14 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
     if (!userId) return;
 
     if (ctx.chat?.type !== 'private') {
-      return ctx.reply('⚠️ Fine payment can only be done in direct messages with the bot.');
+      return ctx.reply(' Fine payment can only be done in direct messages with the bot.');
     }
 
     try {
       const violations = getUnpaidViolations(userId);
 
       if (violations.length === 0) {
-        return ctx.reply('✅ You have no unpaid fines!');
+        return ctx.reply(' You have no unpaid fines!');
       }
 
       const totalFines = getTotalFines(userId);
@@ -71,7 +71,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
 
       if (balance < totalFines) {
         return ctx.reply(
-          `❌ Insufficient balance.\n\n` +
+          ` Insufficient balance.\n\n` +
           `Total fines: ${totalFines.toFixed(2)} JUNO\n` +
           `Your balance: ${balance.toFixed(6)} JUNO\n\n` +
           `Please deposit more JUNO using /deposit`
@@ -100,7 +100,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
         const newBalance = await WalletService.getUserBalance(userId);
 
         await ctx.reply(
-          `✅ *All Fines Paid!*\n\n` +
+          ` *All Fines Paid!*\n\n` +
           `Violations cleared: ${violations.length}\n` +
           `Amount paid: ${totalFines.toFixed(2)} JUNO\n` +
           `TX: \`${result.txHash}\`\n\n` +
@@ -117,14 +117,14 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
         });
       } else {
         await ctx.reply(
-          `❌ *Payment Failed*\n\n` +
+          ` *Payment Failed*\n\n` +
           `Error: ${result.error}`,
           { parse_mode: 'Markdown' }
         );
       }
     } catch (error) {
       logger.error('Error paying fines', { userId, error });
-      await ctx.reply('❌ Error processing payment.');
+      await ctx.reply(' Error processing payment.');
     }
   });
 
@@ -143,7 +143,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
       }
 
       const totalFines = getTotalFines(userId);
-      let message = `💰 *Your Unpaid Fines*\n\n`;
+      let message = ` *Your Unpaid Fines*\n\n`;
 
       violations.forEach(v => {
         message += `ID: ${v.id} \\- ${v.restriction} \\- ${v.bailAmount.toFixed(2)} JUNO\n`;
@@ -171,7 +171,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
       return ctx.reply(' This fine has already been paid.');
     }
 
-    const message = `💰 *Payment Instructions*\n\n` +
+    const message = ` *Payment Instructions*\n\n` +
       `Violation ID: ${violation.id}\n` +
       `Type: ${violation.restriction}\n` +
       `Amount: ${violation.bailAmount.toFixed(2)} JUNO\n\n` +

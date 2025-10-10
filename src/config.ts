@@ -6,11 +6,15 @@ dotenv.config({ path: resolve(__dirname, '../.env') });
 interface Config {
   botToken: string;
   junoRpcUrl: string;
+  junoApiUrl?: string;
   adminChatId: number;
   groupChatId?: number;
   ownerId: number;
-  junoWalletAddress?: string;
-  junoWalletMnemonic?: string;
+  junoWalletAddress?: string; // Deprecated - kept for compatibility
+  junoWalletMnemonic?: string; // Deprecated - kept for compatibility
+  botTreasuryAddress?: string; // New: Bot treasury wallet address
+  userFundsAddress?: string; // New: Collective user funds wallet address
+  userFundsMnemonic?: string; // New: Mnemonic for user funds wallet (for withdrawals)
   databasePath: string;
   logLevel: string;
   fineAmounts: {
@@ -29,11 +33,15 @@ interface Config {
 export const config: Config = {
   botToken: process.env.BOT_TOKEN || '',
   junoRpcUrl: process.env.JUNO_RPC_URL || 'https://rpc.juno.basementnodes.ca',
+  junoApiUrl: process.env.JUNO_API_URL || 'https://api.juno.basementnodes.ca',
   adminChatId: parseInt(process.env.ADMIN_CHAT_ID || '0'),
   groupChatId: process.env.GROUP_CHAT_ID ? parseInt(process.env.GROUP_CHAT_ID) : undefined,
   ownerId: parseInt(process.env.OWNER_ID || '0'),
-  junoWalletAddress: process.env.JUNO_WALLET_ADDRESS,
-  junoWalletMnemonic: process.env.JUNO_WALLET_MNEMONIC,
+  junoWalletAddress: process.env.JUNO_WALLET_ADDRESS, // Deprecated
+  junoWalletMnemonic: process.env.JUNO_WALLET_MNEMONIC, // Deprecated
+  botTreasuryAddress: process.env.BOT_TREASURY_ADDRESS || process.env.JUNO_WALLET_ADDRESS, // Fallback to old config
+  userFundsAddress: process.env.USER_FUNDS_ADDRESS,
+  userFundsMnemonic: process.env.USER_FUNDS_MNEMONIC,
   databasePath: process.env.DATABASE_PATH || './data/bot.db',
   logLevel: process.env.LOG_LEVEL || 'info',
   fineAmounts: {

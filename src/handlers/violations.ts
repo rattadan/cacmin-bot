@@ -21,9 +21,9 @@ export const registerViolationHandlers = (bot: Telegraf<Context>) => {
       return ctx.reply(' You have no violations\\!', { parse_mode: 'MarkdownV2' });
     }
 
-    let message = '⚠️ *Your Violations*\n\n';
+    let message = ' *Your Violations*\n\n';
     violations.forEach((v) => {
-      const paidStatus = v.paid ? '✅ Paid' : `❌ Unpaid \\(${v.bailAmount.toFixed(2)} JUNO\\)`;
+      const paidStatus = v.paid ? ' Paid' : ` Unpaid \\(${v.bailAmount.toFixed(2)} JUNO\\)`;
       message += `\\#${v.id} \\- ${v.restriction}\n`;
       message += `Status: ${paidStatus}\n`;
       if (v.message) {

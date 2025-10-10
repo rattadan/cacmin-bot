@@ -61,7 +61,7 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
 
         if (!existingUser) {
           return ctx.reply(
-            `⚠️ User @${targetUsername} not found in database yet.\n\n` +
+            ` User @${targetUsername} not found in database yet.\n\n` +
             `To grant by username, they must have interacted with the bot first.\n` +
             `Use /grantowner <userId> if you know their Telegram user ID.`
           );
@@ -83,7 +83,7 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
       });
 
       await ctx.reply(
-        `✅ Owner privileges granted!\n\n` +
+        ` Owner privileges granted!\n\n` +
         `User ID: ${targetUserId}\n` +
         `Username: ${targetUsername ? '@' + targetUsername : 'unknown'}\n\n` +
         `The role will be applied when they next interact with the bot.`
@@ -128,7 +128,7 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
 
         if (!existingUser) {
           return ctx.reply(
-            `⚠️ User @${targetUsername} not found in database yet.\n\n` +
+            ` User @${targetUsername} not found in database yet.\n\n` +
             `To grant by username, they must have interacted with the bot first.\n` +
             `Use /elevate <userId> if you know their Telegram user ID.`
           );
@@ -145,7 +145,7 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
 
       logger.info('User elevated', { adminId: userId, targetUsername, targetUserId });
       await ctx.reply(
-        `✅ Elevated privileges granted!\n\n` +
+        ` Elevated privileges granted!\n\n` +
         `User ID: ${targetUserId}\n` +
         `Username: ${targetUsername ? '@' + targetUsername : 'unknown'}`
       );
@@ -182,7 +182,7 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
 
         if (!existingUser) {
           return ctx.reply(
-            `⚠️ User @${targetUsername} not found in database yet.\n\n` +
+            ` User @${targetUsername} not found in database yet.\n\n` +
             `To grant by username, they must have interacted with the bot first.\n` +
             `Use /makeadmin <userId> if you know their Telegram user ID.`
           );
@@ -199,7 +199,7 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
 
       logger.info('User promoted to admin', { ownerId, targetUsername, targetUserId });
       await ctx.reply(
-        `✅ Admin privileges granted!\n\n` +
+        ` Admin privileges granted!\n\n` +
         `User ID: ${targetUserId}\n` +
         `Username: ${targetUsername ? '@' + targetUsername : 'unknown'}`
       );
@@ -271,26 +271,26 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
         return ctx.reply('No users with elevated privileges found.');
       }
 
-      let message = '👥 Users with elevated privileges:\n\n';
+      let message = ' Users with elevated privileges:\n\n';
 
       const owners = privilegedUsers.filter(u => u.role === 'owner');
       const admins = privilegedUsers.filter(u => u.role === 'admin');
       const elevated = privilegedUsers.filter(u => u.role === 'elevated');
 
       if (owners.length > 0) {
-        message += '👑 Owners:\n';
+        message += ' Owners:\n';
         owners.forEach(u => message += `  • @${u.username || u.id} (${u.id})\n`);
         message += '\n';
       }
 
       if (admins.length > 0) {
-        message += '🛡️ Admins:\n';
+        message += ' Admins:\n';
         admins.forEach(u => message += `  • @${u.username || u.id} (${u.id})\n`);
         message += '\n';
       }
 
       if (elevated.length > 0) {
-        message += '⭐ Elevated:\n';
+        message += ' Elevated:\n';
         elevated.forEach(u => message += `  • @${u.username || u.id} (${u.id})\n`);
       }
 

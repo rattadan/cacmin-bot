@@ -37,7 +37,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     }
 
     const now = Math.floor(Date.now() / 1000);
-    let message = `📊 *Your Status*\n\n`;
+    let message = ` *Your Status*\n\n`;
     message += `User: ${formatUserIdDisplay(userId)}\n`;
     message += `Role: ${user.role}\n`;
     message += `Warnings: ${user.warning_count}\n\n`;
@@ -47,25 +47,25 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
       const timeRemaining = user.muted_until - now;
       const bailAmount = JailService.calculateBailAmount(Math.ceil(timeRemaining / 60));
 
-      message += `🔒 *Currently Jailed*\n`;
+      message += ` *Currently Jailed*\n`;
       message += `Time remaining: ${formatTimeRemaining(timeRemaining)}\n`;
       message += `Bail amount: ${bailAmount.toFixed(2)} JUNO\n\n`;
       message += `To pay bail: /paybail\n\n`;
     } else {
-      message += `✅ Not currently jailed\n\n`;
+      message += ` Not currently jailed\n\n`;
     }
 
     // Show unpaid violations
     const violations = getUnpaidViolations(userId);
     if (violations.length > 0) {
       const totalFines = getTotalFines(userId);
-      message += `⚠️ *Unpaid Fines*\n`;
+      message += ` *Unpaid Fines*\n`;
       message += `Count: ${violations.length}\n`;
       message += `Total: ${totalFines.toFixed(2)} JUNO\n\n`;
       message += `View details: /violations\n`;
       message += `Pay fines: /payfine\n`;
     } else {
-      message += `✅ No unpaid fines\n`;
+      message += ` No unpaid fines\n`;
     }
 
     await ctx.reply(message, { parse_mode: 'Markdown' });
@@ -76,10 +76,10 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     const activeJails = JailService.getActiveJails();
 
     if (activeJails.length === 0) {
-      return ctx.reply('✅ No users currently jailed.');
+      return ctx.reply(' No users currently jailed.');
     }
 
-    let message = `🔒 *Active Jails* (${activeJails.length})\n\n`;
+    let message = ` *Active Jails* (${activeJails.length})\n\n`;
 
     activeJails.forEach((jail, index) => {
       const bailAmount = JailService.calculateBailAmount(Math.ceil(jail.timeRemaining / 60));
@@ -116,7 +116,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     const timeRemaining = user.muted_until - now;
     const bailAmount = JailService.calculateBailAmount(Math.ceil(timeRemaining / 60));
 
-    const message = `💰 *Pay Your Bail*\n\n` +
+    const message = ` *Pay Your Bail*\n\n` +
       `Current jail time remaining: ${formatTimeRemaining(timeRemaining)}\n` +
       `Bail amount: ${bailAmount.toFixed(2)} JUNO\n\n` +
       `Send exactly ${bailAmount.toFixed(2)} JUNO to:\n` +
@@ -157,7 +157,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     const timeRemaining = user.muted_until - now;
     const bailAmount = JailService.calculateBailAmount(Math.ceil(timeRemaining / 60));
 
-    const message = `💰 *Pay Bail For ${formatUserIdDisplay(targetUserId)}*\n\n` +
+    const message = ` *Pay Bail For ${formatUserIdDisplay(targetUserId)}*\n\n` +
       `Current jail time remaining: ${formatTimeRemaining(timeRemaining)}\n` +
       `Bail amount: ${bailAmount.toFixed(2)} JUNO\n\n` +
       `Send exactly ${bailAmount.toFixed(2)} JUNO to:\n` +
@@ -237,7 +237,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     }
 
     await ctx.reply(
-      `✅ *Bail Payment Verified\\!*\n\n` +
+      ` *Bail Payment Verified\\!*\n\n` +
       `You have been released from jail\\.\n` +
       `Transaction: \`${txHash}\``,
       { parse_mode: 'MarkdownV2' }
@@ -329,14 +329,14 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     try {
       await bot.telegram.sendMessage(
         targetUserId,
-        `✅ Good news! ${formatUserIdDisplay(payerId)} paid your bail of ${bailAmount.toFixed(2)} JUNO!\nYou have been released from jail.`
+        ` Good news! ${formatUserIdDisplay(payerId)} paid your bail of ${bailAmount.toFixed(2)} JUNO!\nYou have been released from jail.`
       );
     } catch (dmError) {
       logger.debug(`Could not notify user ${targetUserId} of bail payment`, dmError);
     }
 
     await ctx.reply(
-      `✅ *Bail Payment Verified\\!*\n\n` +
+      ` *Bail Payment Verified\\!*\n\n` +
       `${formatUserIdDisplay(targetUserId)} has been released from jail\\.\n` +
       `Paid by: ${formatUserIdDisplay(payerId)}\n` +
       `Transaction: \`${txHash}\``,

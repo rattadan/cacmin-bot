@@ -103,7 +103,7 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
 
     const userDisplay = formatUserIdDisplay(userId);
     await ctx.reply(
-      `🔒 User ${userDisplay} has been jailed for ${minutes} minutes.\n` +
+      ` User ${userDisplay} has been jailed for ${minutes} minutes.\n` +
       `Bail amount: ${bailAmount.toFixed(2)} JUNO\n\n` +
       `They can pay bail using /paybail or check their status with /mystatus`
     );
@@ -176,7 +176,7 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
     }
 
     const userDisplay = formatUserIdDisplay(userId);
-    await ctx.reply(`✅ User ${userDisplay} has been released from jail.`);
+    await ctx.reply(` User ${userDisplay} has been released from jail.`);
     logger.info('User unjailed', { adminId, userId });
   };
 
@@ -216,13 +216,13 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
       [Math.floor(Date.now() / 1000), userId]
     );
 
-    await ctx.reply(`⚠️ User ${userId} has been warned.\nReason: ${reason}`);
+    await ctx.reply(` User ${userId} has been warned.\nReason: ${reason}`);
 
     // Try to notify the user
     try {
       await bot.telegram.sendMessage(
         userId,
-        `⚠️ You have received a warning from an admin.\nReason: ${reason}\nPlease follow the group rules.`
+        ` You have received a warning from an admin.\nReason: ${reason}\nPlease follow the group rules.`
       );
     } catch (error) {
       logger.debug('Could not send warning to user', { userId, error });
@@ -276,7 +276,7 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
       totalBailAmount: get<{total: number}>('SELECT SUM(bail_amount) as total FROM jail_events WHERE event_type = ?', ['bail_paid'])?.total || 0,
     };
 
-    const message = `📊 *Bot Statistics*\n\n` +
+    const message = ` *Bot Statistics*\n\n` +
       `*Users*\n` +
       `Total: ${stats.totalUsers}\n` +
       `Blacklisted: ${stats.blacklisted}\n` +

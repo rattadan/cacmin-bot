@@ -10,7 +10,7 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
     const user = get<User>('SELECT * FROM users WHERE id = ?', [userId]);
     const role = user?.role || 'pleb';
 
-    let helpText = '📖 *Available Commands*\n\n';
+    let helpText = ' *Available Commands*\n\n';
 
     // Universal commands
     helpText += '*General:*\n';

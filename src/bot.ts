@@ -18,6 +18,11 @@ import { RestrictionService } from './services/restrictionService';
 import { JunoService } from './services/junoService';
 import { JailService } from './services/jailService';
 import { WalletService } from './services/walletService';
+import { WalletServiceV2 } from './services/walletServiceV2';
+import { LedgerService } from './services/ledgerService';
+import { DepositMonitor } from './services/depositMonitor';
+import { TransactionLockService } from './services/transactionLock';
+import { financialLockCheck } from './middleware/lockCheck';
 
 async function main() {
   try {
@@ -30,7 +35,16 @@ async function main() {
     // Initialize JUNO service
     await JunoService.initialize();
 
-    // Initialize Wallet service
+    // Initialize new ledger-based wallet system
+    LedgerService.initialize();
+    await WalletServiceV2.initialize();
+    DepositMonitor.initialize();
+    TransactionLockService.initialize();
+
+    // Start deposit monitoring
+    DepositMonitor.start();
+
+    // Keep old wallet service for backward compatibility
     WalletService.initialize();
 
     // Create bot instance
@@ -69,6 +83,16 @@ async function main() {
     setInterval(() => {
       JailService.cleanExpiredJails();
     }, 5 * 60 * 1000);
+
+    // Periodic cleanup of expired transaction locks (every minute)
+    setInterval(async () => {
+      await TransactionLockService.cleanExpiredLocks();
+    }, 60 * 1000);
+
+    // Periodic cleanup of old deposit records (daily)
+    setInterval(() => {
+      DepositMonitor.cleanupOldRecords();
+    }, 24 * 60 * 60 * 1000);
 
     // Graceful shutdown
     process.once('SIGINT', () => bot.stop('SIGINT'));

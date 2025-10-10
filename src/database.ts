@@ -53,7 +53,7 @@ export const initDb = (): void => {
     );
   `);
 
-  // User wallets table
+  // User wallets table (kept for historical reference, not actively used)
   db.exec(`
     CREATE TABLE IF NOT EXISTS user_wallets (
       user_id INTEGER PRIMARY KEY,
@@ -67,6 +67,47 @@ export const initDb = (): void => {
   // Create index for faster address lookups
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_user_wallets_address ON user_wallets(address);
+  `);
+
+  // User balances table - Internal ledger system
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_balances (
+      user_id INTEGER PRIMARY KEY,
+      balance REAL DEFAULT 0,
+      last_updated INTEGER DEFAULT (strftime('%s', 'now')),
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+
+  // Transactions table - Complete audit trail
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      transaction_type TEXT NOT NULL,
+      from_user_id INTEGER,
+      to_user_id INTEGER,
+      amount REAL NOT NULL,
+      balance_after REAL,
+      description TEXT,
+      tx_hash TEXT,
+      external_address TEXT,
+      status TEXT DEFAULT 'completed',
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      metadata TEXT,
+      FOREIGN KEY (from_user_id) REFERENCES users(id),
+      FOREIGN KEY (to_user_id) REFERENCES users(id)
+    );
+  `);
+
+  // System wallets configuration
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS system_wallets (
+      id TEXT PRIMARY KEY,
+      address TEXT NOT NULL UNIQUE,
+      description TEXT,
+      created_at INTEGER DEFAULT (strftime('%s', 'now'))
+    );
   `);
 
   // Enhanced rules table
@@ -156,6 +197,15 @@ export const initDb = (): void => {
     CREATE INDEX IF NOT EXISTS idx_restrictions_until ON user_restrictions(restricted_until);
     CREATE INDEX IF NOT EXISTS idx_jail_events_user ON jail_events(user_id);
     CREATE INDEX IF NOT EXISTS idx_jail_events_type ON jail_events(event_type);
+
+    -- Ledger system indexes
+    CREATE INDEX IF NOT EXISTS idx_user_balances_balance ON user_balances(balance);
+    CREATE INDEX IF NOT EXISTS idx_transactions_from_user ON transactions(from_user_id);
+    CREATE INDEX IF NOT EXISTS idx_transactions_to_user ON transactions(to_user_id);
+    CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(transaction_type);
+    CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
+    CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(created_at);
+    CREATE INDEX IF NOT EXISTS idx_transactions_tx_hash ON transactions(tx_hash);
   `);
 
   logger.info('Database initialized successfully');

@@ -44,30 +44,50 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
     const identifier = args[0];
 
     try {
-      let targetUser: User | undefined;
+      let targetUserId: number;
+      let targetUsername: string | undefined;
 
       // Check if it's a numeric user ID or username
       if (/^\d+$/.test(identifier)) {
-        targetUser = query<User>('SELECT * FROM users WHERE id = ?', [parseInt(identifier)])[0];
+        targetUserId = parseInt(identifier);
+        // Try to find existing user
+        const existingUser = query<User>('SELECT username FROM users WHERE id = ?', [targetUserId])[0];
+        targetUsername = existingUser?.username;
       } else {
         // Remove @ if present
-        const username = identifier.startsWith('@') ? identifier.substring(1) : identifier;
-        targetUser = query<User>('SELECT * FROM users WHERE username = ?', [username])[0];
+        targetUsername = identifier.startsWith('@') ? identifier.substring(1) : identifier;
+        // Try to find existing user
+        const existingUser = query<User>('SELECT id FROM users WHERE username = ?', [targetUsername])[0];
+
+        if (!existingUser) {
+          return ctx.reply(
+            `⚠️ User @${targetUsername} not found in database yet.\n\n` +
+            `To grant by username, they must have interacted with the bot first.\n` +
+            `Use /grantowner <userId> if you know their Telegram user ID.`
+          );
+        }
+        targetUserId = existingUser.id;
       }
 
-      if (!targetUser) {
-        logger.warn('Grantowner command failed: User not found', { ownerId, identifier });
-        return ctx.reply('User not found. They must have interacted with the bot first.');
-      }
+      // Insert or update user with owner role
+      execute(
+        'INSERT INTO users (id, username, role) VALUES (?, ?, ?) ' +
+        'ON CONFLICT(id) DO UPDATE SET role = ?, username = COALESCE(?, username)',
+        [targetUserId, targetUsername, 'owner', 'owner', targetUsername]
+      );
 
-      execute('UPDATE users SET role = ? WHERE id = ?', ['owner', targetUser.id]);
       logger.info('Owner privileges granted', {
         grantedBy: ownerId,
-        targetUser: targetUser.username,
-        targetId: targetUser.id
+        targetUsername,
+        targetUserId
       });
 
-      await ctx.reply(`${targetUser.username || targetUser.id} has been granted owner privileges.`);
+      await ctx.reply(
+        `✅ Owner privileges granted!\n\n` +
+        `User ID: ${targetUserId}\n` +
+        `Username: ${targetUsername ? '@' + targetUsername : 'unknown'}\n\n` +
+        `The role will be applied when they next interact with the bot.`
+      );
     } catch (error) {
       logger.error('Error granting owner privileges', { ownerId, identifier, error });
       await ctx.reply('An error occurred while processing the request.');
@@ -94,25 +114,41 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
     const identifier = args[0];
 
     try {
-      let targetUser: User | undefined;
+      let targetUserId: number;
+      let targetUsername: string | undefined;
 
       // Check if it's a numeric user ID or username
       if (/^\d+$/.test(identifier)) {
-        targetUser = query<User>('SELECT * FROM users WHERE id = ?', [parseInt(identifier)])[0];
+        targetUserId = parseInt(identifier);
+        const existingUser = query<User>('SELECT username FROM users WHERE id = ?', [targetUserId])[0];
+        targetUsername = existingUser?.username;
       } else {
-        // Remove @ if present
-        const username = identifier.startsWith('@') ? identifier.substring(1) : identifier;
-        targetUser = query<User>('SELECT * FROM users WHERE username = ?', [username])[0];
+        targetUsername = identifier.startsWith('@') ? identifier.substring(1) : identifier;
+        const existingUser = query<User>('SELECT id FROM users WHERE username = ?', [targetUsername])[0];
+
+        if (!existingUser) {
+          return ctx.reply(
+            `⚠️ User @${targetUsername} not found in database yet.\n\n` +
+            `To grant by username, they must have interacted with the bot first.\n` +
+            `Use /elevate <userId> if you know their Telegram user ID.`
+          );
+        }
+        targetUserId = existingUser.id;
       }
 
-      if (!targetUser) {
-        logger.warn('Elevate command failed: User not found', { userId, identifier });
-        return ctx.reply('User not found. They must have interacted with the bot first.');
-      }
+      // Insert or update user with elevated role
+      execute(
+        'INSERT INTO users (id, username, role) VALUES (?, ?, ?) ' +
+        'ON CONFLICT(id) DO UPDATE SET role = ?, username = COALESCE(?, username)',
+        [targetUserId, targetUsername, 'elevated', 'elevated', targetUsername]
+      );
 
-      execute('UPDATE users SET role = ? WHERE id = ?', ['elevated', targetUser.id]);
-      logger.info('User elevated', { adminId: userId, targetUser: targetUser.username, targetId: targetUser.id });
-      await ctx.reply(`${targetUser.username || targetUser.id} has been granted elevated privileges.`);
+      logger.info('User elevated', { adminId: userId, targetUsername, targetUserId });
+      await ctx.reply(
+        `✅ Elevated privileges granted!\n\n` +
+        `User ID: ${targetUserId}\n` +
+        `Username: ${targetUsername ? '@' + targetUsername : 'unknown'}`
+      );
     } catch (error) {
       logger.error('Error processing elevate command', { userId, identifier, error });
       await ctx.reply('An error occurred while processing the request.');
@@ -122,25 +158,53 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
   // Command to assign admin role
   bot.command('makeadmin', ownerOnly, async (ctx) => {
     const ownerId = ctx.from?.id;
-    const [username] = ctx.message?.text.split(' ').slice(1);
+    const args = ctx.message?.text.split(' ').slice(1);
 
-    if (!username) {
-      logger.warn('Makeadmin command invoked without a username', { ownerId });
-      return ctx.reply('Usage: /makeadmin <username>');
+    if (!args || args.length === 0) {
+      logger.warn('Makeadmin command invoked without identifier', { ownerId });
+      return ctx.reply('Usage: /makeadmin <username> or /makeadmin <userId>');
     }
 
+    const identifier = args[0];
+
     try {
-      const user = query<User>('SELECT * FROM users WHERE username = ?', [username])[0];
-      if (!user) {
-        logger.warn('Makeadmin command failed: User not found', { ownerId, username });
-        return ctx.reply('User not found.');
+      let targetUserId: number;
+      let targetUsername: string | undefined;
+
+      // Check if it's a numeric user ID or username
+      if (/^\d+$/.test(identifier)) {
+        targetUserId = parseInt(identifier);
+        const existingUser = query<User>('SELECT username FROM users WHERE id = ?', [targetUserId])[0];
+        targetUsername = existingUser?.username;
+      } else {
+        targetUsername = identifier.startsWith('@') ? identifier.substring(1) : identifier;
+        const existingUser = query<User>('SELECT id FROM users WHERE username = ?', [targetUsername])[0];
+
+        if (!existingUser) {
+          return ctx.reply(
+            `⚠️ User @${targetUsername} not found in database yet.\n\n` +
+            `To grant by username, they must have interacted with the bot first.\n` +
+            `Use /makeadmin <userId> if you know their Telegram user ID.`
+          );
+        }
+        targetUserId = existingUser.id;
       }
 
-      execute('UPDATE users SET role = ? WHERE id = ?', ['admin', user.id]);
-      logger.info('User promoted to admin', { ownerId, targetUser: username, targetId: user.id });
-      await ctx.reply(`${username} has been made an admin.`);
+      // Insert or update user with admin role
+      execute(
+        'INSERT INTO users (id, username, role) VALUES (?, ?, ?) ' +
+        'ON CONFLICT(id) DO UPDATE SET role = ?, username = COALESCE(?, username)',
+        [targetUserId, targetUsername, 'admin', 'admin', targetUsername]
+      );
+
+      logger.info('User promoted to admin', { ownerId, targetUsername, targetUserId });
+      await ctx.reply(
+        `✅ Admin privileges granted!\n\n` +
+        `User ID: ${targetUserId}\n` +
+        `Username: ${targetUsername ? '@' + targetUsername : 'unknown'}`
+      );
     } catch (error) {
-      logger.error('Error promoting user to admin', { ownerId, username, error });
+      logger.error('Error promoting user to admin', { ownerId, identifier, error });
       await ctx.reply('An error occurred while processing the request.');
     }
   });

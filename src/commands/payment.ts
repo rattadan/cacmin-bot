@@ -16,7 +16,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
       // Show all unpaid violations
       const violations = getUnpaidViolations(userId);
       if (violations.length === 0) {
-        return ctx.reply('✅ You have no unpaid fines!');
+        return ctx.reply(' You have no unpaid fines!');
       }
 
       const totalFines = getTotalFines(userId);
@@ -41,11 +41,11 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
     );
 
     if (!violation) {
-      return ctx.reply('❌ Violation not found or doesn\'t belong to you.');
+      return ctx.reply(' Violation not found or doesn\'t belong to you.');
     }
 
     if (violation.paid) {
-      return ctx.reply('✅ This fine has already been paid.');
+      return ctx.reply(' This fine has already been paid.');
     }
 
     const message = `💰 *Payment Instructions*\n\n` +
@@ -73,7 +73,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
     const violationId = parseInt(violationIdStr);
 
     if (isNaN(violationId)) {
-      return ctx.reply('❌ Invalid violation ID');
+      return ctx.reply(' Invalid violation ID');
     }
 
     // Get violation
@@ -83,24 +83,24 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
     );
 
     if (!violation) {
-      return ctx.reply('❌ Violation not found or doesn\'t belong to you.');
+      return ctx.reply(' Violation not found or doesn\'t belong to you.');
     }
 
     if (violation.paid) {
-      return ctx.reply('✅ This fine has already been paid.');
+      return ctx.reply(' This fine has already been paid.');
     }
 
     // Verify payment on blockchain
     const verified = await JunoService.verifyPayment(txHash, violation.bailAmount);
 
     if (!verified) {
-      return ctx.reply('❌ Payment could not be verified. Please check the transaction hash.');
+      return ctx.reply(' Payment could not be verified. Please check the transaction hash.');
     }
 
-    // Mark as paid
-    markViolationPaid(violationId, txHash);
+    // Mark as paid (paid by the user themselves)
+    markViolationPaid(violationId, txHash, userId);
 
-    await ctx.reply('✅ Payment verified! Your fine has been marked as paid.');
+    await ctx.reply(' Payment verified! Your fine has been marked as paid.');
     logger.info('Payment verified', { userId, violationId, txHash });
   });
 }

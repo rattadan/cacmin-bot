@@ -18,7 +18,7 @@ export const registerViolationHandlers = (bot: Telegraf<Context>) => {
     const violations = query<Violation>('SELECT * FROM violations WHERE user_id = ?', [userId]);
 
     if (violations.length === 0) {
-      return ctx.reply('✅ You have no violations\\!', { parse_mode: 'MarkdownV2' });
+      return ctx.reply(' You have no violations\\!', { parse_mode: 'MarkdownV2' });
     }
 
     let message = '⚠️ *Your Violations*\n\n';

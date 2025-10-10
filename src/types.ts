@@ -42,6 +42,22 @@ export interface Violation {
   bailAmount: number; // Bail amount in JUNO
   paid: boolean; // true if the violation's bail is paid
   paymentTx?: string;
+  paidByUserId?: number; // User who paid (if different from violator)
+  paidAt?: number; // Timestamp when paid
+}
+
+// Type for a Jail Event
+export interface JailEvent {
+  id: number;
+  userId: number;
+  eventType: 'jailed' | 'unjailed' | 'auto_unjailed' | 'bail_paid';
+  adminId?: number;
+  durationMinutes?: number;
+  bailAmount: number;
+  paidByUserId?: number;
+  paymentTx?: string;
+  timestamp: number;
+  metadata?: string;
 }
 
 // Type for a User Restriction

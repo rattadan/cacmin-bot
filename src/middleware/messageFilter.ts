@@ -23,8 +23,9 @@ export const messageFilterMiddleware: MiddlewareFn<Context> = async (ctx, next) 
       return next();
     }
 
-    // Check if user is muted
-    if (user?.muted_until && user.muted_until > Date.now() / 1000) {
+    // Check if user is muted - ONLY apply in group chats, not DMs
+    const isGroupChat = ctx.chat?.type === 'group' || ctx.chat?.type === 'supergroup';
+    if (isGroupChat && user?.muted_until && user.muted_until > Date.now() / 1000) {
       try {
         await ctx.deleteMessage();
         logger.info('Deleted message from jailed user', { userId: ctx.from.id, mutedUntil: user.muted_until });
@@ -38,12 +39,14 @@ export const messageFilterMiddleware: MiddlewareFn<Context> = async (ctx, next) 
       return; // Don't continue regardless of deletion success
     }
 
-    // Check message against restrictions
-    const violated = await RestrictionService.checkMessage(ctx, ctx.message);
+    // Check message against restrictions (only in group chats)
+    if (isGroupChat) {
+      const violated = await RestrictionService.checkMessage(ctx, ctx.message);
 
-    if (violated) {
-      // Message was deleted and violation recorded
-      return; // Don't continue to next middleware
+      if (violated) {
+        // Message was deleted and violation recorded
+        return; // Don't continue to next middleware
+      }
     }
 
     return next();

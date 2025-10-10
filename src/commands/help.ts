@@ -15,8 +15,14 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
     // Universal commands
     helpText += '*General:*\n';
     helpText += '/help \\- Show this help message\n';
+    helpText += '/mystatus \\- Check your jail status and fines\n';
+    helpText += '/jails \\- View all active jails\n';
     helpText += '/violations \\- Check your violations\n';
-    helpText += '/payfine \\[violationId\\] \\- Instructions to pay fine\n\n';
+    helpText += '/payfine \\[violationId\\] \\- Pay a specific fine\n';
+    helpText += '/paybail \\- Pay your own bail to get out of jail\n';
+    helpText += '/paybailfor \\[@username\\|userId\\] \\- Pay bail for another user\n';
+    helpText += '/verifybail \\[txHash\\] \\- Verify your bail payment\n';
+    helpText += '/verifybailfor \\[userId\\] \\[txHash\\] \\- Verify bail paid for someone\n\n';
 
     // Elevated user commands
     if (role === 'elevated' || role === 'admin' || role === 'owner') {
@@ -35,11 +41,11 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
       helpText += '/removerestriction \\[userId\\] \\[type\\] \\- Remove restriction\n';
       helpText += '/addwhitelist \\[userId\\] \\- Whitelist user\n';
       helpText += '/removewhitelist \\[userId\\] \\- Remove from whitelist\n';
-      helpText += '/addblacklist \\[userId\\] \\- Blacklist user\n';
-      helpText += '/removeblacklist \\[userId\\] \\- Remove from blacklist\n';
-      helpText += '/jail \\[userId\\] \\[minutes\\] \\- Jail user \\(also: /silence\\)\n';
-      helpText += '/unjail \\[userId\\] \\- Release user \\(also: /unsilence\\)\n';
-      helpText += '/warn \\[userId\\] \\[reason\\] \\- Issue warning\n\n';
+      helpText += '/addblacklist \\[@username\\|userId\\] \\- Blacklist user\n';
+      helpText += '/removeblacklist \\[@username\\|userId\\] \\- Remove from blacklist\n';
+      helpText += '/jail \\[@username\\|userId\\] \\[minutes\\] \\- Jail user \\(also: /silence\\)\n';
+      helpText += '/unjail \\[@username\\|userId\\] \\- Release user \\(also: /unsilence\\)\n';
+      helpText += '/warn \\[@username\\|userId\\] \\[reason\\] \\- Issue warning\n\n';
     }
 
     // Owner commands

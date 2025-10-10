@@ -11,8 +11,10 @@ import { registerBlacklistHandlers } from './handlers/blacklist';
 import { registerHelpCommand } from './commands/help';
 import { registerModerationCommands } from './commands/moderation';
 import { registerPaymentCommands } from './commands/payment';
+import { registerJailCommands } from './commands/jail';
 import { RestrictionService } from './services/restrictionService';
 import { JunoService } from './services/junoService';
+import { JailService } from './services/jailService';
 
 async function main() {
   try {
@@ -28,6 +30,9 @@ async function main() {
     // Create bot instance
     const bot = new Telegraf(config.botToken);
 
+    // Initialize jail service with bot instance
+    JailService.initialize(bot);
+
     // Apply global middleware
     bot.use(messageFilterMiddleware);
 
@@ -40,6 +45,7 @@ async function main() {
     registerRestrictionHandlers(bot);
     registerModerationCommands(bot);
     registerPaymentCommands(bot);
+    registerJailCommands(bot);
 
     // Error handling
     bot.catch((err, ctx) => {
@@ -51,6 +57,11 @@ async function main() {
       RestrictionService.cleanExpiredRestrictions();
     }, 60 * 60 * 1000);
 
+    // Periodic cleanup of expired jails (every 5 minutes)
+    setInterval(() => {
+      JailService.cleanExpiredJails();
+    }, 5 * 60 * 1000);
+
     // Graceful shutdown
     process.once('SIGINT', () => bot.stop('SIGINT'));
     process.once('SIGTERM', () => bot.stop('SIGTERM'));
@@ -58,7 +69,7 @@ async function main() {
     // Start the bot
     await bot.launch();
     logger.info('Bot started successfully');
-    console.log('🤖 CAC Admin Bot is running...');
+    console.log(' CAC Admin Bot is running...');
 
   } catch (error) {
     logger.error('Failed to start bot', error);

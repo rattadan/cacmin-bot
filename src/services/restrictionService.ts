@@ -147,7 +147,7 @@ export class RestrictionService {
 
       // Send warning to user
       await ctx.reply(
-        `⚠️ Your message was deleted for violating restriction: ${restriction.restriction}\n` +
+        ` Your message was deleted for violating restriction: ${restriction.restriction}\n` +
         `A violation has been recorded. Use /violations to check your status.`
       );
 

@@ -52,12 +52,13 @@ export function getUnpaidViolations(userId: number): Violation[] {
   );
 }
 
-export function markViolationPaid(violationId: number, txHash: string): void {
+export function markViolationPaid(violationId: number, txHash: string, paidByUserId?: number): void {
+  const now = Math.floor(Date.now() / 1000);
   execute(
-    'UPDATE violations SET paid = 1, payment_tx = ? WHERE id = ?',
-    [txHash, violationId]
+    'UPDATE violations SET paid = 1, payment_tx = ?, paid_by_user_id = ?, paid_at = ? WHERE id = ?',
+    [txHash, paidByUserId || null, now, violationId]
   );
-  logger.info('Violation marked as paid', { violationId, txHash });
+  logger.info('Violation marked as paid', { violationId, txHash, paidByUserId });
 }
 
 export function getTotalFines(userId: number): number {

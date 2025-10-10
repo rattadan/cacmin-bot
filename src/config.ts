@@ -7,6 +7,7 @@ interface Config {
   botToken: string;
   junoRpcUrl: string;
   adminChatId: number;
+  groupChatId?: number;
   ownerId: number;
   junoWalletAddress?: string;
   junoWalletMnemonic?: string;
@@ -29,6 +30,7 @@ export const config: Config = {
   botToken: process.env.BOT_TOKEN || '',
   junoRpcUrl: process.env.JUNO_RPC_URL || 'https://rpc.juno.basementnodes.ca',
   adminChatId: parseInt(process.env.ADMIN_CHAT_ID || '0'),
+  groupChatId: process.env.GROUP_CHAT_ID ? parseInt(process.env.GROUP_CHAT_ID) : undefined,
   ownerId: parseInt(process.env.OWNER_ID || '0'),
   junoWalletAddress: process.env.JUNO_WALLET_ADDRESS,
   junoWalletMnemonic: process.env.JUNO_WALLET_MNEMONIC,

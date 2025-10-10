@@ -15,6 +15,9 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
     // Universal commands
     helpText += '*General:*\n';
     helpText += '/help \\- Show this help message\n';
+    helpText += '/wallet \\- View your wallet address and balance\n';
+    helpText += '/mybalance \\- Check your wallet balance\n';
+    helpText += '/deposit \\- Get deposit instructions\n';
     helpText += '/mystatus \\- Check your jail status and fines\n';
     helpText += '/jails \\- View all active jails\n';
     helpText += '/violations \\- Check your violations\n';
@@ -36,7 +39,9 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
     // Admin commands
     if (role === 'admin' || role === 'owner') {
       helpText += '*Admin Commands:*\n';
-      helpText += '/elevate \\[username\\] \\- Grant elevated privileges\n';
+      helpText += '/elevate \\[username\\|userId\\] \\- Grant elevated privileges\n';
+      helpText += '/revoke \\[username\\|userId\\] \\- Revoke privileges\n';
+      helpText += '/listadmins \\- List all users with elevated roles\n';
       helpText += '/addrestriction \\[userId\\] \\[type\\] \\[action\\] \\[until\\] \\- Add restriction\n';
       helpText += '/removerestriction \\[userId\\] \\[type\\] \\- Remove restriction\n';
       helpText += '/addwhitelist \\[userId\\] \\- Whitelist user\n';
@@ -46,11 +51,18 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
       helpText += '/jail \\[@username\\|userId\\] \\[minutes\\] \\- Jail user \\(also: /silence\\)\n';
       helpText += '/unjail \\[@username\\|userId\\] \\- Release user \\(also: /unsilence\\)\n';
       helpText += '/warn \\[@username\\|userId\\] \\[reason\\] \\- Issue warning\n\n';
+
+      helpText += '*Treasury Commands:*\n';
+      helpText += '/balance \\- Check bot wallet balance\n';
+      helpText += '/treasury \\- View treasury status\n';
+      helpText += '/giveaway \\[@username\\|userId\\] \\[amount\\] \\- Send JUNO to user\n\n';
     }
 
     // Owner commands
     if (role === 'owner') {
       helpText += '*Owner Commands:*\n';
+      helpText += '/setowner \\- Initialize yourself as master owner\n';
+      helpText += '/grantowner \\[@username\\|userId\\] \\- Grant owner privileges to another user\n';
       helpText += '/makeadmin \\[username\\] \\- Promote to admin\n';
       helpText += '/revoke \\[username\\] \\- Revoke privileges\n';
       helpText += '/clearviolations \\[userId\\] \\- Clear violations\n';

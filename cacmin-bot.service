@@ -1,0 +1,41 @@
+[Unit]
+Description=CAC Admin Telegram Bot
+Documentation=https://github.com/Cordtus/cacmin-bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/root/repos/cacmin-bot
+
+# Main process
+ExecStart=/usr/bin/yarn start
+
+# Restart configuration
+Restart=always
+RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# Environment
+Environment=NODE_ENV=production
+Environment=LOG_LEVEL=info
+
+# Logging configuration
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cacmin-bot
+
+# Security hardening (optional, adjust as needed for LXC)
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Graceful shutdown
+TimeoutStopSec=30
+KillMode=mixed
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target

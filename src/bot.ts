@@ -12,9 +12,12 @@ import { registerHelpCommand } from './commands/help';
 import { registerModerationCommands } from './commands/moderation';
 import { registerPaymentCommands } from './commands/payment';
 import { registerJailCommands } from './commands/jail';
+import { registerGiveawayCommands } from './commands/giveaway';
+import { registerWalletCommands } from './commands/wallet';
 import { RestrictionService } from './services/restrictionService';
 import { JunoService } from './services/junoService';
 import { JailService } from './services/jailService';
+import { WalletService } from './services/walletService';
 
 async function main() {
   try {
@@ -26,6 +29,9 @@ async function main() {
 
     // Initialize JUNO service
     await JunoService.initialize();
+
+    // Initialize Wallet service
+    WalletService.initialize();
 
     // Create bot instance
     const bot = new Telegraf(config.botToken);
@@ -46,6 +52,8 @@ async function main() {
     registerModerationCommands(bot);
     registerPaymentCommands(bot);
     registerJailCommands(bot);
+    registerGiveawayCommands(bot);
+    registerWalletCommands(bot);
 
     // Error handling
     bot.catch((err, ctx) => {

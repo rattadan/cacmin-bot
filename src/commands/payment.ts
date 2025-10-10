@@ -1,11 +1,134 @@
 import { Telegraf, Context } from 'telegraf';
 import { JunoService } from '../services/junoService';
+import { WalletService } from '../services/walletService';
+import { JailService } from '../services/jailService';
 import { getUnpaidViolations, markViolationPaid, getTotalFines } from '../services/violationService';
-import { get } from '../database';
-import { Violation } from '../types';
+import { get, query, execute } from '../database';
+import { Violation, User } from '../types';
 import { logger } from '../utils/logger';
 
 export function registerPaymentCommands(bot: Telegraf<Context>): void {
+  // Pay fines from user wallet (DM only)
+  bot.command('payfines', async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    // Only allow in DM
+    if (ctx.chat?.type !== 'private') {
+      return ctx.reply('⚠️ Fine payment can only be done in direct messages with the bot.');
+    }
+
+    try {
+      const violations = getUnpaidViolations(userId);
+
+      if (violations.length === 0) {
+        return ctx.reply('✅ You have no unpaid fines!');
+      }
+
+      const totalFines = getTotalFines(userId);
+      const balance = await WalletService.getUserBalance(userId);
+
+      let message = `💰 *Your Unpaid Fines*\n\n`;
+      violations.forEach(v => {
+        message += `• ID ${v.id}: ${v.restriction} - ${v.bailAmount.toFixed(2)} JUNO\n`;
+      });
+
+      message += `\n*Total: ${totalFines.toFixed(2)} JUNO*\n`;
+      message += `Your wallet balance: ${balance.toFixed(6)} JUNO\n\n`;
+
+      if (balance >= totalFines) {
+        message += `✅ You have sufficient funds.\n\nUse /payallfi nes to pay all fines at once.`;
+      } else {
+        message += `❌ Insufficient funds. Please deposit more JUNO.\n\n`;
+        message += `Use /deposit to get your wallet address.`;
+      }
+
+      await ctx.reply(message, { parse_mode: 'Markdown' });
+    } catch (error) {
+      logger.error('Error showing fines', { userId, error });
+      await ctx.reply('❌ Error fetching fines.');
+    }
+  });
+
+  // Pay all fines at once from wallet
+  bot.command('payallfines', async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    if (ctx.chat?.type !== 'private') {
+      return ctx.reply('⚠️ Fine payment can only be done in direct messages with the bot.');
+    }
+
+    try {
+      const violations = getUnpaidViolations(userId);
+
+      if (violations.length === 0) {
+        return ctx.reply('✅ You have no unpaid fines!');
+      }
+
+      const totalFines = getTotalFines(userId);
+      const balance = await WalletService.getUserBalance(userId);
+
+      if (balance < totalFines) {
+        return ctx.reply(
+          `❌ Insufficient balance.\n\n` +
+          `Total fines: ${totalFines.toFixed(2)} JUNO\n` +
+          `Your balance: ${balance.toFixed(6)} JUNO\n\n` +
+          `Please deposit more JUNO using /deposit`
+        );
+      }
+
+      // Collect payment from user wallet to treasury
+      const result = await WalletService.collectFromUser(
+        userId,
+        totalFines,
+        `Payment for ${violations.length} violations`
+      );
+
+      if (result.success) {
+        // Mark all violations as paid
+        violations.forEach(v => {
+          markViolationPaid(v.id, result.txHash || '', userId);
+        });
+
+        // Release from jail if jailed
+        const user = get<User>('SELECT * FROM users WHERE id = ?', [userId]);
+        if (user?.muted_until && user.muted_until > Date.now() / 1000) {
+          execute('UPDATE users SET muted_until = NULL WHERE id = ?', [userId]);
+        }
+
+        const newBalance = await WalletService.getUserBalance(userId);
+
+        await ctx.reply(
+          `✅ *All Fines Paid!*\n\n` +
+          `Violations cleared: ${violations.length}\n` +
+          `Amount paid: ${totalFines.toFixed(2)} JUNO\n` +
+          `TX: \`${result.txHash}\`\n\n` +
+          `New balance: ${newBalance.toFixed(6)} JUNO\n\n` +
+          `You have been released from jail (if applicable).`,
+          { parse_mode: 'Markdown' }
+        );
+
+        logger.info('User paid all fines from wallet', {
+          userId,
+          violations: violations.length,
+          amount: totalFines,
+          txHash: result.txHash
+        });
+      } else {
+        await ctx.reply(
+          `❌ *Payment Failed*\n\n` +
+          `Error: ${result.error}`,
+          { parse_mode: 'Markdown' }
+        );
+      }
+    } catch (error) {
+      logger.error('Error paying fines', { userId, error });
+      await ctx.reply('❌ Error processing payment.');
+    }
+  });
+
+  // Original payfine command (kept for backwards compatibility)
   bot.command('payfine', async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;

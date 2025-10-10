@@ -25,10 +25,10 @@ async function setupDatabase() {
 
     db.close();
 
-    console.log('✅ Database setup complete!');
+    console.log(' Database setup complete!');
     process.exit(0);
   } catch (error) {
-    console.error('❌ Database setup failed:', error);
+    console.error(' Database setup failed:', error);
     process.exit(1);
   }
 }

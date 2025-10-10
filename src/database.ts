@@ -53,6 +53,22 @@ export const initDb = (): void => {
     );
   `);
 
+  // User wallets table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_wallets (
+      user_id INTEGER PRIMARY KEY,
+      address TEXT NOT NULL UNIQUE,
+      hd_path TEXT NOT NULL,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+
+  // Create index for faster address lookups
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_user_wallets_address ON user_wallets(address);
+  `);
+
   // Enhanced rules table
   db.exec(`
     CREATE TABLE IF NOT EXISTS rules (

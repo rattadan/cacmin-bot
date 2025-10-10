@@ -31,7 +31,7 @@ function runMigrations() {
   if (!fs.existsSync(MIGRATIONS_DIR)) {
     console.log('No migrations directory found. Creating...');
     fs.mkdirSync(MIGRATIONS_DIR, { recursive: true });
-    console.log('✅ Migrations directory created. No migrations to apply.');
+    console.log(' Migrations directory created. No migrations to apply.');
     db.close();
     return;
   }
@@ -58,7 +58,7 @@ function runMigrations() {
         db.prepare('INSERT INTO migrations (name) VALUES (?)').run(file);
       })();
 
-      console.log(`✅ Applied: ${file}`);
+      console.log(` Applied: ${file}`);
     }
   }
 

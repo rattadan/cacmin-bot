@@ -35,44 +35,33 @@ export const userManagementMiddleware: MiddlewareFn<Context> = (ctx, next) => {
 };
 
 /**
- * Middleware to restrict access to elevated users or higher.
- */
-export const isElevated: MiddlewareFn<Context> = (ctx, next) => {
-  const userId = ctx.from?.id;
-  if (!userId) {
-    return ctx.reply('User ID not found.');
-  }
-
-  const user = query<User>('SELECT * FROM users WHERE id = ?', [userId])[0];
-  if (user?.role === 'owner' || user?.role === 'elevated') {
-    return next();
-  }
-
-  return ctx.reply('You do not have permission to use this command.');
-};
-
-/**
- * Middleware to restrict access to the group owner.
+ * Middleware to restrict access to owners only.
  */
 export const ownerOnly: MiddlewareFn<Context> = (ctx, next) => {
-  const ownerId = 123456789; // Replace with your group's owner Telegram user ID
-  if (!ctx.from || !isGroupOwner(ctx.from.id, ownerId)) {
-    return ctx.reply('Only the group owner can use this command.');
-  }
-  return next();
-};
-
-/**
- * Middleware to check if the user is an elevated admin or owner.
- */
-export const elevatedAdminOnly: MiddlewareFn<Context> = (ctx, next) => {
   const userId = ctx.from?.id;
   if (!userId) {
     return ctx.reply('User ID not found.');
   }
 
   const user = query<User>('SELECT * FROM users WHERE id = ?', [userId])[0];
-  if (user?.role === 'owner' || (user?.role === 'admin' && hasRole(user.id, 'elevated'))) {
+  if (user?.role === 'owner') {
+    return next();
+  }
+
+  return ctx.reply('Only owners can use this command.');
+};
+
+/**
+ * Middleware to restrict access to admins or higher (admin, owner).
+ */
+export const adminOrHigher: MiddlewareFn<Context> = (ctx, next) => {
+  const userId = ctx.from?.id;
+  if (!userId) {
+    return ctx.reply('User ID not found.');
+  }
+
+  const user = query<User>('SELECT * FROM users WHERE id = ?', [userId])[0];
+  if (user?.role === 'owner' || user?.role === 'admin') {
     return next();
   }
 
@@ -80,18 +69,24 @@ export const elevatedAdminOnly: MiddlewareFn<Context> = (ctx, next) => {
 };
 
 /**
- * Middleware to check if the user is an elevated user.
+ * Middleware to restrict access to elevated or higher (elevated, admin, owner).
+ * Elevated users can view information but have limited modification powers.
  */
-export const elevatedUserOnly: MiddlewareFn<Context> = (ctx, next) => {
+export const elevatedOrHigher: MiddlewareFn<Context> = (ctx, next) => {
   const userId = ctx.from?.id;
   if (!userId) {
     return ctx.reply('User ID not found.');
   }
 
   const user = query<User>('SELECT * FROM users WHERE id = ?', [userId])[0];
-  if (user?.role === 'owner' || user?.role === 'elevated') {
+  if (user?.role === 'owner' || user?.role === 'admin' || user?.role === 'elevated') {
     return next();
   }
 
   return ctx.reply('You do not have permission to use this command.');
 };
+
+// Legacy aliases for backward compatibility
+export const isElevated = elevatedOrHigher;
+export const elevatedUserOnly = elevatedOrHigher;
+export const elevatedAdminOnly = adminOrHigher;

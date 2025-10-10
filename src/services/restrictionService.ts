@@ -1,6 +1,6 @@
 import { Context } from 'telegraf';
 import { Message } from 'telegraf/typings/core/types/typegram';
-import { UserRestriction, GlobalAction } from '../types';
+import { UserRestriction, GlobalAction, User } from '../types';
 import { query, execute } from '../database';
 import { logger } from '../utils/logger';
 import { createViolation } from './violationService';
@@ -9,23 +9,28 @@ export class RestrictionService {
   /**
    * Check if a message violates any restrictions
    */
-  static async checkMessage(ctx: Context, message: Message): Promise<boolean> {
+  static async checkMessage(ctx: Context, message: Message, user?: User): Promise<boolean> {
     if (!ctx.from) return false;
 
     const userId = ctx.from.id;
     const now = Math.floor(Date.now() / 1000);
 
-    // Get user restrictions
+    // Get user restrictions - ALWAYS apply these
     const userRestrictions = query<UserRestriction>(
       'SELECT * FROM user_restrictions WHERE user_id = ? AND (restricted_until IS NULL OR restricted_until > ?)',
       [userId, now]
     );
 
-    // Get global restrictions
-    const globalRestrictions = query<GlobalAction>(
-      'SELECT * FROM global_restrictions WHERE restricted_until IS NULL OR restricted_until > ?',
-      [now]
-    );
+    // Get global restrictions - only apply if user is NOT elevated
+    let globalRestrictions: GlobalAction[] = [];
+    const isElevated = user?.role === 'elevated';
+
+    if (!isElevated) {
+      globalRestrictions = query<GlobalAction>(
+        'SELECT * FROM global_restrictions WHERE restricted_until IS NULL OR restricted_until > ?',
+        [now]
+      );
+    }
 
     // Check each restriction type
     for (const restriction of [...userRestrictions, ...globalRestrictions]) {

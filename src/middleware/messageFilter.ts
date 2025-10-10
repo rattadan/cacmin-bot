@@ -18,7 +18,7 @@ export const messageFilterMiddleware: MiddlewareFn<Context> = async (ctx, next) 
     // Get user from database
     const user = get<User>('SELECT * FROM users WHERE id = ?', [ctx.from.id]);
 
-    // Skip filtering for whitelisted users and elevated roles
+    // Skip ALL filtering for whitelisted users, owners, and admins
     if (user?.whitelist || user?.role === 'owner' || user?.role === 'admin') {
       return next();
     }
@@ -41,7 +41,7 @@ export const messageFilterMiddleware: MiddlewareFn<Context> = async (ctx, next) 
 
     // Check message against restrictions (only in group chats)
     if (isGroupChat) {
-      const violated = await RestrictionService.checkMessage(ctx, ctx.message);
+      const violated = await RestrictionService.checkMessage(ctx, ctx.message, user);
 
       if (violated) {
         // Message was deleted and violation recorded

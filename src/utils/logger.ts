@@ -1,69 +1,76 @@
-import * as fs from 'fs';
+import * as winston from 'winston';
 import * as path from 'path';
+import * as fs from 'fs';
 import { config } from '../config';
 
-export enum LogLevel {
-  ERROR = 0,
-  WARN = 1,
-  INFO = 2,
-  DEBUG = 3
+// Ensure log directory exists
+const logDir = path.join(__dirname, '../../logs');
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir, { recursive: true });
 }
 
-class Logger {
-  private logLevel: LogLevel;
-  private logFile: string;
-
-  constructor(level: string = 'info') {
-    this.logLevel = this.parseLevel(level);
-    this.logFile = path.join(__dirname, '../../logs', `bot-${new Date().toISOString().split('T')[0]}.log`);
-    this.ensureLogDirectory();
-  }
-
-  private parseLevel(level: string): LogLevel {
-    switch (level.toLowerCase()) {
-      case 'error': return LogLevel.ERROR;
-      case 'warn': return LogLevel.WARN;
-      case 'debug': return LogLevel.DEBUG;
-      default: return LogLevel.INFO;
+// Custom format for log entries
+const logFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.errors({ stack: true }),
+  winston.format.printf(({ timestamp, level, message, ...meta }) => {
+    let msg = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+    if (Object.keys(meta).length > 0 && meta.stack) {
+      msg += `\n${meta.stack}`;
+    } else if (Object.keys(meta).length > 0) {
+      msg += ` ${JSON.stringify(meta)}`;
     }
-  }
+    return msg;
+  })
+);
 
-  private ensureLogDirectory(): void {
-    const logDir = path.dirname(this.logFile);
-    if (!fs.existsSync(logDir)) {
-      fs.mkdirSync(logDir, { recursive: true });
-    }
-  }
-
-  private log(level: LogLevel, message: string, data?: any): void {
-    if (level > this.logLevel) return;
-
-    const timestamp = new Date().toISOString();
-    const levelStr = LogLevel[level];
-    const logEntry = `[${timestamp}] [${levelStr}] ${message}${data ? ' ' + JSON.stringify(data) : ''}\n`;
-
+// Create winston logger with rotation
+export const logger = winston.createLogger({
+  level: config.logLevel || 'info',
+  format: logFormat,
+  transports: [
     // Console output
-    console.log(logEntry.trim());
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        logFormat
+      )
+    }),
+    // Combined log file with rotation
+    new winston.transports.File({
+      filename: path.join(logDir, 'combined.log'),
+      maxsize: 10485760, // 10MB
+      maxFiles: 5,
+      tailable: true
+    }),
+    // Error log file with rotation
+    new winston.transports.File({
+      filename: path.join(logDir, 'error.log'),
+      level: 'error',
+      maxsize: 10485760, // 10MB
+      maxFiles: 5,
+      tailable: true
+    })
+  ],
+  exceptionHandlers: [
+    new winston.transports.File({
+      filename: path.join(logDir, 'exceptions.log'),
+      maxsize: 10485760, // 10MB
+      maxFiles: 3
+    })
+  ],
+  rejectionHandlers: [
+    new winston.transports.File({
+      filename: path.join(logDir, 'rejections.log'),
+      maxsize: 10485760, // 10MB
+      maxFiles: 3
+    })
+  ]
+});
 
-    // File output
-    fs.appendFileSync(this.logFile, logEntry);
+// Add stream for Morgan or other middleware if needed
+export const logStream = {
+  write: (message: string) => {
+    logger.info(message.trim());
   }
-
-  error(message: string, error?: any): void {
-    this.log(LogLevel.ERROR, message, error);
-  }
-
-  warn(message: string, data?: any): void {
-    this.log(LogLevel.WARN, message, data);
-  }
-
-  info(message: string, data?: any): void {
-    this.log(LogLevel.INFO, message, data);
-  }
-
-  debug(message: string, data?: any): void {
-    this.log(LogLevel.DEBUG, message, data);
-  }
-}
-
-export const logger = new Logger(config.logLevel);
+};

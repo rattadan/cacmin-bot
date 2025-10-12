@@ -78,14 +78,25 @@ if (fs.existsSync(dbPath)) {
   console.log('   Run: yarn setup-db');
 }
 
-// Check build files
-console.log('\n Checking build files...');
-if (fs.existsSync('./dist/bot.js')) {
-  console.log(' Bot build: exists');
+// Check build files (skip if this is a post-build validation)
+const isPostBuildValidation = process.env.BUILD_VALIDATION === 'true';
+if (!isPostBuildValidation) {
+  console.log('\n Checking build files...');
+  if (fs.existsSync('./dist/bot.js')) {
+    console.log(' Bot build: exists');
+  } else {
+    console.log(' Bot build: missing');
+    console.log('   Run: yarn build');
+    hasErrors = true;
+  }
 } else {
-  console.log(' Bot build: missing');
-  console.log('   Run: yarn build');
-  hasErrors = true;
+  console.log('\n Checking build files...');
+  if (fs.existsSync('./dist/bot.js')) {
+    console.log(' Bot build: exists (fresh build)');
+  } else {
+    console.log(' Bot build: FAILED - TypeScript compilation did not produce dist/bot.js');
+    hasErrors = true;
+  }
 }
 
 // Check dependencies

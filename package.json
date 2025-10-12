@@ -5,18 +5,22 @@
   "main": "dist/bot.js",
   "scripts": {
     "start": "node dist/bot.js",
+    "start:prod": "npm run validate && node dist/bot.js",
     "dev": "ts-node-dev --respawn --transpile-only src/bot.ts",
     "build": "tsc",
+    "build:clean": "npm run clean && npm run build",
+    "build:full": "npm run clean && npm run build && npm run validate:postbuild",
     "setup-db": "ts-node scripts/setup-db.ts",
     "migrate": "ts-node scripts/migrate.ts",
     "validate": "ts-node scripts/validate.ts",
-    "prestart": "npm run validate",
+    "validate:postbuild": "BUILD_VALIDATION=true ts-node scripts/validate.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write src/**/*.ts",
     "clean": "rm -rf dist",
-    "prebuild": "npm run clean"
+    "prebuild": "npm run clean",
+    "deploy": "npm run build:clean && npm run validate:postbuild"
   },
   "keywords": [
     "telegram",

@@ -10,8 +10,8 @@ User=root
 Group=root
 WorkingDirectory=/root/repos/cacmin-bot
 
-# Main process
-ExecStart=/usr/bin/yarn start
+# Main process (start:prod includes validation)
+ExecStart=/usr/bin/yarn start:prod
 
 # Restart configuration
 Restart=always

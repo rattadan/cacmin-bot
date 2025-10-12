@@ -39,11 +39,34 @@ Cosmos Airdrops Chat **Improved Admin Bot** built with [Telegraf](https://telegr
 
 ## **Installation**
 
+### **Quick Start**
+
+For the fastest setup with automatic wallet configuration:
+
+```bash
+# Clone and install
+git clone <repo-url>
+cd cacmin-bot
+yarn install
+
+# Create minimal .env file
+echo "BOT_TOKEN=your_bot_token_here" > .env
+echo "OWNER_ID=your_telegram_user_id" >> .env
+
+# Run automatic setup (generates wallets, configures everything)
+./quickstart.sh
+
+# Start the bot
+yarn start
+```
+
+### **Manual Installation**
+
 1. Clone the repository:
 
    ```bash
    git clone <repo-url>
-   cd <repo-folder>
+   cd cacmin-bot
    ```
 
 2. Install dependencies:
@@ -52,24 +75,64 @@ Cosmos Airdrops Chat **Improved Admin Bot** built with [Telegraf](https://telegr
    yarn install
    ```
 
-3. Configure the bot token:
-   - Add a `config.ts` file in the root directory:
+3. Configure the bot:
+   - Copy `.env.example` to `.env`:
 
-     ```typescript
-     export const BOT_TOKEN = 'YOUR_BOT_TOKEN';
+     ```bash
+     cp .env.example .env
      ```
 
-   - Replace `YOUR_BOT_TOKEN` with your Telegram bot token.
+   - Edit `.env` and set your bot token and owner ID:
 
-4. Set up the SQLite database:
+     ```env
+     BOT_TOKEN=your_bot_token_here
+     OWNER_ID=your_telegram_user_id
+     ```
+
+4. Set up wallets (choose one method):
+
+   **Method A: Single Mnemonic (Recommended)**
+   ```bash
+   # Generates one mnemonic for both wallets using HD paths
+   npx ts-node scripts/setup-from-single-mnemonic.ts
+   ```
+
+   **Method B: Separate Wallets**
+   ```bash
+   # Interactive wallet setup with separate mnemonics
+   npx ts-node scripts/auto-setup-wallets.ts
+   ```
+
+   **Method C: Manual Configuration**
+   ```bash
+   # Generate wallets manually
+   npx ts-node scripts/wallet-utils.ts
+   # Then add to .env:
+   # BOT_TREASURY_ADDRESS=juno1...
+   # USER_FUNDS_ADDRESS=juno1...
+   # USER_FUNDS_MNEMONIC=word1 word2 ...
+   ```
+
+5. Initialize the database:
 
    ```bash
    yarn run setup-db
    ```
 
-5. Start the bot:
+6. Build and validate:
 
    ```bash
+   yarn build:clean
+   yarn validate
+   ```
+
+7. Start the bot:
+
+   ```bash
+   # Development
+   yarn dev
+
+   # Production
    yarn start
    ```
 

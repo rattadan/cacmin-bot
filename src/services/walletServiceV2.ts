@@ -38,20 +38,66 @@ export class WalletServiceV2 {
 
     // Initialize wallet for user funds if mnemonic is provided
     if (config.userFundsMnemonic) {
+      // First try to match the user funds address with HD index 1
       this.userFundsWallet = await DirectSecp256k1HdWallet.fromMnemonic(
         config.userFundsMnemonic,
         {
-          prefix: 'juno'
+          prefix: 'juno',
+          hdPaths: [{
+            account: 0,
+            change: 0,
+            addressIndex: 1  // User funds uses HD index 1
+          }]
         }
       );
 
       // Verify the address matches
-      const [account] = await this.userFundsWallet.getAccounts();
-      if (account.address !== this.userFundsAddress) {
-        logger.warn('User funds wallet address mismatch', {
-          configured: this.userFundsAddress,
-          derived: account.address
-        });
+      const [userFundsAccount] = await this.userFundsWallet.getAccounts();
+
+      // If it doesn't match, try the default HD path (index 0) for backward compatibility
+      if (userFundsAccount.address !== this.userFundsAddress) {
+        logger.info('Trying default HD path for backward compatibility');
+
+        this.userFundsWallet = await DirectSecp256k1HdWallet.fromMnemonic(
+          config.userFundsMnemonic,
+          {
+            prefix: 'juno'
+          }
+        );
+
+        const [defaultAccount] = await this.userFundsWallet.getAccounts();
+
+        if (defaultAccount.address !== this.userFundsAddress) {
+          logger.warn('User funds wallet address mismatch', {
+            configured: this.userFundsAddress,
+            derivedIndex1: userFundsAccount.address,
+            derivedDefault: defaultAccount.address
+          });
+        } else {
+          logger.info('Using default HD path for user funds wallet');
+        }
+      } else {
+        logger.info('Using HD index 1 for user funds wallet');
+      }
+
+      // Also derive treasury address to verify configuration
+      if (config.botTreasuryAddress) {
+        const treasuryWallet = await DirectSecp256k1HdWallet.fromMnemonic(
+          config.userFundsMnemonic,
+          {
+            prefix: 'juno',
+            hdPaths: [{
+              account: 0,
+              change: 0,
+              addressIndex: 0  // Treasury uses HD index 0
+            }]
+          }
+        );
+
+        const [treasuryAccount] = await treasuryWallet.getAccounts();
+        if (treasuryAccount.address === this.botTreasuryAddress) {
+          logger.info('Detected single mnemonic setup with HD paths (treasury=0, userFunds=1)');
+        }
       }
     }
 

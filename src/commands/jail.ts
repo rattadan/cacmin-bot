@@ -26,6 +26,76 @@ function formatTimeRemaining(seconds: number): string {
 }
 
 export function registerJailCommands(bot: Telegraf<Context>): void {
+  // Global jail statistics (elevated users only)
+  bot.command('jailstats', async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    // Check if user is elevated or higher
+    const { checkIsElevated } = await import('../utils/roles');
+    if (!checkIsElevated(userId)) {
+      return ctx.reply('⛔ This command requires elevated privileges or higher.');
+    }
+
+    const { query, get: getRecord } = await import('../database');
+    const now = Math.floor(Date.now() / 1000);
+
+    // Get statistics
+    const activeJails = JailService.getActiveJails();
+    const totalJailEvents = getRecord<{ count: number }>(
+      'SELECT COUNT(*) as count FROM jail_events'
+    )?.count || 0;
+
+    const totalJailed = getRecord<{ count: number }>(
+      'SELECT COUNT(DISTINCT user_id) as count FROM jail_events WHERE event_type = ?',
+      ['jailed']
+    )?.count || 0;
+
+    const totalBailsPaid = getRecord<{ count: number }>(
+      'SELECT COUNT(*) as count FROM jail_events WHERE event_type = ?',
+      ['bail_paid']
+    )?.count || 0;
+
+    const totalBailAmount = getRecord<{ total: number }>(
+      'SELECT SUM(bail_amount) as total FROM jail_events WHERE event_type = ?',
+      ['bail_paid']
+    )?.total || 0;
+
+    const totalAutoReleases = getRecord<{ count: number }>(
+      'SELECT COUNT(*) as count FROM jail_events WHERE event_type = ?',
+      ['auto_unjailed']
+    )?.count || 0;
+
+    const totalManualReleases = getRecord<{ count: number }>(
+      'SELECT COUNT(*) as count FROM jail_events WHERE event_type = ?',
+      ['unjailed']
+    )?.count || 0;
+
+    let message = `🔒 *Jail System Statistics*\n\n`;
+    message += `*Currently Active Jails:* ${activeJails.length}\n\n`;
+
+    if (activeJails.length > 0) {
+      message += `*Active Prisoners:*\n`;
+      activeJails.forEach((jail, index) => {
+        const timeRemaining = formatTimeRemaining(jail.timeRemaining);
+        const userDisplay = formatUserIdDisplay(jail.id);
+        const bailAmount = JailService.calculateBailAmount(Math.ceil(jail.timeRemaining / 60));
+        message += `${index + 1}. ${userDisplay} - ${timeRemaining} (${bailAmount.toFixed(2)} JUNO)\n`;
+      });
+      message += `\n`;
+    }
+
+    message += `*All-Time Statistics:*\n`;
+    message += `Total Jail Events: ${totalJailEvents}\n`;
+    message += `Unique Users Jailed: ${totalJailed}\n`;
+    message += `Bails Paid: ${totalBailsPaid}\n`;
+    message += `Total Bail Revenue: ${totalBailAmount.toFixed(2)} JUNO\n`;
+    message += `Auto-Releases: ${totalAutoReleases}\n`;
+    message += `Manual Releases: ${totalManualReleases}\n`;
+
+    await ctx.reply(message, { parse_mode: 'Markdown' });
+  });
+
   // User command to check their own status
   bot.command('mystatus', async (ctx) => {
     const userId = ctx.from?.id;

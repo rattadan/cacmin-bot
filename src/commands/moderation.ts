@@ -5,6 +5,7 @@ import { logger } from '../utils/logger';
 import { config } from '../config';
 import { resolveUserId, formatUserIdDisplay } from '../utils/userResolver';
 import { JailService } from '../services/jailService';
+import { getUserIdentifier, getCommandArgs } from '../utils/commandHelper';
 
 export function registerModerationCommands(bot: Telegraf<Context>): void {
   // Jail command (replaces mute to avoid conflicts with Rose bot)
@@ -14,21 +15,39 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
 
     const admin = get<User>('SELECT * FROM users WHERE id = ?', [adminId]);
     if (!admin || (admin.role !== 'admin' && admin.role !== 'owner')) {
-      return ctx.reply(' You do not have permission to use this command.');
+      return ctx.reply('⛔ You do not have permission to use this command.');
     }
 
-    const args = ctx.message && 'text' in ctx.message ? ctx.message.text.split(' ').slice(1) : [];
-    if (!args || args.length < 2) {
-      return ctx.reply('Usage: /jail <@username|userId> <minutes> or /silence <@username|userId> <minutes>');
+    // Get user identifier (supports reply-to-message or explicit username/userId)
+    const userIdentifier = getUserIdentifier(ctx);
+    const isReply = ctx.message && 'reply_to_message' in ctx.message && ctx.message.reply_to_message;
+
+    // Get command arguments (excluding user identifier if not a reply)
+    const args = isReply
+      ? (ctx.message && 'text' in ctx.message ? ctx.message.text.split(' ').slice(1) : [])
+      : getCommandArgs(ctx, true);
+
+    if (!userIdentifier) {
+      return ctx.reply(
+        '💡 *Usage:*\n' +
+        '• Reply to a user: `/jail <minutes>`\n' +
+        '• Direct: `/jail <@username|userId> <minutes>`\n' +
+        '• Alias: `/silence`',
+        { parse_mode: 'Markdown' }
+      );
     }
 
-    const [userIdentifier, minutesStr] = args;
+    if (args.length < 1) {
+      return ctx.reply('⚠️ Please specify duration in minutes.');
+    }
+
+    const minutesStr = args[0];
     const minutes = parseInt(minutesStr);
 
     // Resolve username or userId to numeric ID
     const userId = resolveUserId(userIdentifier);
     if (!userId) {
-      return ctx.reply(' User not found. Please use a valid @username or userId.');
+      return ctx.reply('❌ User not found. Please use a valid @username or userId.');
     }
 
     if (isNaN(minutes) || minutes < 1) {

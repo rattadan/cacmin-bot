@@ -19,11 +19,11 @@ export async function lockCheckMiddleware(ctx: Context, next: () => Promise<void
 
     if (lock) {
       const now = Math.floor(Date.now() / 1000);
-      const remainingSeconds = lock.expiresAt - now;
+      const remainingSeconds = lock.expires_at - now;
 
       await ctx.reply(
         ` *Transaction in Progress*\n\n` +
-        `You have a ${lock.lockType} transaction in progress.\n` +
+        `You have a ${lock.lock_type} transaction in progress.\n` +
         `Please wait ${remainingSeconds} seconds for it to complete.\n\n` +
         `If this persists, contact an admin.`,
         { parse_mode: 'Markdown' }
@@ -31,7 +31,7 @@ export async function lockCheckMiddleware(ctx: Context, next: () => Promise<void
 
       logger.info('User command blocked due to active lock', {
         userId,
-        lockType: lock.lockType,
+        lockType: lock.lock_type,
         remainingSeconds
       });
 

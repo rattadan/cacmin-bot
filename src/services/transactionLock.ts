@@ -1,11 +1,11 @@
 import { logger } from '../utils/logger';
-import { execute, get } from '../database';
+import { execute, get, query } from '../database';
 
 interface UserLock {
-  userId: number;
-  lockType: string;
-  lockedAt: number;
-  expiresAt: number;
+  user_id: number;
+  lock_type: string;
+  locked_at: number;
+  expires_at: number;
   metadata?: string;
 }
 
@@ -67,10 +67,10 @@ export class TransactionLockService {
 
       if (existingLock) {
         const now = Math.floor(Date.now() / 1000);
-        if (existingLock.expiresAt > now) {
+        if (existingLock.expires_at > now) {
           logger.warn('User already locked', {
             userId,
-            existingLockType: existingLock.lockType,
+            existingLockType: existingLock.lock_type,
             requestedLockType: lockType
           });
           return false;
@@ -137,7 +137,7 @@ export class TransactionLockService {
     if (!lock) return false;
 
     const now = Math.floor(Date.now() / 1000);
-    return lock.expiresAt > now;
+    return lock.expires_at > now;
   }
 
   /**
@@ -152,7 +152,7 @@ export class TransactionLockService {
     if (!lock) return null;
 
     const now = Math.floor(Date.now() / 1000);
-    if (lock.expiresAt <= now) {
+    if (lock.expires_at <= now) {
       // Lock expired, clean it up
       await this.releaseLock(userId);
       return null;
@@ -190,9 +190,9 @@ export class TransactionLockService {
    */
   static async getActiveLocks(): Promise<UserLock[]> {
     const now = Math.floor(Date.now() / 1000);
-    return get<UserLock[]>(
+    return query<UserLock>(
       'SELECT * FROM user_locks WHERE expires_at > ?',
       [now]
-    ) || [];
+    );
   }
 }

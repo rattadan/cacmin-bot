@@ -17,11 +17,23 @@ try {
   hasErrors = true;
 }
 
-// Check optional configs
-if (config.junoWalletAddress) {
-  console.log(' JUNO_WALLET_ADDRESS: configured');
+// Check ledger system configuration
+if (config.botTreasuryAddress) {
+  console.log(' BOT_TREASURY_ADDRESS: configured');
 } else {
-  console.log('  JUNO_WALLET_ADDRESS: not configured (payment features disabled)');
+  console.log('  BOT_TREASURY_ADDRESS: not configured (payment verification disabled)');
+}
+
+if (config.userFundsAddress) {
+  console.log(' USER_FUNDS_ADDRESS: configured');
+} else {
+  console.log('  USER_FUNDS_ADDRESS: not configured (deposits disabled)');
+}
+
+if (config.userFundsMnemonic) {
+  console.log(' USER_FUNDS_MNEMONIC: configured');
+} else {
+  console.log('  USER_FUNDS_MNEMONIC: not configured (withdrawals disabled)');
 }
 
 if (config.adminChatId) {

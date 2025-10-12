@@ -631,4 +631,31 @@ export class LedgerService {
       matched
     };
   }
+
+  /**
+   * Reconcile balances and alert admins if mismatch detected
+   */
+  static async reconcileAndAlert(): Promise<{
+    internalTotal: number;
+    onChainTotal: number;
+    difference: number;
+    matched: boolean;
+  }> {
+    const result = await this.reconcileBalances();
+
+    if (!result.matched && result.difference > 0.01) {
+      // Import admin notify dynamically to avoid circular dependencies
+      const { notifyAdmin } = await import('../utils/adminNotify');
+
+      await notifyAdmin(
+        `⚠️ *Balance Mismatch Detected*\n\n` +
+        `Internal Ledger: \`${result.internalTotal.toFixed(6)} JUNO\`\n` +
+        `On-Chain Balance: \`${result.onChainTotal.toFixed(6)} JUNO\`\n` +
+        `Difference: \`${result.difference.toFixed(6)} JUNO\`\n\n` +
+        `Please investigate immediately using /walletstats`
+      );
+    }
+
+    return result;
+  }
 }

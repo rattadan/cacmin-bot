@@ -53,21 +53,9 @@ export const initDb = (): void => {
     );
   `);
 
-  // User wallets table (kept for historical reference, not actively used)
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS user_wallets (
-      user_id INTEGER PRIMARY KEY,
-      address TEXT NOT NULL UNIQUE,
-      hd_path TEXT NOT NULL,
-      created_at INTEGER DEFAULT (strftime('%s', 'now')),
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
-  `);
-
-  // Create index for faster address lookups
-  db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_user_wallets_address ON user_wallets(address);
-  `);
+  // NOTE: user_wallets table (from old HD wallet system) has been removed
+  // If migrating from an old database, that table may still exist with historical data
+  // but is no longer created or used by the current code.
 
   // User balances table - Internal ledger system
   db.exec(`

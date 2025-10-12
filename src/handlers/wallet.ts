@@ -1,7 +1,7 @@
 import { Context } from 'telegraf';
 import { WalletServiceV2 } from '../services/walletServiceV2';
 import { logger } from '../utils/logger';
-import { isElevated } from '../middleware';
+import { checkIsElevated } from '../utils/roles';
 
 /**
  * Handle /balance command
@@ -351,8 +351,10 @@ export async function handleTransactions(ctx: Context): Promise<void> {
  */
 export async function handleWalletStats(ctx: Context): Promise<void> {
   try {
+    const userId = ctx.from?.id;
+
     // Check if user is elevated
-    if (!isElevated(ctx)) {
+    if (!userId || !checkIsElevated(userId)) {
       await ctx.reply('❌ This command requires elevated permissions.');
       return;
     }
@@ -395,8 +397,10 @@ export async function handleWalletStats(ctx: Context): Promise<void> {
  */
 export async function handleGiveaway(ctx: Context): Promise<void> {
   try {
+    const userId = ctx.from?.id;
+
     // Check if user is elevated
-    if (!isElevated(ctx)) {
+    if (!userId || !checkIsElevated(userId)) {
       await ctx.reply('❌ This command requires elevated permissions.');
       return;
     }
@@ -516,5 +520,31 @@ export async function handleCheckDeposit(ctx: Context): Promise<void> {
   } catch (error) {
     logger.error('Error in checkdeposit command', { error });
     await ctx.reply('❌ Failed to check deposit. Please try again later.');
+  }
+}
+
+/**
+ * Handle /reconcile command
+ * Manually triggers balance reconciliation check (admin only)
+ */
+export async function handleReconcile(ctx: Context): Promise<void> {
+  try {
+    await ctx.reply('⏳ Running balance reconciliation...');
+
+    // Import LedgerService here to avoid circular dependencies
+    const { LedgerService } = await import('../services/ledgerService');
+    const result = await LedgerService.reconcileAndAlert();
+
+    await ctx.reply(
+      ` *Balance Reconciliation Results*\n\n` +
+      `Internal Ledger Total: \`${result.internalTotal.toFixed(6)} JUNO\`\n` +
+      `User Funds On-Chain: \`${result.onChainTotal.toFixed(6)} JUNO\`\n` +
+      `Difference: \`${result.difference.toFixed(6)} JUNO\`\n\n` +
+      `Status: ${result.matched ? '✅ Balanced' : '⚠️ MISMATCH'}`,
+      { parse_mode: 'Markdown' }
+    );
+  } catch (error) {
+    logger.error('Error in reconcile command', { error });
+    await ctx.reply('❌ Failed to run reconciliation.');
   }
 }

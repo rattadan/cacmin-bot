@@ -1,5 +1,5 @@
 import { Telegraf, Context } from 'telegraf';
-import { adminOrHigher, isElevated } from '../middleware/index';
+import { adminOrHigher } from '../middleware/index';
 import { financialLockCheck } from '../middleware/lockCheck';
 import {
   handleBalance,
@@ -9,7 +9,8 @@ import {
   handleTransactions,
   handleWalletStats,
   handleGiveaway,
-  handleCheckDeposit
+  handleCheckDeposit,
+  handleReconcile
 } from '../handlers/wallet';
 
 export function registerWalletCommands(bot: Telegraf<Context>): void {
@@ -34,6 +35,7 @@ export function registerWalletCommands(bot: Telegraf<Context>): void {
   // Admin commands
   bot.command('walletstats', adminOrHigher, handleWalletStats);
   bot.command('giveaway', adminOrHigher, handleGiveaway);
+  bot.command('reconcile', adminOrHigher, handleReconcile);
 
   // Check specific deposit by transaction hash
   bot.command('checkdeposit', handleCheckDeposit);
@@ -55,7 +57,8 @@ export function registerWalletCommands(bot: Telegraf<Context>): void {
       `• juno1... - Send to external wallet\n\n` +
       `*Admin Commands:*\n` +
       `/walletstats - System statistics\n` +
-      `/giveaway <amount> <@user1> <@user2> - Distribute tokens\n\n` +
+      `/giveaway <amount> <@user1> <@user2> - Distribute tokens\n` +
+      `/reconcile - Check internal ledger vs on-chain balance\n\n` +
       ` *Important:*\n` +
       `• Always include your user ID (${ctx.from?.id}) as memo when depositing\n` +
       `• Withdrawals are locked to prevent double-spending\n` +

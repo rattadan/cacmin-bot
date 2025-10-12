@@ -1,6 +1,6 @@
 import { Telegraf, Context } from 'telegraf';
 import { JunoService } from '../services/junoService';
-import { WalletService } from '../services/walletService';
+import { WalletServiceV2 } from '../services/walletServiceV2';
 import { JailService } from '../services/jailService';
 import { getUnpaidViolations, markViolationPaid, getTotalFines } from '../services/violationService';
 import { get, query, execute } from '../database';
@@ -26,7 +26,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
       }
 
       const totalFines = getTotalFines(userId);
-      const balance = await WalletService.getUserBalance(userId);
+      const balance = await WalletServiceV2.getUserBalance(userId);
 
       let message = ` *Your Unpaid Fines*\n\n`;
       violations.forEach(v => {
@@ -37,7 +37,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
       message += `Your wallet balance: ${balance.toFixed(6)} JUNO\n\n`;
 
       if (balance >= totalFines) {
-        message += ` You have sufficient funds.\n\nUse /payallfi nes to pay all fines at once.`;
+        message += ` You have sufficient funds.\n\nUse /payallfines to pay all fines at once.`;
       } else {
         message += ` Insufficient funds. Please deposit more JUNO.\n\n`;
         message += `Use /deposit to get your wallet address.`;
@@ -67,7 +67,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
       }
 
       const totalFines = getTotalFines(userId);
-      const balance = await WalletService.getUserBalance(userId);
+      const balance = await WalletServiceV2.getUserBalance(userId);
 
       if (balance < totalFines) {
         return ctx.reply(
@@ -78,17 +78,18 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
         );
       }
 
-      // Collect payment from user wallet to treasury
-      const result = await WalletService.collectFromUser(
+      // Use internal ledger to process fine payment
+      const result = await WalletServiceV2.payFine(
         userId,
         totalFines,
+        undefined, // No specific violation ID for bulk payment
         `Payment for ${violations.length} violations`
       );
 
       if (result.success) {
-        // Mark all violations as paid
+        // Mark all violations as paid (internal ledger transaction)
         violations.forEach(v => {
-          markViolationPaid(v.id, result.txHash || '', userId);
+          markViolationPaid(v.id, 'internal_ledger', userId);
         });
 
         // Release from jail if jailed
@@ -97,23 +98,20 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
           execute('UPDATE users SET muted_until = NULL WHERE id = ?', [userId]);
         }
 
-        const newBalance = await WalletService.getUserBalance(userId);
-
         await ctx.reply(
           ` *All Fines Paid!*\n\n` +
           `Violations cleared: ${violations.length}\n` +
           `Amount paid: ${totalFines.toFixed(2)} JUNO\n` +
-          `TX: \`${result.txHash}\`\n\n` +
-          `New balance: ${newBalance.toFixed(6)} JUNO\n\n` +
+          `New balance: ${result.newBalance.toFixed(6)} JUNO\n\n` +
           `You have been released from jail (if applicable).`,
           { parse_mode: 'Markdown' }
         );
 
-        logger.info('User paid all fines from wallet', {
+        logger.info('User paid all fines from internal balance', {
           userId,
           violations: violations.length,
           amount: totalFines,
-          txHash: result.txHash
+          newBalance: result.newBalance
         });
       } else {
         await ctx.reply(

@@ -28,6 +28,15 @@ Cosmos Airdrops Chat **Improved Admin Bot** built with [Telegraf](https://telegr
   - Log user violations and enforce penalties.
   - Enable users to view and pay fines (e.g., in JUNO tokens) to reduce penalties.
 
+- **Two-Wallet Internal Ledger System**:
+  - Minimizes on-chain transactions for significant cost savings
+  - Instant, fee-free internal transfers between users
+  - Automatic deposit detection with memo-based routing
+  - Secure withdrawal flow with transaction locking
+  - Complete audit trail of all financial operations
+  - Separate treasury for enforcement (bail/fines) and user funds
+  - **See [docs/WALLET_ARCHITECTURE.md](docs/WALLET_ARCHITECTURE.md) for comprehensive documentation**
+
 ## **Installation**
 
 1. Clone the repository:

@@ -1,5 +1,6 @@
 import * as dotenv from 'dotenv';
 import { resolve } from 'path';
+import { logger } from './utils/logger';
 
 dotenv.config({ path: resolve(__dirname, '../.env') });
 
@@ -10,11 +11,9 @@ interface Config {
   adminChatId: number;
   groupChatId?: number;
   ownerId: number;
-  junoWalletAddress?: string; // Deprecated - kept for compatibility
-  junoWalletMnemonic?: string; // Deprecated - kept for compatibility
-  botTreasuryAddress?: string; // New: Bot treasury wallet address
-  userFundsAddress?: string; // New: Collective user funds wallet address
-  userFundsMnemonic?: string; // New: Mnemonic for user funds wallet (for withdrawals)
+  botTreasuryAddress?: string; // Bot treasury wallet address
+  userFundsAddress?: string; // Collective user funds wallet address
+  userFundsMnemonic?: string; // Mnemonic for user funds wallet (for withdrawals)
   databasePath: string;
   logLevel: string;
   fineAmounts: {
@@ -37,9 +36,7 @@ export const config: Config = {
   adminChatId: parseInt(process.env.ADMIN_CHAT_ID || '0'),
   groupChatId: process.env.GROUP_CHAT_ID ? parseInt(process.env.GROUP_CHAT_ID) : undefined,
   ownerId: parseInt(process.env.OWNER_ID || '0'),
-  junoWalletAddress: process.env.JUNO_WALLET_ADDRESS, // Deprecated
-  junoWalletMnemonic: process.env.JUNO_WALLET_MNEMONIC, // Deprecated
-  botTreasuryAddress: process.env.BOT_TREASURY_ADDRESS || process.env.JUNO_WALLET_ADDRESS, // Fallback to old config
+  botTreasuryAddress: process.env.BOT_TREASURY_ADDRESS,
   userFundsAddress: process.env.USER_FUNDS_ADDRESS,
   userFundsMnemonic: process.env.USER_FUNDS_MNEMONIC,
   databasePath: process.env.DATABASE_PATH || './data/bot.db',
@@ -64,5 +61,14 @@ export function validateConfig(): void {
   }
   if (!config.ownerId) {
     throw new Error('OWNER_ID is required in environment variables');
+  }
+
+  // Warn about ledger system configuration
+  if (!config.userFundsAddress || !config.userFundsMnemonic) {
+    logger.warn('User funds wallet not fully configured - deposit/withdrawal features will be limited');
+  }
+
+  if (!config.botTreasuryAddress) {
+    logger.warn('Bot treasury address not configured - some payment features may not work');
   }
 }

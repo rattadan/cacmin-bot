@@ -6,8 +6,8 @@ export class JunoService {
   private static rpcEndpoint = config.junoRpcUrl || 'https://rpc.juno.basementnodes.ca';
 
   static async initialize(): Promise<void> {
-    if (!config.junoWalletAddress || !config.junoWalletMnemonic) {
-      logger.warn('JUNO wallet not configured, payment features disabled');
+    if (!config.botTreasuryAddress) {
+      logger.warn('Bot treasury address not configured, some payment features disabled');
       return;
     }
 
@@ -25,40 +25,69 @@ export class JunoService {
     try {
       logger.info('Verifying JUNO payment', { txHash, expectedAmount });
 
-      // Query transaction from RPC endpoint
-      const response = await fetch(`${this.rpcEndpoint}/tx?hash=0x${txHash}`);
+      // Query using the REST API endpoint
+      const apiEndpoint = config.junoApiUrl || 'https://api.juno.basementnodes.ca';
+      const response = await fetch(`${apiEndpoint}/cosmos/tx/v1beta1/txs/${txHash}`);
 
       if (!response.ok) {
         logger.warn('Transaction not found on chain', { txHash });
         return false;
       }
 
-      const txData = await response.json() as any;
-
-      // Verify transaction details
-      if (!txData.result || !txData.result.tx_result) {
-        logger.warn('Invalid transaction data', { txHash });
-        return false;
-      }
+      const data = await response.json() as any;
+      const tx = data.tx_response;
 
       // Check if transaction was successful
-      if (txData.result.tx_result.code !== 0) {
-        logger.warn('Transaction failed on chain', { txHash, code: txData.result.tx_result.code });
+      if (tx.code !== 0) {
+        logger.warn('Transaction failed on chain', { txHash, code: tx.code });
         return false;
       }
 
-      // Parse transaction to verify amount and recipient
-      // This would need to decode the tx messages and verify:
-      // 1. Recipient is our wallet address
-      // 2. Amount matches expected amount
-      // For now, we log the verification attempt
-      logger.info('Payment verified (basic check)', {
-        txHash,
-        expectedAmount,
-        success: true
-      });
+      // Parse messages to find transfer to our treasury
+      const messages = tx.tx.body.messages;
+      const treasuryAddress = config.botTreasuryAddress;
 
-      return true;
+      if (!treasuryAddress) {
+        logger.error('Treasury address not configured');
+        return false;
+      }
+
+      for (const message of messages) {
+        if (message['@type'] === '/cosmos.bank.v1beta1.MsgSend') {
+          // Check if recipient is our treasury
+          if (message.to_address === treasuryAddress) {
+            // Find JUNO amount
+            const junoAmount = message.amount?.find((a: any) => a.denom === 'ujuno');
+
+            if (junoAmount) {
+              const amount = parseFloat(junoAmount.amount) / 1_000_000;
+
+              // Allow small difference for rounding (0.01 JUNO tolerance)
+              const difference = Math.abs(amount - expectedAmount);
+
+              if (difference < 0.01) {
+                logger.info('Payment verified successfully', {
+                  txHash,
+                  expectedAmount,
+                  actualAmount: amount,
+                  difference
+                });
+                return true;
+              } else {
+                logger.warn('Payment amount mismatch', {
+                  txHash,
+                  expectedAmount,
+                  actualAmount: amount,
+                  difference
+                });
+              }
+            }
+          }
+        }
+      }
+
+      logger.warn('No valid payment found to treasury in transaction', { txHash });
+      return false;
     } catch (error) {
       logger.error('Payment verification failed', { txHash, error });
       return false;
@@ -66,20 +95,20 @@ export class JunoService {
   }
 
   static getPaymentAddress(): string {
-    return config.junoWalletAddress || 'not_configured';
+    return config.botTreasuryAddress || 'not_configured';
   }
 
   /**
    * Query account balance
    */
   static async getBalance(): Promise<number> {
-    if (!config.junoWalletAddress) {
+    if (!config.botTreasuryAddress) {
       return 0;
     }
 
     try {
       const response = await fetch(
-        `${this.rpcEndpoint}/cosmos/bank/v1beta1/balances/${config.junoWalletAddress}`
+        `${this.rpcEndpoint}/cosmos/bank/v1beta1/balances/${config.botTreasuryAddress}`
       );
 
       if (!response.ok) {

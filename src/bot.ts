@@ -2,6 +2,7 @@ import { Telegraf } from 'telegraf';
 import { validateConfig, config } from './config';
 import { initDb } from './database';
 import { logger } from './utils/logger';
+import { setBotInstance } from './utils/adminNotify';
 import { messageFilterMiddleware } from './middleware/messageFilter';
 import { registerRoleHandlers } from './handlers/roles';
 import { registerViolationHandlers } from './handlers/violations';
@@ -17,7 +18,6 @@ import { registerWalletCommands } from './commands/wallet';
 import { RestrictionService } from './services/restrictionService';
 import { JunoService } from './services/junoService';
 import { JailService } from './services/jailService';
-import { WalletService } from './services/walletService';
 import { WalletServiceV2 } from './services/walletServiceV2';
 import { LedgerService } from './services/ledgerService';
 import { DepositMonitor } from './services/depositMonitor';
@@ -41,14 +41,18 @@ async function main() {
     DepositMonitor.initialize();
     TransactionLockService.initialize();
 
+    // Clean up any stale locks from previous session
+    await TransactionLockService.cleanExpiredLocks();
+    logger.info('Cleaned up stale transaction locks');
+
     // Start deposit monitoring
     DepositMonitor.start();
 
-    // Keep old wallet service for backward compatibility
-    WalletService.initialize();
-
     // Create bot instance
     const bot = new Telegraf(config.botToken);
+
+    // Set bot instance for admin notifications
+    setBotInstance(bot);
 
     // Initialize jail service with bot instance
     JailService.initialize(bot);
@@ -93,6 +97,18 @@ async function main() {
     setInterval(() => {
       DepositMonitor.cleanupOldRecords();
     }, 24 * 60 * 60 * 1000);
+
+    // Periodic balance reconciliation check (every hour)
+    setInterval(async () => {
+      try {
+        const result = await LedgerService.reconcileAndAlert();
+        if (!result.matched) {
+          logger.warn('Balance reconciliation mismatch detected', result);
+        }
+      } catch (error) {
+        logger.error('Error during periodic reconciliation', { error });
+      }
+    }, 60 * 60 * 1000);
 
     // Graceful shutdown
     process.once('SIGINT', () => bot.stop('SIGINT'));

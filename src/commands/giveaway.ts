@@ -1,5 +1,6 @@
 import { Telegraf, Context } from 'telegraf';
 import { JunoService } from '../services/junoService';
+import { WalletServiceV2 } from '../services/walletServiceV2';
 import { adminOrHigher } from '../middleware/index';
 import { logger } from '../utils/logger';
 
@@ -65,36 +66,24 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
         targetUserId = user.id;
       }
 
-      // Check bot treasury balance first
-      const balance = await JunoService.getBalance();
-      if (!balance || balance < amount) {
-        return ctx.reply(
-          ` Insufficient funds in treasury.\n\n` +
-          `Requested: ${amount.toFixed(6)} JUNO\n` +
-          `Available: ${balance?.toFixed(6) || '0'} JUNO`
-        );
-      }
+      // NOTE: This credits the user's internal balance in the ledger system.
+      // The bot treasury (on-chain balance) is separate and used for backing withdrawals.
+      // Future enhancement: Transfer from treasury to userFunds wallet to back these credits.
 
-      // Import WalletService
-      const { WalletService } = await import('../services/walletService');
-
-      // Create user wallet if doesn't exist
-      await WalletService.getOrCreateUserWallet(targetUserId);
-
-      // Send tokens from treasury to user wallet
-      const result = await WalletService.sendToUser(
-        targetUserId,
+      // Distribute giveaway using internal ledger
+      const result = await WalletServiceV2.distributeGiveaway(
+        [targetUserId],
         amount,
         `Giveaway from admin ${ctx.from?.username || ctx.from?.id}`
       );
 
-      if (result.success) {
+      if (result.succeeded.length > 0) {
         await ctx.reply(
           ` *Giveaway Sent!*\n\n` +
           `Recipient: ${identifier} (${targetUserId})\n` +
-          `Amount: ${amount.toFixed(6)} JUNO\n` +
-          `TX: \`${result.txHash}\`\n\n` +
-          ` Tokens have been sent to the user's wallet.`,
+          `Amount: ${amount.toFixed(6)} JUNO\n\n` +
+          ` Tokens have been credited to the user's internal balance.\n` +
+          `They can check their balance with /mybalance`,
           { parse_mode: 'Markdown' }
         );
 
@@ -103,12 +92,12 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
           recipient: identifier,
           recipientUserId: targetUserId,
           amount,
-          txHash: result.txHash
+          distributed: result.totalDistributed
         });
       } else {
         await ctx.reply(
           ` *Giveaway Failed*\n\n` +
-          `Error: ${result.error}\n\n` +
+          `Unable to credit user ${identifier} (${targetUserId})\n\n` +
           `Please check logs or try again later.`,
           { parse_mode: 'Markdown' }
         );
@@ -119,22 +108,50 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
     }
   });
 
-  // View collected fines total
+  // View treasury and internal ledger status
   bot.command('treasury', adminOrHigher, async (ctx) => {
     try {
-      const balance = await JunoService.getBalance();
+      // On-chain treasury balance
+      const treasuryBalance = await JunoService.getBalance();
+      const treasuryAddress = JunoService.getPaymentAddress();
 
-      // TODO: Query total collected from violations table
-      // const totalCollected = query<{total: number}>(
-      //   'SELECT SUM(bail_amount) as total FROM violations WHERE paid = 1',
-      //   []
-      // )[0]?.total || 0;
+      // Internal ledger statistics
+      const { query } = await import('../database');
+      type CollectedTotal = { total: number | null };
+
+      const finesResult = query<CollectedTotal>(
+        'SELECT SUM(amount) as total FROM transactions WHERE transaction_type = ? AND status = ?',
+        ['fine', 'completed']
+      );
+      const totalFines = finesResult[0]?.total || 0;
+
+      const bailResult = query<CollectedTotal>(
+        'SELECT SUM(amount) as total FROM transactions WHERE transaction_type = ? AND status = ?',
+        ['bail', 'completed']
+      );
+      const totalBail = bailResult[0]?.total || 0;
+
+      // Get internal ledger total (all user balances)
+      const internalBalances = query<{ total: number | null }>(
+        'SELECT SUM(balance) as total FROM user_balances'
+      );
+      const totalUserBalances = internalBalances[0]?.total || 0;
 
       await ctx.reply(
-        ` *Treasury Status*\n\n` +
-        `Current Balance: *${balance?.toFixed(6) || '0'} JUNO*\n` +
-        `Wallet: \`${JunoService.getPaymentAddress()}\`\n\n` +
-        `Use /giveaway to distribute funds`,
+        ` *Treasury & Ledger Status*\n\n` +
+        `*🏦 On-Chain Treasury Wallet:*\n` +
+        `Address: \`${treasuryAddress}\`\n` +
+        `Balance: *${treasuryBalance?.toFixed(6) || '0'} JUNO*\n` +
+        `Purpose: Receives bail/fine payments via on-chain transfers\n\n` +
+        `*📒 Internal Ledger System:*\n` +
+        `Total User Balances: \`${totalUserBalances.toFixed(6)} JUNO\`\n` +
+        `Fines Collected: \`${totalFines.toFixed(6)} JUNO\` (deducted from users)\n` +
+        `Bail Collected: \`${totalBail.toFixed(6)} JUNO\` (deducted from users)\n\n` +
+        `*Note:* Treasury and ledger are separate systems.\n` +
+        `• Treasury: On-chain wallet for direct payments\n` +
+        `• Ledger: Internal accounting for user balances\n\n` +
+        `Use /giveaway to distribute funds\n` +
+        `Use /walletstats for detailed reconciliation`,
         { parse_mode: 'Markdown' }
       );
     } catch (error) {

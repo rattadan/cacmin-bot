@@ -127,7 +127,7 @@ describe('Jail Commands', () => {
 
       expect(user).toBeDefined();
       expect(user.role).toBe('pleb');
-      expect(user.muted_until).toBeUndefined();
+      expect(user.muted_until).toBeFalsy(); // SQLite returns null, not undefined
     });
 
     it('should show jail status when user is jailed', async () => {
@@ -524,6 +524,7 @@ describe('JailService', () => {
     cleanTestDatabase();
     createTestUser(111111111, 'owner', 'owner');
     createTestUser(222222222, 'admin', 'admin');
+    createTestUser(444444444, 'pleb', 'pleb');
     createTestUser(555555555, 'jaileduser', 'pleb');
   });
 

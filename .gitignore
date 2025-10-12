@@ -35,12 +35,10 @@ logs/*.log
 /lib/
 /coverage/
 
-# Test files
+# Test results and coverage
 /test-results/
-*.spec.js
-*.spec.ts
-*.test.js
-*.test.ts
+/coverage/
+tests/test-data/
 
 # Temporary files
 temp/

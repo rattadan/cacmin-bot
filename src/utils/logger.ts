@@ -1,7 +1,6 @@
 import * as winston from 'winston';
 import * as path from 'path';
 import * as fs from 'fs';
-import { config } from '../config';
 
 // Ensure log directory exists
 const logDir = path.join(__dirname, '../../logs');
@@ -24,9 +23,15 @@ const logFormat = winston.format.combine(
   })
 );
 
+// Get log level from environment or default to 'info'
+// This avoids circular dependency with config
+const getLogLevel = (): string => {
+  return process.env.LOG_LEVEL || 'info';
+};
+
 // Create winston logger with rotation
 export const logger = winston.createLogger({
-  level: config.logLevel || 'info',
+  level: getLogLevel(),
   format: logFormat,
   transports: [
     // Console output
@@ -67,6 +72,11 @@ export const logger = winston.createLogger({
     })
   ]
 });
+
+// Function to update log level after config is loaded
+export const updateLogLevel = (level: string): void => {
+  logger.level = level;
+};
 
 // Add stream for Morgan or other middleware if needed
 export const logStream = {

@@ -174,6 +174,35 @@ export const initDb = (): void => {
     );
   `);
 
+  // Processed deposits tracking table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS processed_deposits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tx_hash TEXT NOT NULL UNIQUE,
+      user_id INTEGER,
+      amount REAL NOT NULL,
+      from_address TEXT NOT NULL,
+      memo TEXT,
+      height INTEGER NOT NULL,
+      processed INTEGER DEFAULT 0,
+      processed_at INTEGER,
+      error TEXT,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+  `);
+
+  // Transaction lock table for preventing double-spending
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS transaction_locks (
+      user_id INTEGER PRIMARY KEY,
+      lock_type TEXT NOT NULL,
+      metadata TEXT,
+      locked_at INTEGER DEFAULT (strftime('%s', 'now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+
   // Create indexes for performance
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
@@ -194,6 +223,12 @@ export const initDb = (): void => {
     CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
     CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(created_at);
     CREATE INDEX IF NOT EXISTS idx_transactions_tx_hash ON transactions(tx_hash);
+
+    -- Processed deposits indexes
+    CREATE INDEX IF NOT EXISTS idx_processed_deposits_tx_hash ON processed_deposits(tx_hash);
+    CREATE INDEX IF NOT EXISTS idx_processed_deposits_user ON processed_deposits(user_id);
+    CREATE INDEX IF NOT EXISTS idx_processed_deposits_processed ON processed_deposits(processed);
+    CREATE INDEX IF NOT EXISTS idx_processed_deposits_height ON processed_deposits(height);
   `);
 
   logger.info('Database initialized successfully');

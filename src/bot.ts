@@ -15,14 +15,12 @@ import { registerPaymentCommands } from './commands/payment';
 import { registerJailCommands } from './commands/jail';
 import { registerGiveawayCommands } from './commands/giveaway';
 import { registerWalletCommands } from './commands/wallet';
+import { registerWalletTestCommands } from './commands/walletTest';
 import { RestrictionService } from './services/restrictionService';
-import { JunoService } from './services/junoService';
 import { JailService } from './services/jailService';
-import { WalletServiceV2 } from './services/walletServiceV2';
+import { UnifiedWalletService } from './services/unifiedWalletService';
 import { LedgerService } from './services/ledgerService';
-import { DepositMonitor } from './services/depositMonitor';
 import { TransactionLockService } from './services/transactionLock';
-import { financialLockCheck } from './middleware/lockCheck';
 
 async function main() {
   try {
@@ -32,21 +30,15 @@ async function main() {
     // Initialize database
     initDb();
 
-    // Initialize JUNO service
-    await JunoService.initialize();
-
-    // Initialize new ledger-based wallet system
+    // Initialize ledger system
     LedgerService.initialize();
-    await WalletServiceV2.initialize();
-    DepositMonitor.initialize();
-    TransactionLockService.initialize();
+
+    // Initialize unified wallet system (includes deposit monitoring)
+    await UnifiedWalletService.initialize();
 
     // Clean up any stale locks from previous session
     await TransactionLockService.cleanExpiredLocks();
     logger.info('Cleaned up stale transaction locks');
-
-    // Start deposit monitoring
-    DepositMonitor.start();
 
     // Create bot instance
     const bot = new Telegraf(config.botToken);
@@ -72,6 +64,7 @@ async function main() {
     registerJailCommands(bot);
     registerGiveawayCommands(bot);
     registerWalletCommands(bot);
+    registerWalletTestCommands(bot); // Owner-only test commands
 
     // Error handling
     bot.catch((err, ctx) => {
@@ -92,11 +85,6 @@ async function main() {
     setInterval(async () => {
       await TransactionLockService.cleanExpiredLocks();
     }, 60 * 1000);
-
-    // Periodic cleanup of old deposit records (daily)
-    setInterval(() => {
-      DepositMonitor.cleanupOldRecords();
-    }, 24 * 60 * 60 * 1000);
 
     // Periodic balance reconciliation check (every hour)
     setInterval(async () => {

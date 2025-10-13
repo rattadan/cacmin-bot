@@ -11,9 +11,8 @@ interface Config {
   adminChatId: number;
   groupChatId?: number;
   ownerId: number;
-  botTreasuryAddress?: string; // Bot treasury wallet address
-  userFundsAddress?: string; // Collective user funds wallet address
-  userFundsMnemonic?: string; // Mnemonic for user funds wallet (for withdrawals)
+  userFundsAddress?: string; // Single wallet for all operations
+  userFundsMnemonic?: string; // Mnemonic for signing withdrawals
   databasePath: string;
   logLevel: string;
   fineAmounts: {
@@ -36,7 +35,6 @@ export const config: Config = {
   adminChatId: parseInt(process.env.ADMIN_CHAT_ID || '0'),
   groupChatId: process.env.GROUP_CHAT_ID ? parseInt(process.env.GROUP_CHAT_ID) : undefined,
   ownerId: parseInt(process.env.OWNER_ID || '0'),
-  botTreasuryAddress: process.env.BOT_TREASURY_ADDRESS,
   userFundsAddress: process.env.USER_FUNDS_ADDRESS,
   userFundsMnemonic: process.env.USER_FUNDS_MNEMONIC,
   databasePath: process.env.DATABASE_PATH || './data/bot.db',
@@ -66,9 +64,5 @@ export function validateConfig(): void {
   // Warn about ledger system configuration
   if (!config.userFundsAddress || !config.userFundsMnemonic) {
     logger.warn('User funds wallet not fully configured - deposit/withdrawal features will be limited');
-  }
-
-  if (!config.botTreasuryAddress) {
-    logger.warn('Bot treasury address not configured - some payment features may not work');
   }
 }

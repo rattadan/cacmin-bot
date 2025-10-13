@@ -28,14 +28,15 @@ Cosmos Airdrops Chat **Improved Admin Bot** built with [Telegraf](https://telegr
   - Log user violations and enforce penalties.
   - Enable users to view and pay fines (e.g., in JUNO tokens) to reduce penalties.
 
-- **Two-Wallet Internal Ledger System**:
-  - Minimizes on-chain transactions for significant cost savings
+- **Unified Wallet System**:
+  - Single JUNO wallet with internal ledger for all users
+  - Bot treasury as internal user (ID: -1)
   - Instant, fee-free internal transfers between users
   - Automatic deposit detection with memo-based routing
   - Secure withdrawal flow with transaction locking
   - Complete audit trail of all financial operations
-  - Separate treasury for enforcement (bail/fines) and user funds
-  - **See [docs/WALLET_ARCHITECTURE.md](docs/WALLET_ARCHITECTURE.md) for comprehensive documentation**
+  - Balance reconciliation and monitoring
+  - **See [UNIFIED_WALLET_SYSTEM.md](UNIFIED_WALLET_SYSTEM.md) for comprehensive documentation**
 
 ## **Installation**
 
@@ -52,12 +53,42 @@ yarn install
 # Create minimal .env file
 echo "BOT_TOKEN=your_bot_token_here" > .env
 echo "OWNER_ID=your_telegram_user_id" >> .env
+echo "USER_FUNDS_ADDRESS=juno1..." >> .env
+echo "USER_FUNDS_MNEMONIC=word1 word2 ..." >> .env
 
-# Run automatic setup (generates wallets, configures everything)
-./quickstart.sh
+# Initialize database and migrate to unified wallet
+yarn setup-db
+yarn migrate:wallet
 
-# Start the bot
-yarn start
+# Build and launch
+./rebuild.sh
+```
+
+### **Rebuild & Deploy**
+
+The project includes a unified rebuild script for easy deployment:
+
+```bash
+# Default: Clean, rebuild, and restart service
+./rebuild.sh
+
+# Development mode: Clean, rebuild, and run with hot reload
+./rebuild.sh --dev
+
+# Quick rebuild: Skip cleaning, just rebuild and restart
+./rebuild.sh --quick
+
+# Full clean: Remove everything including caches, then rebuild
+./rebuild.sh --full
+```
+
+NPM scripts are also available:
+
+```bash
+yarn rebuild       # Default rebuild
+yarn rebuild:dev   # Development mode
+yarn rebuild:quick # Quick rebuild
+yarn rebuild:full  # Full clean rebuild
 ```
 
 ### **Manual Installation**
@@ -89,28 +120,18 @@ yarn start
      OWNER_ID=your_telegram_user_id
      ```
 
-4. Set up wallets (choose one method):
+4. Set up wallet:
 
-   **Method A: Single Mnemonic (Recommended)**
    ```bash
-   # Generates one mnemonic for both wallets using HD paths
-   npx ts-node scripts/setup-from-single-mnemonic.ts
-   ```
-
-   **Method B: Separate Wallets**
-   ```bash
-   # Interactive wallet setup with separate mnemonics
-   npx ts-node scripts/auto-setup-wallets.ts
-   ```
-
-   **Method C: Manual Configuration**
-   ```bash
-   # Generate wallets manually
+   # Generate a new wallet
    npx ts-node scripts/wallet-utils.ts
-   # Then add to .env:
-   # BOT_TREASURY_ADDRESS=juno1...
+
+   # Add to .env:
    # USER_FUNDS_ADDRESS=juno1...
    # USER_FUNDS_MNEMONIC=word1 word2 ...
+
+   # Migrate to unified wallet system
+   yarn migrate:wallet
    ```
 
 5. Initialize the database:
@@ -119,21 +140,18 @@ yarn start
    yarn run setup-db
    ```
 
-6. Build and validate:
+6. Build and start the bot:
 
    ```bash
-   yarn build:clean
-   yarn validate
-   ```
+   # For production with systemd
+   sudo ./rebuild.sh
 
-7. Start the bot:
+   # For development
+   ./rebuild.sh --dev
 
-   ```bash
-   # Development
-   yarn dev
-
-   # Production
-   yarn start
+   # Or use yarn scripts
+   yarn rebuild      # Production
+   yarn rebuild:dev  # Development
    ```
 
 ---

@@ -34,6 +34,7 @@ logs/*.log
 /build/
 /lib/
 /coverage/
+*.tar.gz
 
 # Test results and coverage
 /test-results/
@@ -52,8 +53,6 @@ tmp/
 
 # Development notes and Claude-related files
 .claude/
-CLAUDE.md
-DEPLOYMENT.md
 IMPLEMENTATION_COMPLETE.md
 QUICKSTART.md
 STATUS.md

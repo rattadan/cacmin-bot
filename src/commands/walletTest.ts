@@ -1,16 +1,61 @@
+/**
+ * Wallet testing command handlers for the CAC Admin Bot.
+ * Provides owner-only commands for comprehensive wallet system testing,
+ * including balance checks, transfers, deposits, withdrawals, and full flow tests.
+ *
+ * @module commands/walletTest
+ */
+
 import { Telegraf, Context } from 'telegraf';
 import { UnifiedWalletService, SYSTEM_USER_IDS } from '../services/unifiedWalletService';
 import { LedgerService } from '../services/ledgerService';
-import { logger } from '../utils/logger';
-import { isOwner } from '../middleware';
+import { logger, StructuredLogger } from '../utils/logger';
+import { ownerOnly } from '../middleware';
 
 /**
- * Register wallet test commands for comprehensive testing
- * These commands are owner-only for security
+ * Registers all wallet test commands with the bot.
+ *
+ * All commands are owner-only for security purposes.
+ *
+ * Commands registered:
+ * - /testbalance - Test balance checking
+ * - /testdeposit - Test deposit instructions
+ * - /testtransfer - Test internal transfer
+ * - /testfine - Test fine payment
+ * - /testwithdraw - Test withdrawal (dry run)
+ * - /testverify - Test transaction verification
+ * - /testwalletstats - Test wallet statistics
+ * - /testsimulatedeposit - Simulate a deposit
+ * - /testhistory - Test transaction history
+ * - /testfullflow - Run full system flow test
+ *
+ * @param bot - Telegraf bot instance
+ *
+ * @example
+ * ```typescript
+ * import { Telegraf } from 'telegraf';
+ * import { registerWalletTestCommands } from './commands/walletTest';
+ *
+ * const bot = new Telegraf(process.env.BOT_TOKEN);
+ * registerWalletTestCommands(bot);
+ * ```
  */
 export const registerWalletTestCommands = (bot: Telegraf<Context>) => {
-  // Test balance checking
-  bot.command('testbalance', isOwner, async (ctx) => {
+  /**
+   * Command: /testbalance
+   * Test balance checking for user and bot treasury.
+   *
+   * Permission: Owner only
+   * Syntax: /testbalance
+   *
+   * @example
+   * User: /testbalance
+   * Bot: Balance Test
+   *
+   *      Your balance: `100.000000 JUNO`
+   *      Bot treasury: `500.000000 JUNO`
+   */
+  bot.command('testbalance', ownerOnly, async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
 
@@ -30,8 +75,14 @@ export const registerWalletTestCommands = (bot: Telegraf<Context>) => {
     }
   });
 
-  // Test deposit instructions
-  bot.command('testdeposit', isOwner, async (ctx) => {
+  /**
+   * Command: /testdeposit
+   * Test deposit instruction generation.
+   *
+   * Permission: Owner only
+   * Syntax: /testdeposit
+   */
+  bot.command('testdeposit', ownerOnly, async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
 
@@ -51,8 +102,14 @@ export const registerWalletTestCommands = (bot: Telegraf<Context>) => {
     }
   });
 
-  // Test internal transfer
-  bot.command('testtransfer', isOwner, async (ctx) => {
+  /**
+   * Command: /testtransfer
+   * Test internal transfer between users.
+   *
+   * Permission: Owner only
+   * Syntax: /testtransfer <toUserId> <amount>
+   */
+  bot.command('testtransfer', ownerOnly, async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
 
@@ -93,8 +150,14 @@ export const registerWalletTestCommands = (bot: Telegraf<Context>) => {
     }
   });
 
-  // Test fine payment
-  bot.command('testfine', isOwner, async (ctx) => {
+  /**
+   * Command: /testfine
+   * Test fine payment from user balance.
+   *
+   * Permission: Owner only
+   * Syntax: /testfine [amount]
+   */
+  bot.command('testfine', ownerOnly, async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
 
@@ -131,8 +194,14 @@ export const registerWalletTestCommands = (bot: Telegraf<Context>) => {
     }
   });
 
-  // Test withdrawal (dry run - doesn't actually send)
-  bot.command('testwithdraw', isOwner, async (ctx) => {
+  /**
+   * Command: /testwithdraw
+   * Test withdrawal validation (dry run - no actual blockchain transaction).
+   *
+   * Permission: Owner only
+   * Syntax: /testwithdraw <address> <amount>
+   */
+  bot.command('testwithdraw', ownerOnly, async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
 
@@ -177,8 +246,14 @@ export const registerWalletTestCommands = (bot: Telegraf<Context>) => {
     }
   });
 
-  // Test transaction verification
-  bot.command('testverify', isOwner, async (ctx) => {
+  /**
+   * Command: /testverify
+   * Test on-chain transaction verification.
+   *
+   * Permission: Owner only
+   * Syntax: /testverify <txHash>
+   */
+  bot.command('testverify', ownerOnly, async (ctx) => {
     const args = ctx.message?.text?.split(' ').slice(1) || [];
     if (args.length < 1) {
       return ctx.reply('Usage: /testverify <txHash>');
@@ -208,8 +283,14 @@ export const registerWalletTestCommands = (bot: Telegraf<Context>) => {
     }
   });
 
-  // Test wallet statistics
-  bot.command('testwalletstats', isOwner, async (ctx) => {
+  /**
+   * Command: /testwalletstats
+   * Test wallet statistics and reconciliation.
+   *
+   * Permission: Owner only
+   * Syntax: /testwalletstats
+   */
+  bot.command('testwalletstats', ownerOnly, async (ctx) => {
     try {
       const stats = await UnifiedWalletService.getStats();
 
@@ -235,8 +316,14 @@ export const registerWalletTestCommands = (bot: Telegraf<Context>) => {
     }
   });
 
-  // Simulate a deposit (for testing)
-  bot.command('testsimulatedeposit', isOwner, async (ctx) => {
+  /**
+   * Command: /testsimulatedeposit
+   * Simulate a deposit without blockchain transaction (for testing).
+   *
+   * Permission: Owner only
+   * Syntax: /testsimulatedeposit [userId] [amount]
+   */
+  bot.command('testsimulatedeposit', ownerOnly, async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
 
@@ -275,8 +362,14 @@ export const registerWalletTestCommands = (bot: Telegraf<Context>) => {
     }
   });
 
-  // Test transaction history
-  bot.command('testhistory', isOwner, async (ctx) => {
+  /**
+   * Command: /testhistory
+   * Test transaction history retrieval.
+   *
+   * Permission: Owner only
+   * Syntax: /testhistory
+   */
+  bot.command('testhistory', ownerOnly, async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
 
@@ -314,8 +407,21 @@ export const registerWalletTestCommands = (bot: Telegraf<Context>) => {
     }
   });
 
-  // Full system test
-  bot.command('testfullflow', isOwner, async (ctx) => {
+  /**
+   * Command: /testfullflow
+   * Run a comprehensive full system flow test including deposit, fine, and transfer.
+   *
+   * Permission: Owner only
+   * Syntax: /testfullflow
+   *
+   * Tests the following sequence:
+   * 1. Check initial balance
+   * 2. Simulate a deposit
+   * 3. Pay a fine
+   * 4. Transfer to bot
+   * 5. Verify final balances
+   */
+  bot.command('testfullflow', ownerOnly, async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
 

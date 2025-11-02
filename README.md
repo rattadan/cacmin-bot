@@ -156,6 +156,63 @@ yarn rebuild:full  # Full clean rebuild
 
 ---
 
+## **Production Deployment**
+
+For deploying to a production server (Raspberry Pi, VPS, etc.):
+
+### **Option 1: GitHub Release (Recommended)**
+
+Download and deploy the latest pre-built release:
+
+```bash
+# Download latest release
+wget https://github.com/cac-group/cacmin-bot/releases/latest/download/cacmin-bot-dist.tar.gz
+
+# Extract and run installer
+tar -xzf cacmin-bot-dist.tar.gz
+sudo ./install.sh
+```
+
+The installer will:
+- Create a dedicated system user (`cacmin-bot`)
+- Install to `/opt/cacmin-bot` with proper permissions
+- Set up systemd service for auto-start
+- Configure secure file permissions
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for complete deployment documentation.
+
+### **Option 2: Build Your Own Release**
+
+Build and package locally, then deploy:
+
+```bash
+# Build locally
+yarn install
+yarn build
+
+# Run installer on target server
+sudo ./install.sh
+```
+
+### **GitHub Actions Workflow**
+
+The project includes a GitHub Actions workflow that automatically:
+- Builds the TypeScript code
+- Creates a release tarball with all necessary files
+- Uploads artifacts and creates GitHub releases
+- Triggered by version tags (e.g., `v1.0.0`) or manual dispatch
+
+To create a new release:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The workflow builds on `ubuntu-latest` which is compatible with ARM64 servers like Raspberry Pi 4.
+
+---
+
 ## **Usage**
 
 ### **Role Management**

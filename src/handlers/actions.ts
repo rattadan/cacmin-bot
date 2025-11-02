@@ -1,9 +1,45 @@
+/**
+ * Global action restriction handlers for the CAC Admin Bot.
+ * Manages global restrictions that apply to all users in the chat,
+ * such as disabling certain sticker packs, URLs, or message patterns.
+ *
+ * @module handlers/actions
+ */
+
 import { Telegraf, Context } from 'telegraf';
 import { query, execute } from '../database';
 import { GlobalAction } from '../types';
-import { logger } from '../utils/logger';
+import { logger, StructuredLogger } from '../utils/logger';
 
+/**
+ * Registers all global action restriction command handlers with the bot.
+ * Provides commands to manage restrictions that affect all users.
+ *
+ * Commands registered:
+ * - /viewactions - View all global restrictions
+ * - /addaction - Add a global restriction
+ * - /removeaction - Remove a global restriction
+ *
+ * @param bot - The Telegraf bot instance
+ *
+ * @example
+ * ```typescript
+ * const bot = new Telegraf(token);
+ * registerActionHandlers(bot);
+ * ```
+ */
 export const registerActionHandlers = (bot: Telegraf<Context>) => {
+  /**
+   * Command handler for /viewactions.
+   * Displays all currently active global restrictions.
+   *
+   * Permission: All users can view
+   *
+   * @param ctx - Telegraf context
+   *
+   * @example
+   * Usage: /viewactions
+   */
   bot.command('viewactions', async (ctx) => {
     try {
       const actions = query<GlobalAction>('SELECT * FROM global_restrictions');
@@ -16,11 +52,24 @@ export const registerActionHandlers = (bot: Telegraf<Context>) => {
         .join('\n');
       await ctx.reply(`Restricted Actions:\n${message}`);
     } catch (error) {
-      logger.error('Error viewing actions', { userId: ctx.from?.id, error });
+      StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'view_actions' });
       await ctx.reply('An error occurred while fetching actions.');
     }
   });
 
+  /**
+   * Command handler for /addaction.
+   * Adds a new global restriction that applies to all users.
+   *
+   * Permission: Owner only (no explicit check - should be added)
+   *
+   * @param ctx - Telegraf context
+   *
+   * @example
+   * Usage: /addaction <restriction> [restrictedAction]
+   * Example: /addaction no_stickers offensive_pack
+   * Example: /addaction no_urls
+   */
   bot.command('addaction', async (ctx) => {
     const ownerId = ctx.from?.id;
     const [restriction, restrictedAction] = ctx.message?.text.split(' ').slice(1);
@@ -31,14 +80,31 @@ export const registerActionHandlers = (bot: Telegraf<Context>) => {
 
     try {
       execute('INSERT INTO global_restrictions (restriction, restricted_action) VALUES (?, ?)', [restriction, restrictedAction || null]);
-      logger.info('Global action added', { ownerId, restriction, restrictedAction });
+      StructuredLogger.logSecurityEvent('Global action restriction added', {
+        userId: ownerId,
+        operation: 'add_global_action',
+        restriction,
+        restrictedAction
+      });
       await ctx.reply(`Action '${restriction}' has been added.`);
     } catch (error) {
-      logger.error('Error adding action', { ownerId, restriction, error });
+      StructuredLogger.logError(error as Error, { userId: ownerId, operation: 'add_global_action', restriction });
       await ctx.reply('An error occurred while adding the action.');
     }
   });
 
+  /**
+   * Command handler for /removeaction.
+   * Removes a global restriction from all users.
+   *
+   * Permission: Owner only (no explicit check - should be added)
+   *
+   * @param ctx - Telegraf context
+   *
+   * @example
+   * Usage: /removeaction <restriction>
+   * Example: /removeaction no_stickers
+   */
   bot.command('removeaction', async (ctx) => {
     const ownerId = ctx.from?.id;
     const [restriction] = ctx.message?.text.split(' ').slice(1);
@@ -49,10 +115,14 @@ export const registerActionHandlers = (bot: Telegraf<Context>) => {
 
     try {
       execute('DELETE FROM global_restrictions WHERE restriction = ?', [restriction]);
-      logger.info('Global action removed', { ownerId, restriction });
+      StructuredLogger.logSecurityEvent('Global action restriction removed', {
+        userId: ownerId,
+        operation: 'remove_global_action',
+        restriction
+      });
       await ctx.reply(`Action '${restriction}' has been removed.`);
     } catch (error) {
-      logger.error('Error removing action', { ownerId, restriction, error });
+      StructuredLogger.logError(error as Error, { userId: ownerId, operation: 'remove_global_action', restriction });
       await ctx.reply('An error occurred while removing the action.');
     }
   });

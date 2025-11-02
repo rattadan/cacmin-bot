@@ -1,18 +1,57 @@
+/**
+ * Jail (mute) management service module.
+ * Handles jailing/muting users temporarily, tracking jail events,
+ * calculating bail amounts, and auto-releasing expired jails.
+ *
+ * Responsibilities:
+ * - Logging jail events (jailed, unjailed, auto-unjailed, bail paid)
+ * - Managing active jails and jail history
+ * - Calculating bail amounts based on duration
+ * - Cleaning up expired jails and restoring permissions
+ *
+ * @module services/jailService
+ */
+
 import { Telegraf, Context } from 'telegraf';
 import { query, execute, get } from '../database';
 import { User, JailEvent } from '../types';
-import { logger } from '../utils/logger';
+import { StructuredLogger } from '../utils/logger';
 import { config } from '../config';
 
+/**
+ * Service class for managing user jails (temporary mutes).
+ * Integrates with Telegram Bot API to enforce and lift restrictions.
+ */
 export class JailService {
   private static bot: Telegraf<Context>;
 
+  /**
+   * Initializes the jail service with the Telegraf bot instance.
+   * Must be called during bot startup before using other methods.
+   *
+   * @param bot - Telegraf bot instance for Telegram API access
+   */
   static initialize(bot: Telegraf<Context>): void {
     this.bot = bot;
   }
 
   /**
-   * Log a jail event to the database
+   * Logs a jail-related event to the database for audit trail.
+   *
+   * @param userId - Telegram user ID being jailed/unjailed
+   * @param eventType - Type of event (jailed, unjailed, auto_unjailed, bail_paid)
+   * @param adminId - Optional admin user ID who performed the action
+   * @param durationMinutes - Optional duration of jail in minutes
+   * @param bailAmount - Bail amount in JUNO (default 0)
+   * @param paidByUserId - Optional user ID who paid bail
+   * @param paymentTx - Optional blockchain transaction hash
+   * @param metadata - Optional additional metadata
+   *
+   * @example
+   * ```typescript
+   * // Log user jailed for 60 minutes with bail option
+   * JailService.logJailEvent(123456, 'jailed', 789012, 60, 10.0);
+   * ```
    */
   static logJailEvent(
     userId: number,
@@ -38,10 +77,26 @@ export class JailService {
         metadata ? JSON.stringify(metadata) : null
       ]
     );
+
+    StructuredLogger.logSecurityEvent(`User ${eventType}`, {
+      userId,
+      operation: eventType,
+      amount: bailAmount.toString()
+    });
   }
 
   /**
-   * Get all active jails (users currently jailed)
+   * Retrieves all currently active jails with remaining time.
+   *
+   * @returns Array of jailed users with calculated time remaining
+   *
+   * @example
+   * ```typescript
+   * const jails = JailService.getActiveJails();
+   * jails.forEach(jail => {
+   *   console.log(`User ${jail.id} has ${jail.timeRemaining}s remaining`);
+   * });
+   * ```
    */
   static getActiveJails(): Array<User & { timeRemaining: number }> {
     const now = Math.floor(Date.now() / 1000);
@@ -57,7 +112,11 @@ export class JailService {
   }
 
   /**
-   * Get jail events for a user
+   * Retrieves jail event history for a specific user.
+   *
+   * @param userId - Telegram user ID
+   * @param limit - Maximum number of events to return (default 10)
+   * @returns Array of jail events ordered by most recent first
    */
   static getUserJailEvents(userId: number, limit: number = 10): JailEvent[] {
     return query<JailEvent>(
@@ -67,7 +126,10 @@ export class JailService {
   }
 
   /**
-   * Get all jail events (for statistics)
+   * Retrieves all jail events across all users for statistics.
+   *
+   * @param limit - Maximum number of events to return (default 100)
+   * @returns Array of jail events ordered by most recent first
    */
   static getAllJailEvents(limit: number = 100): JailEvent[] {
     return query<JailEvent>(
@@ -77,7 +139,17 @@ export class JailService {
   }
 
   /**
-   * Calculate bail amount for a jail duration
+   * Calculates bail amount based on jail duration.
+   * Uses a base rate of 0.1 JUNO per minute with a minimum of 1.0 JUNO.
+   *
+   * @param durationMinutes - Duration of jail in minutes
+   * @returns Bail amount in JUNO tokens
+   *
+   * @example
+   * ```typescript
+   * const bail = JailService.calculateBailAmount(60); // 6.0 JUNO for 1 hour
+   * const shortBail = JailService.calculateBailAmount(5); // 1.0 JUNO (minimum)
+   * ```
    */
   static calculateBailAmount(durationMinutes: number): number {
     // Base rate: 0.1 JUNO per minute
@@ -86,8 +158,23 @@ export class JailService {
   }
 
   /**
-   * Clean up expired jails by restoring user permissions
-   * Should be called periodically
+   * Cleans up expired jails and automatically restores user permissions.
+   * Should be called periodically (e.g., via setInterval or cron job).
+   *
+   * Process:
+   * 1. Find all users whose jail time has expired
+   * 2. Clear muted_until field in database
+   * 3. Restore Telegram chat permissions
+   * 4. Log auto-unjail event
+   * 5. Notify user via DM
+   *
+   * @throws Will log errors but continue processing other users if individual operations fail
+   *
+   * @example
+   * ```typescript
+   * // Run every minute
+   * setInterval(() => JailService.cleanExpiredJails(), 60000);
+   * ```
    */
   static async cleanExpiredJails(): Promise<void> {
     try {
@@ -103,7 +190,10 @@ export class JailService {
         return;
       }
 
-      logger.info(`Found ${expiredJails.length} expired jails to clean up`);
+      StructuredLogger.logUserAction('Cleaning expired jails', {
+        operation: 'clean_expired_jails',
+        amount: expiredJails.length.toString()
+      });
 
       for (const user of expiredJails) {
         try {
@@ -134,7 +224,11 @@ export class JailService {
                   can_manage_topics: false,
                 },
               });
-              logger.info(`Auto-restored permissions for user ${user.id} after jail expiry`);
+
+              StructuredLogger.logSecurityEvent('User auto-unjailed', {
+                userId: user.id,
+                operation: 'auto_unjailed'
+              });
 
               // Log the auto-unjail event
               this.logJailEvent(user.id, 'auto_unjailed');
@@ -147,19 +241,29 @@ export class JailService {
                 );
               } catch (dmError) {
                 // User might have blocked the bot, that's okay
-                logger.debug(`Could not notify user ${user.id} of jail expiry`, dmError);
+                StructuredLogger.logDebug('Could not notify user of jail expiry', {
+                  userId: user.id
+                });
               }
             } catch (error) {
-              logger.error(`Failed to restore permissions for user ${user.id}`, error);
+              StructuredLogger.logError(error as Error, {
+                userId: user.id,
+                operation: 'restore_permissions'
+              });
               // Continue with other users even if one fails
             }
           }
         } catch (error) {
-          logger.error(`Failed to process expired jail for user ${user.id}`, error);
+          StructuredLogger.logError(error as Error, {
+            userId: user.id,
+            operation: 'process_expired_jail'
+          });
         }
       }
     } catch (error) {
-      logger.error('Error in cleanExpiredJails', error);
+      StructuredLogger.logError(error as Error, {
+        operation: 'clean_expired_jails'
+      });
     }
   }
 }

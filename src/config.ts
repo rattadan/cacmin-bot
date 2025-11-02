@@ -1,33 +1,87 @@
+/**
+ * Configuration module for the CAC Admin Bot.
+ * Loads environment variables and provides typed configuration object.
+ * Validates required configuration values on startup.
+ *
+ * @module config
+ */
+
 import * as dotenv from 'dotenv';
 import { resolve } from 'path';
 import { logger } from './utils/logger';
 
+// Load environment variables from .env file
 dotenv.config({ path: resolve(__dirname, '../.env') });
 
+/**
+ * Configuration interface defining all bot settings.
+ *
+ * @interface Config
+ */
 interface Config {
+  /** Telegram bot API token from BotFather */
   botToken: string;
+
+  /** Juno blockchain RPC endpoint URL */
   junoRpcUrl: string;
+
+  /** Juno blockchain REST API endpoint URL (optional) */
   junoApiUrl?: string;
+
+  /** Telegram chat ID for admin notifications */
   adminChatId: number;
+
+  /** Telegram group chat ID where bot operates (optional) */
   groupChatId?: number;
+
+  /** Telegram user ID of the bot owner */
   ownerId: number;
-  userFundsAddress?: string; // Single wallet for all operations
-  userFundsMnemonic?: string; // Mnemonic for signing withdrawals
+
+  /** Juno wallet address for user fund operations (optional) */
+  userFundsAddress?: string;
+
+  /** BIP39 mnemonic for signing withdrawal transactions (optional) */
+  userFundsMnemonic?: string;
+
+  /** Bot treasury Juno wallet address (optional, defaults to userFundsAddress) */
+  botTreasuryAddress?: string;
+
+  /** File path to SQLite database */
   databasePath: string;
+
+  /** Logging level (error, warn, info, debug) */
   logLevel: string;
+
+  /** Fine amounts in JUNO tokens for different violation types */
   fineAmounts: {
+    /** Fine for sending restricted stickers */
     sticker: number;
+    /** Fine for posting restricted URLs */
     url: number;
+    /** Fine for matching restricted regex patterns */
     regex: number;
+    /** Fine for blacklisted actions */
     blacklist: number;
   };
+
+  /** Duration settings for various restriction types */
   restrictionDurations: {
-    warning: number; // milliseconds
+    /** Warning duration in milliseconds */
+    warning: number;
+    /** Mute duration in milliseconds */
     mute: number;
+    /** Temporary ban duration in milliseconds */
     tempBan: number;
   };
 }
 
+/**
+ * Main configuration object populated from environment variables.
+ * Falls back to default values where appropriate.
+ *
+ * @constant config
+ * @type {Config}
+ */
 export const config: Config = {
   botToken: process.env.BOT_TOKEN || '',
   junoRpcUrl: process.env.JUNO_RPC_URL || 'https://rpc.juno.basementnodes.ca',
@@ -37,6 +91,7 @@ export const config: Config = {
   ownerId: parseInt(process.env.OWNER_ID || '0'),
   userFundsAddress: process.env.USER_FUNDS_ADDRESS,
   userFundsMnemonic: process.env.USER_FUNDS_MNEMONIC,
+  botTreasuryAddress: process.env.BOT_TREASURY_ADDRESS || process.env.USER_FUNDS_ADDRESS,
   databasePath: process.env.DATABASE_PATH || './data/bot.db',
   logLevel: process.env.LOG_LEVEL || 'info',
   fineAmounts: {
@@ -52,7 +107,26 @@ export const config: Config = {
   }
 };
 
-// Validate configuration
+/**
+ * Validates that all required configuration values are present and valid.
+ * Called at bot startup to ensure proper configuration before initialization.
+ *
+ * Required values:
+ * - botToken: Must be set to a valid Telegram bot token
+ * - ownerId: Must be set to the Telegram user ID of the bot owner
+ *
+ * Optional warnings:
+ * - userFundsAddress/userFundsMnemonic: If not fully configured, deposit/withdrawal features will be limited
+ *
+ * @throws {Error} If BOT_TOKEN is not set
+ * @throws {Error} If OWNER_ID is not set
+ *
+ * @example
+ * ```typescript
+ * // Called at bot startup
+ * validateConfig();
+ * ```
+ */
 export function validateConfig(): void {
   if (!config.botToken) {
     throw new Error('BOT_TOKEN is required in environment variables');

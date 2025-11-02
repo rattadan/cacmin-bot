@@ -1,3 +1,11 @@
+/**
+ * Wallet command handlers for the CAC Admin Bot.
+ * Provides user wallet functionality including balance checking, deposits,
+ * withdrawals, transfers, and transaction history.
+ *
+ * @module commands/wallet
+ */
+
 import { Telegraf, Context } from 'telegraf';
 import { adminOrHigher } from '../middleware/index';
 import { financialLockCheck } from '../middleware/lockCheck';
@@ -13,34 +21,125 @@ import {
   handleReconcile
 } from '../handlers/wallet';
 
+/**
+ * Registers all wallet-related commands with the bot.
+ *
+ * Commands registered:
+ * - /balance (alias: /bal) - Check internal ledger balance
+ * - /deposit - Get deposit instructions
+ * - /withdraw - Withdraw to external wallet (with locking)
+ * - /send (alias: /transfer) - Send to user or external wallet (with locking)
+ * - /transactions (alias: /history) - View transaction history
+ * - /walletstats - System statistics (admin only)
+ * - /giveaway - Distribute tokens (admin only)
+ * - /reconcile - Check ledger vs on-chain balance (admin only)
+ * - /checkdeposit - Check specific deposit by transaction hash
+ * - /wallethelp - Display wallet command help
+ *
+ * @param bot - Telegraf bot instance
+ *
+ * @example
+ * ```typescript
+ * import { Telegraf } from 'telegraf';
+ * import { registerWalletCommands } from './commands/wallet';
+ *
+ * const bot = new Telegraf(process.env.BOT_TOKEN);
+ * registerWalletCommands(bot);
+ * ```
+ */
 export function registerWalletCommands(bot: Telegraf<Context>): void {
-  // Balance command - shows user's internal ledger balance
+  /**
+   * Command: /balance (alias: /bal)
+   * Check user's internal ledger balance.
+   *
+   * Permission: Any user
+   * Syntax: /balance
+   */
   bot.command('balance', handleBalance);
   bot.command('bal', handleBalance); // Alias
 
-  // Deposit command - shows deposit instructions
+  /**
+   * Command: /deposit
+   * Get deposit instructions with unique memo for user identification.
+   *
+   * Permission: Any user
+   * Syntax: /deposit
+   */
   bot.command('deposit', handleDeposit);
 
-  // Withdraw command - withdraws to external wallet (with locking)
+  /**
+   * Command: /withdraw
+   * Withdraw funds to an external Juno address (with financial locking).
+   *
+   * Permission: Any user
+   * Syntax: /withdraw <amount> <address>
+   */
   bot.command('withdraw', financialLockCheck, handleWithdraw);
 
-  // Send command - sends to another user or external wallet (with locking for external)
+  /**
+   * Command: /send (alias: /transfer)
+   * Send funds to another user or external wallet (with locking for external transfers).
+   *
+   * Permission: Any user
+   * Syntax: /send <amount> <recipient>
+   * - recipient can be @username, userId, or juno1... address
+   */
   bot.command('send', financialLockCheck, handleSend);
   bot.command('transfer', financialLockCheck, handleSend); // Alias
 
-  // Transaction history command
+  /**
+   * Command: /transactions (alias: /history)
+   * View transaction history.
+   *
+   * Permission: Any user
+   * Syntax: /transactions [limit]
+   */
   bot.command('transactions', handleTransactions);
   bot.command('history', handleTransactions); // Alias
 
-  // Admin commands
+  /**
+   * Command: /walletstats
+   * View system wallet statistics and ledger reconciliation (admin only).
+   *
+   * Permission: Admin or higher
+   * Syntax: /walletstats
+   */
   bot.command('walletstats', adminOrHigher, handleWalletStats);
+
+  /**
+   * Command: /giveaway
+   * Distribute tokens to users (admin only).
+   *
+   * Permission: Admin or higher
+   * Syntax: /giveaway <amount> <@user1> <@user2> ...
+   */
   bot.command('giveaway', adminOrHigher, handleGiveaway);
+
+  /**
+   * Command: /reconcile
+   * Check internal ledger balance against on-chain balance (admin only).
+   *
+   * Permission: Admin or higher
+   * Syntax: /reconcile
+   */
   bot.command('reconcile', adminOrHigher, handleReconcile);
 
-  // Check specific deposit by transaction hash
+  /**
+   * Command: /checkdeposit
+   * Check status of a specific deposit by transaction hash.
+   *
+   * Permission: Any user
+   * Syntax: /checkdeposit <tx_hash>
+   */
   bot.command('checkdeposit', handleCheckDeposit);
 
-  // Help command for wallet features
+  /**
+   * Command: /wallethelp
+   * Display comprehensive wallet command help.
+   *
+   * Permission: Any user
+   * Syntax: /wallethelp
+   */
   bot.command('wallethelp', async (ctx) => {
     await ctx.reply(
       ` *Wallet Commands*\n\n` +

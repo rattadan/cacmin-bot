@@ -1,3 +1,11 @@
+/**
+ * Main entry point for the CAC Admin Bot.
+ * Initializes the Telegram bot instance, database, wallet services, and all command handlers.
+ * Manages periodic cleanup tasks and graceful shutdown.
+ *
+ * @module bot
+ */
+
 import { Telegraf } from 'telegraf';
 import { validateConfig, config } from './config';
 import { initDb } from './database';
@@ -16,12 +24,36 @@ import { registerJailCommands } from './commands/jail';
 import { registerGiveawayCommands } from './commands/giveaway';
 import { registerWalletCommands } from './commands/wallet';
 import { registerWalletTestCommands } from './commands/walletTest';
+import { registerSharedAccountCommands } from './commands/sharedAccounts';
 import { RestrictionService } from './services/restrictionService';
 import { JailService } from './services/jailService';
 import { UnifiedWalletService } from './services/unifiedWalletService';
 import { LedgerService } from './services/ledgerService';
-import { TransactionLockService } from './services/transactionLock';
+import { SecureTransactionLockService } from './services/secureTransactionLock';
 
+/**
+ * Main initialization and startup function for the CAC Admin Bot.
+ *
+ * Performs the following initialization sequence:
+ * 1. Validates configuration from environment variables
+ * 2. Initializes SQLite database and creates tables
+ * 3. Initializes ledger system for internal accounting
+ * 4. Initializes unified wallet system with deposit monitoring
+ * 5. Cleans up stale transaction locks from previous session
+ * 6. Creates Telegraf bot instance
+ * 7. Registers all middleware and command handlers
+ * 8. Sets up periodic cleanup tasks (restrictions, jails, locks, reconciliation)
+ * 9. Configures graceful shutdown handlers
+ * 10. Launches the bot
+ *
+ * @throws {Error} If configuration validation fails or bot cannot start
+ *
+ * @example
+ * ```typescript
+ * // Bot is started automatically when the module is loaded
+ * // The main() function handles all initialization
+ * ```
+ */
 async function main() {
   try {
     // Validate configuration
@@ -37,7 +69,7 @@ async function main() {
     await UnifiedWalletService.initialize();
 
     // Clean up any stale locks from previous session
-    await TransactionLockService.cleanExpiredLocks();
+    await SecureTransactionLockService.cleanExpiredLocks();
     logger.info('Cleaned up stale transaction locks');
 
     // Create bot instance
@@ -65,6 +97,7 @@ async function main() {
     registerGiveawayCommands(bot);
     registerWalletCommands(bot);
     registerWalletTestCommands(bot); // Owner-only test commands
+    registerSharedAccountCommands(bot); // Shared account management
 
     // Error handling
     bot.catch((err, ctx) => {
@@ -83,7 +116,7 @@ async function main() {
 
     // Periodic cleanup of expired transaction locks (every minute)
     setInterval(async () => {
-      await TransactionLockService.cleanExpiredLocks();
+      await SecureTransactionLockService.cleanExpiredLocks();
     }, 60 * 1000);
 
     // Periodic balance reconciliation check (every hour)

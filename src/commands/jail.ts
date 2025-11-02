@@ -1,7 +1,15 @@
+/**
+ * Jail command handlers for the CAC Admin Bot.
+ * Provides commands for viewing jail statistics, checking user status,
+ * listing active jails, and paying bail for users.
+ *
+ * @module commands/jail
+ */
+
 import { Telegraf, Context } from 'telegraf';
 import { execute, get } from '../database';
 import { User } from '../types';
-import { logger } from '../utils/logger';
+import { logger, StructuredLogger } from '../utils/logger';
 import { config } from '../config';
 import { JailService } from '../services/jailService';
 import { JunoService } from '../services/junoService';
@@ -9,7 +17,17 @@ import { getUnpaidViolations, getTotalFines } from '../services/violationService
 import { formatUserIdDisplay, resolveUserId } from '../utils/userResolver';
 
 /**
- * Format seconds into human-readable time
+ * Formats a duration in seconds into a human-readable time string.
+ *
+ * @param seconds - Duration in seconds
+ * @returns Formatted time string (e.g., "2h 30m 15s", "45m 30s", "30s")
+ *
+ * @example
+ * ```typescript
+ * formatTimeRemaining(9015); // Returns "2h 30m 15s"
+ * formatTimeRemaining(2730); // Returns "45m 30s"
+ * formatTimeRemaining(30);   // Returns "30s"
+ * ```
  */
 function formatTimeRemaining(seconds: number): string {
   const hours = Math.floor(seconds / 3600);
@@ -25,8 +43,51 @@ function formatTimeRemaining(seconds: number): string {
   }
 }
 
+/**
+ * Registers all jail-related commands with the bot.
+ *
+ * Commands registered:
+ * - /jailstats - View global jail statistics (elevated users only)
+ * - /mystatus - Check your own jail status and fines
+ * - /jails - List all active jails
+ * - /paybail - Pay your own bail
+ * - /paybailfor - Pay bail for another user
+ * - /verifybail - Verify your bail payment
+ * - /verifybailfor - Verify bail payment for another user
+ *
+ * @param bot - Telegraf bot instance
+ *
+ * @example
+ * ```typescript
+ * import { Telegraf } from 'telegraf';
+ * import { registerJailCommands } from './commands/jail';
+ *
+ * const bot = new Telegraf(process.env.BOT_TOKEN);
+ * registerJailCommands(bot);
+ * ```
+ */
 export function registerJailCommands(bot: Telegraf<Context>): void {
-  // Global jail statistics (elevated users only)
+  /**
+   * Command: /jailstats
+   * View comprehensive jail system statistics.
+   *
+   * Permission: Elevated users or higher
+   * Syntax: /jailstats
+   *
+   * Displays:
+   * - Currently active jails with time remaining and bail amounts
+   * - All-time statistics (total jails, bails paid, releases)
+   *
+   * @example
+   * User: /jailstats
+   * Bot: Jail System Statistics
+   *
+   *      Currently Active Jails: 2
+   *
+   *      Active Prisoners:
+   *      1. User 123456 - 45m 30s (5.00 JUNO)
+   *      2. @alice - 1h 15m 0s (10.50 JUNO)
+   */
   bot.command('jailstats', async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
@@ -96,7 +157,30 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     await ctx.reply(message, { parse_mode: 'Markdown' });
   });
 
-  // User command to check their own status
+  /**
+   * Command: /mystatus
+   * Check your own status including jail time, role, warnings, and unpaid fines.
+   *
+   * Permission: Any user
+   * Syntax: /mystatus
+   *
+   * @example
+   * User: /mystatus
+   * Bot: Your Status
+   *
+   *      User: @alice
+   *      Role: pleb
+   *      Warnings: 1
+   *
+   *      Currently Jailed
+   *      Time remaining: 30m 15s
+   *      Bail amount: 3.50 JUNO
+   *      To pay bail: /paybail
+   *
+   *      Unpaid Fines
+   *      Count: 2
+   *      Total: 5.00 JUNO
+   */
   bot.command('mystatus', async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
@@ -141,7 +225,24 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     await ctx.reply(message, { parse_mode: 'Markdown' });
   });
 
-  // Public command to list all active jails
+  /**
+   * Command: /jails
+   * List all currently active jails with time remaining and bail amounts.
+   *
+   * Permission: Any user
+   * Syntax: /jails
+   *
+   * @example
+   * User: /jails
+   * Bot: Active Jails (2)
+   *
+   *      1. User 123456
+   *         Time: 30m 15s
+   *         Bail: 3.50 JUNO
+   *         Pay: /paybailfor 123456
+   *
+   *      Anyone can pay bail for any user using /paybailfor <userId>
+   */
   bot.command('jails', async (ctx) => {
     const activeJails = JailService.getActiveJails();
 
@@ -167,7 +268,26 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     await ctx.reply(message, { parse_mode: 'MarkdownV2' });
   });
 
-  // Command to pay bail for yourself
+  /**
+   * Command: /paybail
+   * Get payment instructions to pay your own bail.
+   *
+   * Permission: Any user
+   * Syntax: /paybail
+   *
+   * @example
+   * User: /paybail
+   * Bot: Pay Your Bail
+   *
+   *      Current jail time remaining: 45m 30s
+   *      Bail amount: 5.00 JUNO
+   *
+   *      Send exactly 5.00 JUNO to:
+   *      `juno1...`
+   *
+   *      After payment, send:
+   *      /verifybail <transaction_hash>
+   */
   bot.command('paybail', async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
@@ -198,7 +318,26 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     await ctx.reply(message, { parse_mode: 'MarkdownV2' });
   });
 
-  // Command to pay bail for another user
+  /**
+   * Command: /paybailfor
+   * Get payment instructions to pay bail for another user.
+   *
+   * Permission: Any user
+   * Syntax: /paybailfor <@username|userId>
+   *
+   * @example
+   * User: /paybailfor @alice
+   * Bot: Pay Bail For @alice
+   *
+   *      Current jail time remaining: 1h 15m 0s
+   *      Bail amount: 10.50 JUNO
+   *
+   *      Send exactly 10.50 JUNO to:
+   *      `juno1...`
+   *
+   *      After payment, send:
+   *      /verifybailfor 123456 <transaction_hash>
+   */
   bot.command('paybailfor', async (ctx) => {
     const payerId = ctx.from?.id;
     if (!payerId) return;
@@ -239,7 +378,20 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     await ctx.reply(message, { parse_mode: 'MarkdownV2' });
   });
 
-  // Verify bail payment for yourself
+  /**
+   * Command: /verifybail
+   * Verify your bail payment and get released from jail.
+   *
+   * Permission: Any user
+   * Syntax: /verifybail <txHash>
+   *
+   * @example
+   * User: /verifybail ABC123DEF456...
+   * Bot: Bail Payment Verified!
+   *
+   *      You have been released from jail.
+   *      Transaction: `ABC123DEF456...`
+   */
   bot.command('verifybail', async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
@@ -300,7 +452,12 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
             can_manage_topics: false,
           },
         });
-        logger.info('User released via bail payment', { userId, bailAmount, txHash });
+        StructuredLogger.logTransaction('User released via bail payment', {
+          userId,
+          txHash,
+          amount: bailAmount.toString(),
+          operation: 'bail_payment'
+        });
       } catch (error) {
         logger.error('Failed to restore permissions after bail payment', { userId, error });
       }
@@ -313,10 +470,29 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
       { parse_mode: 'MarkdownV2' }
     );
 
-    logger.info('Bail paid and verified', { userId, bailAmount, txHash });
+    StructuredLogger.logTransaction('Bail paid and verified', {
+      userId,
+      txHash,
+      amount: bailAmount.toString(),
+      operation: 'bail_verification'
+    });
   });
 
-  // Verify bail payment for another user
+  /**
+   * Command: /verifybailfor
+   * Verify bail payment made for another user.
+   *
+   * Permission: Any user
+   * Syntax: /verifybailfor <userId> <txHash>
+   *
+   * @example
+   * User: /verifybailfor 123456 ABC123DEF456...
+   * Bot: Bail Payment Verified!
+   *
+   *      User 123456 has been released from jail.
+   *      Paid by: @bob
+   *      Transaction: `ABC123DEF456...`
+   */
   bot.command('verifybailfor', async (ctx) => {
     const payerId = ctx.from?.id;
     if (!payerId) return;
@@ -384,11 +560,12 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
             can_manage_topics: false,
           },
         });
-        logger.info('User released via bail payment by another user', {
-          targetUserId,
-          payerId,
-          bailAmount,
-          txHash
+        StructuredLogger.logTransaction('User released via bail payment by another user', {
+          userId: targetUserId,
+          txHash,
+          amount: bailAmount.toString(),
+          operation: 'bail_payment_for_other',
+          payerId: payerId
         });
       } catch (error) {
         logger.error('Failed to restore permissions after bail payment', { targetUserId, error });
@@ -413,11 +590,12 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
       { parse_mode: 'MarkdownV2' }
     );
 
-    logger.info('Bail paid by another user and verified', {
-      targetUserId,
-      payerId,
-      bailAmount,
-      txHash
+    StructuredLogger.logTransaction('Bail paid by another user and verified', {
+      userId: targetUserId,
+      txHash,
+      amount: bailAmount.toString(),
+      operation: 'bail_verification_for_other',
+      payerId: payerId
     });
   });
 }

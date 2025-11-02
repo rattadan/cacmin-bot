@@ -1,8 +1,60 @@
+/**
+ * Help command handler for the CAC Admin Bot.
+ * Provides comprehensive, role-based command reference accessible via DM.
+ *
+ * @module commands/help
+ */
+
 import { Telegraf, Context } from 'telegraf';
 import { get } from '../database';
 import { User } from '../types';
 
+/**
+ * Registers the help command with the bot.
+ *
+ * The help command displays a comprehensive list of available commands
+ * based on the user's role (pleb, elevated, admin, owner).
+ *
+ * Command:
+ * - /help - Display role-based command reference (DM only)
+ *
+ * @param bot - Telegraf bot instance
+ *
+ * @example
+ * ```typescript
+ * import { Telegraf } from 'telegraf';
+ * import { registerHelpCommand } from './commands/help';
+ *
+ * const bot = new Telegraf(process.env.BOT_TOKEN);
+ * registerHelpCommand(bot);
+ * ```
+ */
 export function registerHelpCommand(bot: Telegraf<Context>): void {
+  /**
+   * Command: /help
+   * Display comprehensive, role-based command reference.
+   *
+   * Permission: Any user
+   * Syntax: /help
+   * Location: Direct message only
+   *
+   * Displays different command sets based on user role:
+   * - Universal: Wallet, user status, payment commands
+   * - Elevated: View restrictions, lists, jail statistics
+   * - Admin: Role management, moderation, treasury
+   * - Owner: Owner-specific commands
+   *
+   * @example
+   * User: /help
+   * Bot: CAC Admin Bot - Command Reference
+   *
+   *      Your Role: `pleb`
+   *
+   *      Wallet Commands:
+   *      /balance - Check your wallet balance
+   *      /deposit - Get deposit instructions
+   *      [... full command list based on role ...]
+   */
   bot.command('help', async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;

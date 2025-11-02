@@ -1,18 +1,60 @@
+/**
+ * Deposit command handlers for the CAC Admin Bot.
+ * Provides commands for deposit instructions, verification, and unclaimed deposit management.
+ *
+ * @module commands/deposit
+ */
+
 import { Telegraf, Context } from 'telegraf';
 import { UnifiedWalletService, SYSTEM_USER_IDS } from '../services/unifiedWalletService';
 import { RPCTransactionVerification } from '../services/rpcTransactionVerification';
 import { DepositInstructionService } from '../services/depositInstructions';
 import { LedgerService } from '../services/ledgerService';
 import { AmountPrecision } from '../utils/precision';
-import { logger } from '../utils/logger';
+import { logger, StructuredLogger } from '../utils/logger';
 import { get, query } from '../database';
 
 /**
- * Register deposit-related commands
+ * Registers all deposit-related commands with the bot.
+ *
+ * Commands registered:
+ * - /deposit - Get deposit instructions with memo
+ * - /verifydeposit - Verify a deposit by transaction hash
+ * - /unclaimeddeposits - View unclaimed deposits (missing or invalid memo)
+ * - /claimdeposit - Assign an unclaimed deposit to a user (admin only)
+ *
+ * @param bot - Telegraf bot instance
+ *
+ * @example
+ * ```typescript
+ * import { Telegraf } from 'telegraf';
+ * import { registerDepositCommands } from './commands/deposit';
+ *
+ * const bot = new Telegraf(process.env.BOT_TOKEN);
+ * registerDepositCommands(bot);
+ * ```
  */
 export const registerDepositCommands = (bot: Telegraf<Context>) => {
 
-  // Get deposit instructions
+  /**
+   * Command: /deposit
+   * Get deposit instructions with unique user memo.
+   *
+   * Permission: Any user
+   * Syntax: /deposit
+   *
+   * @example
+   * User: /deposit
+   * Bot: Deposit Instructions
+   *
+   *      Send JUNO to:
+   *      `juno1...`
+   *
+   *      IMPORTANT: Include this memo:
+   *      `123456`
+   *
+   *      Without the correct memo, your deposit cannot be automatically credited.
+   */
   bot.command('deposit', async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
@@ -35,7 +77,23 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
     }
   });
 
-  // Verify a deposit by transaction hash
+  /**
+   * Command: /verifydeposit
+   * Verify and credit a deposit by providing the transaction hash.
+   *
+   * Permission: Any user
+   * Syntax: /verifydeposit <transaction_hash>
+   *
+   * @example
+   * User: /verifydeposit ABC123DEF456...
+   * Bot: Deposit Confirmed!
+   *
+   *      Amount: 100.000000 JUNO
+   *      From: juno1abc...
+   *      Transaction: ABC123DEF456...
+   *
+   *      New balance: 100.000000 JUNO
+   */
   bot.command('verifydeposit', async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
@@ -106,6 +164,13 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
       );
 
       if (result.success) {
+        StructuredLogger.logTransaction('Deposit verified and credited', {
+          userId,
+          txHash,
+          amount: verification.amount!.toString(),
+          operation: 'deposit_verification'
+        });
+
         await ctx.reply(
           DepositInstructionService.formatDepositConfirmation(
             userId,
@@ -132,7 +197,24 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
     }
   });
 
-  // Check unclaimed deposits
+  /**
+   * Command: /unclaimeddeposits
+   * View deposits that could not be automatically credited due to missing or invalid memos.
+   *
+   * Permission: Any user
+   * Syntax: /unclaimeddeposits
+   *
+   * @example
+   * User: /unclaimeddeposits
+   * Bot: Unclaimed Deposits
+   *
+   *      Total: `50.000000 JUNO`
+   *
+   *      Recent deposits without valid memo:
+   *      • `ABC123...`
+   *        Amount: 25.000000 JUNO
+   *        Memo: "wrong_id"
+   */
   bot.command('unclaimeddeposits', async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
@@ -175,7 +257,21 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
     }
   });
 
-  // Claim an unclaimed deposit (admin only)
+  /**
+   * Command: /claimdeposit
+   * Manually assign an unclaimed deposit to a user (admin only).
+   *
+   * Permission: Admin or owner
+   * Syntax: /claimdeposit <transaction_hash> <user_id>
+   *
+   * @example
+   * User: /claimdeposit ABC123... 123456
+   * Bot: Deposit Claimed
+   *
+   *      Amount: `25.000000 JUNO`
+   *      Assigned to user: `123456`
+   *      Transaction: `ABC123...`
+   */
   bot.command('claimdeposit', async (ctx) => {
     const adminId = ctx.from?.id;
     if (!adminId) return;
@@ -207,6 +303,14 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
       const result = await UnifiedWalletService.claimUnclaimedDeposit(txHash, targetUserId);
 
       if (result.success) {
+        StructuredLogger.logUserAction('Unclaimed deposit assigned by admin', {
+          userId: adminId,
+          operation: 'claim_deposit',
+          targetUserId: targetUserId,
+          txHash,
+          amount: result.amount!.toString()
+        });
+
         await ctx.reply(
           `✅ **Deposit Claimed**\n\n` +
           `Amount: \`${AmountPrecision.format(result.amount!)} JUNO\`\n` +

@@ -6,12 +6,15 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=root
-Group=root
-WorkingDirectory=/root/repos/cacmin-bot
+User=cacmin-bot
+Group=cacmin-bot
+WorkingDirectory=/opt/cacmin-bot
 
-# Main process (start:prod includes validation)
-ExecStart=/usr/bin/yarn start:prod
+# Load environment variables from .env file
+EnvironmentFile=/opt/cacmin-bot/.env
+
+# Main process
+ExecStart=/usr/bin/yarn start
 
 # Restart configuration
 Restart=always
@@ -21,7 +24,6 @@ StartLimitBurst=5
 
 # Environment
 Environment=NODE_ENV=production
-Environment=LOG_LEVEL=info
 
 # Logging configuration
 StandardOutput=journal

@@ -1,14 +1,61 @@
+/**
+ * Moderation command handlers for the CAC Admin Bot.
+ * Provides admin commands for jailing/unjailing users, issuing warnings,
+ * clearing violations, and viewing bot statistics.
+ *
+ * @module commands/moderation
+ */
+
 import { Telegraf, Context } from 'telegraf';
 import { execute, get } from '../database';
 import { User } from '../types';
-import { logger } from '../utils/logger';
+import { logger, StructuredLogger } from '../utils/logger';
 import { config } from '../config';
 import { resolveUserId, formatUserIdDisplay } from '../utils/userResolver';
 import { JailService } from '../services/jailService';
 import { getUserIdentifier, getCommandArgs } from '../utils/commandHelper';
 
+/**
+ * Registers all moderation commands with the bot.
+ *
+ * Commands registered:
+ * - /jail (alias: /silence) - Restrict a user (admin only)
+ * - /unjail (alias: /unsilence) - Release a user from jail (admin only)
+ * - /warn - Issue a warning to a user (admin only)
+ * - /clearviolations - Clear all violations for a user (owner only)
+ * - /stats - View comprehensive bot statistics (owner only)
+ *
+ * @param bot - Telegraf bot instance
+ *
+ * @example
+ * ```typescript
+ * import { Telegraf } from 'telegraf';
+ * import { registerModerationCommands } from './commands/moderation';
+ *
+ * const bot = new Telegraf(process.env.BOT_TOKEN);
+ * registerModerationCommands(bot);
+ * ```
+ */
 export function registerModerationCommands(bot: Telegraf<Context>): void {
-  // Jail command (replaces mute to avoid conflicts with Rose bot)
+  /**
+   * Command: /jail (alias: /silence)
+   * Jail a user by restricting their permissions in the group.
+   *
+   * Permission: Admin or owner
+   * Syntax (reply): /jail <minutes>
+   * Syntax (direct): /jail <@username|userId> <minutes>
+   *
+   * @example
+   * User: /jail @alice 30
+   * Bot: User @alice has been jailed for 30 minutes.
+   *      Bail amount: 3.50 JUNO
+   *      They can pay bail using /paybail or check their status with /mystatus
+   *
+   * @example
+   * User: (reply to message) /jail 60
+   * Bot: User 123456 has been jailed for 60 minutes.
+   *      Bail amount: 7.00 JUNO
+   */
   const jailHandler = async (ctx: Context) => {
     const adminId = ctx.from?.id;
     if (!adminId) return;
@@ -109,7 +156,14 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
           },
           until_date: mutedUntil,
         });
-        logger.info('User restricted in Telegram', { adminId, userId, minutes, mutedUntil, bailAmount });
+        StructuredLogger.logSecurityEvent('User restricted in Telegram', {
+          userId: adminId,
+          username: ctx.from?.username,
+          operation: 'jail',
+          targetUserId: userId,
+          duration: minutes,
+          amount: bailAmount.toString()
+        });
       } catch (error) {
         logger.error('Failed to restrict user in Telegram', { userId, chatId: ctx.chat.id, error });
         await ctx.reply(
@@ -132,7 +186,21 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
   bot.command('jail', jailHandler);
   bot.command('silence', jailHandler); // Alias for jail
 
-  // Unjail command (replaces unmute)
+  /**
+   * Command: /unjail (alias: /unsilence)
+   * Release a user from jail and restore their permissions.
+   *
+   * Permission: Admin or owner
+   * Syntax: /unjail <@username|userId>
+   *
+   * @example
+   * User: /unjail @alice
+   * Bot: User @alice has been released from jail.
+   *
+   * @example
+   * User: /unjail 123456
+   * Bot: User 123456 has been released from jail.
+   */
   const unjailHandler = async (ctx: Context) => {
     const adminId = ctx.from?.id;
     if (!adminId) return;
@@ -183,7 +251,12 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
             can_manage_topics: false,
           },
         });
-        logger.info('User permissions restored in Telegram', { adminId, userId });
+        StructuredLogger.logSecurityEvent('User permissions restored in Telegram', {
+          userId: adminId,
+          username: ctx.from?.username,
+          operation: 'unjail',
+          targetUserId: userId
+        });
       } catch (error) {
         logger.error('Failed to restore user permissions in Telegram', { userId, chatId: ctx.chat.id, error });
         await ctx.reply(
@@ -202,7 +275,18 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
   bot.command('unjail', unjailHandler);
   bot.command('unsilence', unjailHandler); // Alias for unjail
 
-  // Warn command
+  /**
+   * Command: /warn
+   * Issue a formal warning to a user.
+   *
+   * Permission: Admin or owner
+   * Syntax: /warn <userId> <reason>
+   *
+   * @example
+   * User: /warn 123456 Spamming in chat
+   * Bot: User 123456 has been warned.
+   *      Reason: Spamming in chat
+   */
   bot.command('warn', async (ctx) => {
     const adminId = ctx.from?.id;
     if (!adminId) return;
@@ -250,7 +334,17 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
     logger.info('User warned', { adminId, userId, reason });
   });
 
-  // Clear violations (owner only)
+  /**
+   * Command: /clearviolations
+   * Clear all violations and reset warning count for a user.
+   *
+   * Permission: Owner only
+   * Syntax: /clearviolations <userId>
+   *
+   * @example
+   * User: /clearviolations 123456
+   * Bot: All violations cleared for user 123456.
+   */
   bot.command('clearviolations', async (ctx) => {
     const ownerId = ctx.from?.id;
     if (!ownerId || ownerId !== config.ownerId) {
@@ -272,7 +366,33 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
     logger.info('Violations cleared', { ownerId, userId });
   });
 
-  // Stats command (owner only)
+  /**
+   * Command: /stats
+   * View comprehensive bot statistics including users, violations, jails, and fines.
+   *
+   * Permission: Owner only
+   * Syntax: /stats
+   *
+   * Displays:
+   * - Total users, blacklisted, whitelisted
+   * - Total violations, unpaid/paid fines
+   * - Active jails, total jail events, bails paid
+   * - Active restrictions
+   *
+   * @example
+   * User: /stats
+   * Bot: Bot Statistics
+   *
+   *      Users
+   *      Total: 150
+   *      Blacklisted: 5
+   *      Whitelisted: 20
+   *
+   *      Violations
+   *      Total: 75
+   *      Unpaid Fines: 125.50 JUNO
+   *      Paid Fines: 300.75 JUNO
+   */
   bot.command('stats', async (ctx) => {
     const ownerId = ctx.from?.id;
     if (!ownerId || ownerId !== config.ownerId) {

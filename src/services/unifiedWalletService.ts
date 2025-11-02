@@ -23,7 +23,7 @@ interface User {
 
 interface DepositCheck {
   txHash: string;
-  userId?: number;
+  userId?: number | null;
   amount: number;
   fromAddress: string;
   memo: string;
@@ -102,29 +102,18 @@ export class UnifiedWalletService {
    * Initialize system users in the ledger
    */
   private static async initializeSystemUsers(): Promise<void> {
+    const { createUser, userExists } = await import('./userService');
+
     // Ensure bot treasury user exists
-    const botUser = get<User>('SELECT * FROM users WHERE id = ?', [SYSTEM_USER_IDS.BOT_TREASURY]);
-
-    if (!botUser) {
-      execute(
-        'INSERT INTO users (id, username, role, created_at) VALUES (?, ?, ?, ?)',
-        [SYSTEM_USER_IDS.BOT_TREASURY, 'BOT_TREASURY', 'system', Math.floor(Date.now() / 1000)]
-      );
-
-      // Initialize bot balance
+    if (!userExists(SYSTEM_USER_IDS.BOT_TREASURY)) {
+      createUser(SYSTEM_USER_IDS.BOT_TREASURY, 'BOT_TREASURY', 'system', 'system_initialization');
       await LedgerService.ensureUserBalance(SYSTEM_USER_IDS.BOT_TREASURY);
       logger.info('Created bot treasury user in ledger');
     }
 
     // Ensure unclaimed deposits user exists
-    const unclaimedUser = get<User>('SELECT * FROM users WHERE id = ?', [SYSTEM_USER_IDS.UNCLAIMED]);
-
-    if (!unclaimedUser) {
-      execute(
-        'INSERT INTO users (id, username, role, created_at) VALUES (?, ?, ?, ?)',
-        [SYSTEM_USER_IDS.UNCLAIMED, 'UNCLAIMED_DEPOSITS', 'system', Math.floor(Date.now() / 1000)]
-      );
-
+    if (!userExists(SYSTEM_USER_IDS.UNCLAIMED)) {
+      createUser(SYSTEM_USER_IDS.UNCLAIMED, 'UNCLAIMED_DEPOSITS', 'system', 'system_initialization');
       await LedgerService.ensureUserBalance(SYSTEM_USER_IDS.UNCLAIMED);
       logger.info('Created unclaimed deposits user in ledger');
     }
@@ -169,7 +158,27 @@ export class UnifiedWalletService {
   }
 
   /**
-   * Fetch recent deposits from blockchain
+   * Fetch recent deposits from blockchain via Cosmos REST API.
+   *
+   * This function queries the blockchain for transactions sent to the bot's wallet address,
+   * verifies they are valid JUNO transfers, and extracts the userId from the memo field.
+   *
+   * **Critical:** Only processes transactions with:
+   * 1. Successful status (code === 0)
+   * 2. Denomination === 'ujuno' (base denom for JUNO)
+   * 3. Valid memo containing a numeric userId
+   *
+   * **Amount Conversion:** JUNO uses 6 decimals, so:
+   * - 1 JUNO = 1,000,000 ujuno
+   * - Amount in ujuno is divided by 1,000,000 to get JUNO
+   *
+   * @returns Array of deposits to process
+   *
+   * @example
+   * On-chain transaction:
+   * - Amount: 100000000 ujuno
+   * - Memo: "123456"
+   * - Converted: 100.000000 JUNO credited to user 123456
    */
   private static async fetchRecentDeposits(): Promise<DepositCheck[]> {
     try {
@@ -185,35 +194,55 @@ export class UnifiedWalletService {
       const deposits: DepositCheck[] = [];
 
       for (const tx of (data.tx_responses || [])) {
-        // Skip if already processed
+        // Skip if already processed (height <= last checked)
         if (parseInt(tx.height) <= this.lastCheckedHeight) {
           continue;
         }
 
-        // Skip failed transactions
+        // Skip failed transactions (code !== 0 means error)
         if (tx.code !== 0) {
+          logger.debug('Skipping failed transaction', { txHash: tx.txhash, code: tx.code });
           continue;
         }
 
-        // Parse transaction
+        // Parse transaction messages
         for (const msg of (tx.tx?.body?.messages || [])) {
+          // Only process bank send messages to our wallet
           if (msg['@type'] === '/cosmos.bank.v1beta1.MsgSend' &&
               msg.to_address === this.walletAddress) {
 
+            // Find ujuno amount (JUNO's base denomination)
             const junoAmount = msg.amount?.find((a: any) => a.denom === 'ujuno');
+
             if (junoAmount) {
+              // Convert ujuno to JUNO: 1 JUNO = 1,000,000 ujuno
               const amount = parseFloat(junoAmount.amount) / 1_000_000;
+
+              // Extract memo (should contain userId)
               const memo = tx.tx?.body?.memo || '';
               const userId = this.parseUserId(memo);
 
               deposits.push({
                 txHash: tx.txhash,
-                userId,
+                userId,  // Will be null if memo invalid
                 amount,
                 fromAddress: msg.from_address,
                 memo,
                 height: parseInt(tx.height),
                 timestamp: Math.floor(new Date(tx.timestamp).getTime() / 1000)
+              });
+
+              logger.debug('Deposit detected', {
+                txHash: tx.txhash,
+                amount: `${amount} JUNO`,
+                ujunoAmount: junoAmount.amount,
+                memo,
+                userId: userId || 'invalid'
+              });
+            } else {
+              logger.warn('Transaction without ujuno amount', {
+                txHash: tx.txhash,
+                amounts: msg.amount
               });
             }
           }
@@ -228,9 +257,39 @@ export class UnifiedWalletService {
   }
 
   /**
-   * Process a single deposit
+   * Process a single deposit.
+   *
+   * This function handles deposit credits after blockchain confirmation.
+   *
+   * **Pre-Funded Account Creation:**
+   * If a deposit comes in for a userId that doesn't exist in the database yet,
+   * we create a "pre-funded" account for them. When they first interact with the bot,
+   * they'll automatically have access to these deposited funds.
+   *
+   * **Flow:**
+   * 1. Check if already processed (prevent duplicates)
+   * 2. Record deposit as processing
+   * 3. Validate userId from memo
+   * 4. If userId valid but user doesn't exist → create pre-funded account
+   * 5. If userId invalid/missing → send to UNCLAIMED (admin can manually assign)
+   * 6. Credit the deposit to ledger
+   * 7. Mark as processed
+   *
+   * @param deposit - Deposit information from blockchain
+   *
+   * @example
+   * Scenario 1: User 123456 deposits 100 JUNO but hasn't interacted with bot yet
+   * - Creates user with ID 123456, username "user_123456"
+   * - Credits 100 JUNO to their balance
+   * - When they use /balance later, they see 100 JUNO
+   *
+   * Scenario 2: Deposit with memo "abc" (invalid userId)
+   * - Credits to UNCLAIMED account (ID: -3)
+   * - Admin can manually assign with /claimdeposit
    */
   private static async processDeposit(deposit: DepositCheck): Promise<void> {
+    const { createUser, userExists } = await import('./userService');
+
     // Check if already processed
     const existing = get<any>(
       'SELECT * FROM processed_deposits WHERE tx_hash = ?',
@@ -248,7 +307,7 @@ export class UnifiedWalletService {
       ) VALUES (?, ?, ?, ?, ?, ?, 0, ?)`,
       [
         deposit.txHash,
-        deposit.userId || null,
+        deposit.userId ?? null,
         deposit.amount,
         deposit.fromAddress,
         deposit.memo,
@@ -268,20 +327,32 @@ export class UnifiedWalletService {
     if (!targetUserId) {
       // No valid userId in memo - send to unclaimed account
       targetUserId = SYSTEM_USER_IDS.UNCLAIMED;
-      logger.info('Deposit without valid userId, sending to unclaimed', {
+      logger.info('Deposit without valid userId in memo, sending to unclaimed', {
         txHash: deposit.txHash,
         memo: deposit.memo,
-        amount: deposit.amount
+        amount: deposit.amount,
+        fromAddress: deposit.fromAddress
       });
     } else {
-      // Verify user exists
-      const user = get<User>('SELECT id FROM users WHERE id = ?', [targetUserId]);
-      if (!user) {
-        targetUserId = SYSTEM_USER_IDS.UNCLAIMED;
-        logger.warn('Deposit for non-existent user, sending to unclaimed', {
+      // Check if user exists, create pre-funded account if not
+      if (!userExists(targetUserId)) {
+        // Create pre-funded account - user will have access when they first interact
+        createUser(
+          targetUserId,
+          `user_${targetUserId}`,  // Placeholder username, updated on first interaction
+          'pleb',
+          'deposit_pre_funding'
+        );
+
+        // Initialize balance
+        await LedgerService.ensureUserBalance(targetUserId);
+
+        logger.info('Created pre-funded account for deposit', {
           txHash: deposit.txHash,
-          userId: deposit.userId,
-          amount: deposit.amount
+          userId: targetUserId,
+          amount: deposit.amount,
+          fromAddress: deposit.fromAddress,
+          memo: deposit.memo
         });
       }
     }
@@ -841,6 +912,417 @@ export class UnifiedWalletService {
       success: false,
       error: result.error
     };
+  }
+
+  /**
+   * Sends funds to a user by username
+   * Resolves username to userId via database or Telegram API
+   *
+   * @param fromUserId - Sender user ID
+   * @param toUsername - Recipient username (with or without @)
+   * @param amount - Amount to send
+   * @param description - Optional transaction description
+   * @param botContext - Telegraf context for Telegram API resolution
+   * @returns Transaction result with recipient info
+   */
+  static async sendToUsername(
+    fromUserId: number,
+    toUsername: string,
+    amount: number,
+    description?: string,
+    botContext?: any
+  ): Promise<{ success: boolean; error?: string; recipient?: string; fromBalance?: number; toBalance?: number }> {
+    const { getUserIdByUsername, createUser } = await import('./userService');
+    const cleanUsername = toUsername.replace(/^@/, '');
+
+    // First, try to find userId by username in database
+    let recipientId = getUserIdByUsername(cleanUsername);
+    let recipientUsername = cleanUsername;
+
+    // If not found and we have bot context, try to resolve via Telegram API
+    if (!recipientId && botContext) {
+      try {
+        const chatInfo = await botContext.telegram.getChat(`@${cleanUsername}`);
+
+        if (chatInfo && chatInfo.id) {
+          createUser(chatInfo.id, cleanUsername, 'pleb', 'telegram_api_resolution');
+          await LedgerService.ensureUserBalance(chatInfo.id);
+
+          logger.info('Created pre-funded account via Telegram username resolution', {
+            recipientId: chatInfo.id,
+            username: cleanUsername,
+            amount,
+            senderId: fromUserId,
+            source: 'telegram_api'
+          });
+
+          recipientId = chatInfo.id;
+        }
+      } catch (error) {
+        logger.warn('Failed to resolve username via Telegram API', {
+          username: cleanUsername,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
+    if (!recipientId) {
+      return {
+        success: false,
+        error: (
+          `User @${cleanUsername} not found in database. ` +
+          `Either:\n` +
+          `1. They need to interact with the bot first, OR\n` +
+          `2. Send to their user ID directly: /send ${amount} <their_user_id>`
+        )
+      };
+    }
+
+    const result = await this.transferToUser(
+      fromUserId,
+      recipientId,
+      amount,
+      description || `Transfer to @${recipientUsername}`
+    );
+
+    return {
+      ...result,
+      recipient: recipientUsername
+    };
+  }
+
+  /**
+   * Pays bail for a jailed user
+   *
+   * @param payerUserId - User paying the bail
+   * @param bailedUserId - User being bailed out
+   * @param amount - Bail amount
+   * @param description - Optional description
+   * @returns Transaction result
+   */
+  static async payBail(
+    payerUserId: number,
+    bailedUserId: number,
+    amount: number,
+    description?: string
+  ): Promise<{ success: boolean; error?: string; newBalance?: number }> {
+    try {
+      const result = await LedgerService.processBail(
+        payerUserId,
+        bailedUserId,
+        amount,
+        description || `Bail payment for user ${bailedUserId}`
+      );
+
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+
+      return {
+        success: true,
+        newBalance: result.newBalance
+      };
+    } catch (error) {
+      logger.error('Bail payment failed', { payerUserId, bailedUserId, amount, error });
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
+   * Distributes giveaway to multiple users
+   *
+   * @param userIds - Array of user IDs to receive giveaway
+   * @param amountPerUser - Amount each user receives
+   * @param description - Optional description
+   * @returns Result with succeeded and failed distributions
+   */
+  static async distributeGiveaway(
+    userIds: number[],
+    amountPerUser: number,
+    description?: string
+  ): Promise<{ succeeded: number[]; failed: Array<{ userId: number; error: string }>; totalDistributed: number }> {
+    const succeeded: number[] = [];
+    const failed: Array<{ userId: number; error: string }> = [];
+    let totalDistributed = 0;
+
+    for (const userId of userIds) {
+      try {
+        const result = await LedgerService.processGiveaway(
+          userId,
+          amountPerUser,
+          description || 'Giveaway distribution'
+        );
+
+        if (result.success) {
+          succeeded.push(userId);
+          totalDistributed += amountPerUser;
+        } else {
+          failed.push({ userId, error: 'Giveaway processing failed' });
+        }
+      } catch (error) {
+        failed.push({
+          userId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+
+    logger.info('Giveaway distribution completed', {
+      totalUsers: userIds.length,
+      succeeded: succeeded.length,
+      failed: failed.length,
+      amountPerUser,
+      totalDistributed
+    });
+
+    return { succeeded, failed, totalDistributed };
+  }
+
+  /**
+   * Gets transaction history for a user
+   *
+   * @param userId - User ID
+   * @param limit - Maximum number of transactions to return
+   * @returns Array of transactions
+   */
+  static async getUserTransactionHistory(
+    userId: number,
+    limit: number = 10
+  ): Promise<any[]> {
+    const transactions = query<any>(
+      `SELECT * FROM transactions
+       WHERE from_user_id = ? OR to_user_id = ?
+       ORDER BY created_at DESC
+       LIMIT ?`,
+      [userId, userId, limit]
+    );
+
+    return transactions;
+  }
+
+  /**
+   * Gets system account balances
+   *
+   * @returns Object with treasury, reserve, and unclaimed balances
+   */
+  static async getSystemBalances(): Promise<{
+    treasury: number;
+    reserve: number;
+    unclaimed: number;
+  }> {
+    return {
+      treasury: await this.getBalance(SYSTEM_USER_IDS.BOT_TREASURY),
+      reserve: await this.getBalance(SYSTEM_USER_IDS.SYSTEM_RESERVE),
+      unclaimed: await this.getBalance(SYSTEM_USER_IDS.UNCLAIMED)
+    };
+  }
+
+  /**
+   * Reconciles internal ledger balances with on-chain wallet balance
+   *
+   * @returns Reconciliation result
+   */
+  static async reconcileBalances(): Promise<{
+    matched: boolean;
+    internalTotal: number;
+    onChainTotal: number;
+    difference: number;
+  }> {
+    return await LedgerService.reconcileBalances();
+  }
+
+  /**
+   * Finds a user by username
+   *
+   * @param username - Username to search for (with or without @)
+   * @returns User object or null
+   */
+  static async findUserByUsername(username: string): Promise<User | null> {
+    const { getUserIdByUsername } = await import('./userService');
+    const cleanUsername = username.replace(/^@/, '');
+    const userId = getUserIdByUsername(cleanUsername);
+
+    if (!userId) return null;
+
+    const user = get<any>('SELECT id, username FROM users WHERE id = ?', [userId]);
+    return user ? { id: user.id, username: user.username } : null;
+  }
+
+  /**
+   * Gets ledger statistics
+   *
+   * @returns Statistics object
+   */
+  static async getLedgerStats(): Promise<any> {
+    const totalUserBalance = await LedgerService.getTotalUserBalance();
+    const systemBalances = await this.getSystemBalances();
+    const userCount = get<{ count: number }>(
+      'SELECT COUNT(*) as count FROM user_balances WHERE user_id > 0',
+      []
+    )?.count || 0;
+
+    const transactionStats = query<any>(
+      `SELECT
+        transaction_type,
+        COUNT(*) as count,
+        SUM(amount) as total_amount
+       FROM transactions
+       GROUP BY transaction_type`
+    );
+
+    return {
+      totalUserBalance,
+      systemBalances,
+      userCount,
+      transactionStats
+    };
+  }
+
+  // ============================================================================
+  // SHARED ACCOUNT OPERATIONS
+  // ============================================================================
+
+  /**
+   * Gets balance of a shared account
+   *
+   * @param accountId - Shared account ID
+   * @returns Balance in JUNO
+   */
+  static async getSharedBalance(accountId: number): Promise<number> {
+    return await this.getBalance(accountId);
+  }
+
+  /**
+   * Sends funds from a shared account to a user
+   *
+   * @param accountId - Shared account ID
+   * @param userId - User initiating the transaction (must have spend/admin permission)
+   * @param toUserId - Recipient user ID
+   * @param amount - Amount to send
+   * @param description - Optional description
+   * @returns Transaction result
+   */
+  static async sendFromShared(
+    accountId: number,
+    userId: number,
+    toUserId: number,
+    amount: number,
+    description?: string
+  ): Promise<{ success: boolean; error?: string; sharedBalance?: number; recipientBalance?: number }> {
+    const { SharedAccountService } = await import('./sharedAccountService');
+
+    try {
+      // Verify shared account exists
+      const account = await SharedAccountService.getSharedAccount(accountId);
+      if (!account) {
+        return { success: false, error: 'Shared account not found.' };
+      }
+
+      // Verify user has spend permission
+      if (!(await SharedAccountService.hasPermission(accountId, userId, 'spend'))) {
+        return { success: false, error: 'You do not have permission to spend from this account.' };
+      }
+
+      // Verify spend limit
+      if (!(await SharedAccountService.canSpend(accountId, userId, amount))) {
+        const permission = await SharedAccountService.getUserPermission(accountId, userId);
+        return {
+          success: false,
+          error: `Transaction exceeds your spend limit of ${permission?.spendLimit} JUNO.`
+        };
+      }
+
+      // Execute transfer
+      const result = await this.transferToUser(
+        accountId,
+        toUserId,
+        amount,
+        description || `Transfer from shared account ${account.name}`
+      );
+
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+
+      return {
+        success: true,
+        sharedBalance: result.fromBalance,
+        recipientBalance: result.toBalance
+      };
+    } catch (error) {
+      logger.error('Shared account send failed', { accountId, userId, toUserId, amount, error });
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
+   * Deposits funds from user to shared account
+   *
+   * @param accountId - Shared account ID
+   * @param fromUserId - User depositing funds
+   * @param amount - Amount to deposit
+   * @param description - Optional description
+   * @returns Transaction result
+   */
+  static async depositToShared(
+    accountId: number,
+    fromUserId: number,
+    amount: number,
+    description?: string
+  ): Promise<{ success: boolean; error?: string; userBalance?: number; sharedBalance?: number }> {
+    const { SharedAccountService } = await import('./sharedAccountService');
+
+    try {
+      // Verify shared account exists
+      const account = await SharedAccountService.getSharedAccount(accountId);
+      if (!account) {
+        return { success: false, error: 'Shared account not found.' };
+      }
+
+      // Execute transfer
+      const result = await this.transferToUser(
+        fromUserId,
+        accountId,
+        amount,
+        description || `Deposit to shared account ${account.name}`
+      );
+
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+
+      return {
+        success: true,
+        userBalance: result.fromBalance,
+        sharedBalance: result.toBalance
+      };
+    } catch (error) {
+      logger.error('Shared account deposit failed', { accountId, fromUserId, amount, error });
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
+
+  /**
+   * Gets transaction history for a shared account
+   *
+   * @param accountId - Shared account ID
+   * @param limit - Maximum number of transactions
+   * @returns Array of transactions
+   */
+  static async getSharedTransactions(
+    accountId: number,
+    limit: number = 20
+  ): Promise<any[]> {
+    return await this.getUserTransactionHistory(accountId, limit);
   }
 
   /**

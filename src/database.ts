@@ -1,12 +1,39 @@
+/**
+ * Database module for the CAC Admin Bot.
+ * Provides SQLite database connection, typed query functions, and schema initialization.
+ * Uses better-sqlite3 for synchronous database operations with high performance.
+ *
+ * @module database
+ */
+
 import Database from 'better-sqlite3';
 import { config } from './config';
 import { logger } from './utils/logger';
 
+/**
+ * SQLite database instance.
+ * Configured with foreign key enforcement enabled.
+ */
 const db = new Database(config.databasePath);
 
-// Enable foreign keys
+// Enable foreign keys for referential integrity
 db.exec('PRAGMA foreign_keys = ON');
 
+/**
+ * Executes a SELECT query and returns all matching rows as typed objects.
+ *
+ * @template T - The type of objects expected in the result set
+ * @param sql - The SQL query string (supports parameterized queries)
+ * @param params - Array of parameters to bind to the query (prevents SQL injection)
+ * @returns Array of typed result objects
+ * @throws {Error} If the query fails to execute
+ *
+ * @example
+ * ```typescript
+ * const users = query<User>('SELECT * FROM users WHERE role = ?', ['admin']);
+ * const singleUser = query<User>('SELECT * FROM users WHERE id = ?', [123])[0];
+ * ```
+ */
 export const query = <T>(sql: string, params: unknown[] = []): T[] => {
   try {
     const stmt = db.prepare(sql);
@@ -17,6 +44,23 @@ export const query = <T>(sql: string, params: unknown[] = []): T[] => {
   }
 };
 
+/**
+ * Executes an INSERT, UPDATE, or DELETE statement.
+ *
+ * @param sql - The SQL statement string (supports parameterized statements)
+ * @param params - Array of parameters to bind to the statement (prevents SQL injection)
+ * @returns RunResult object containing changes count and lastInsertRowid
+ * @throws {Error} If the statement fails to execute
+ *
+ * @example
+ * ```typescript
+ * const result = execute('INSERT INTO users (id, username) VALUES (?, ?)', [123, 'alice']);
+ * console.log(`Inserted row ID: ${result.lastInsertRowid}`);
+ *
+ * const updateResult = execute('UPDATE users SET role = ? WHERE id = ?', ['admin', 123]);
+ * console.log(`Updated ${updateResult.changes} rows`);
+ * ```
+ */
 export const execute = (sql: string, params: unknown[] = []): Database.RunResult => {
   try {
     const stmt = db.prepare(sql);
@@ -27,6 +71,24 @@ export const execute = (sql: string, params: unknown[] = []): Database.RunResult
   }
 };
 
+/**
+ * Executes a SELECT query and returns a single row as a typed object.
+ * Returns undefined if no rows match.
+ *
+ * @template T - The type of object expected in the result
+ * @param sql - The SQL query string (supports parameterized queries)
+ * @param params - Array of parameters to bind to the query (prevents SQL injection)
+ * @returns Single typed result object or undefined if no match
+ * @throws {Error} If the query fails to execute
+ *
+ * @example
+ * ```typescript
+ * const user = get<User>('SELECT * FROM users WHERE id = ?', [123]);
+ * if (user) {
+ *   console.log(`Found user: ${user.username}`);
+ * }
+ * ```
+ */
 export const get = <T>(sql: string, params: unknown[] = []): T | undefined => {
   try {
     const stmt = db.prepare(sql);
@@ -37,6 +99,33 @@ export const get = <T>(sql: string, params: unknown[] = []): T | undefined => {
   }
 };
 
+/**
+ * Initializes the database schema by creating all required tables and indexes.
+ *
+ * Creates the following tables:
+ * - users: User profiles with roles and restriction flags
+ * - user_balances: Internal ledger for user token balances
+ * - transactions: Complete audit trail of all financial transactions
+ * - system_wallets: Configuration for system wallet addresses
+ * - rules: Violation rule definitions
+ * - violations: Tracked user violations with bail amounts
+ * - jail_events: Log of jail/unjail events
+ * - user_restrictions: Per-user message restrictions (stickers, URLs, etc.)
+ * - global_restrictions: Restrictions applied to all users
+ * - processed_deposits: Tracking for blockchain deposit transactions
+ * - transaction_locks: Prevents double-spending during concurrent operations
+ *
+ * Also creates performance indexes on commonly queried columns.
+ * Safe to call multiple times - uses IF NOT EXISTS clauses.
+ *
+ * @throws {Error} If table creation fails
+ *
+ * @example
+ * ```typescript
+ * // Called once at bot startup
+ * initDb();
+ * ```
+ */
 export const initDb = (): void => {
   // Enhanced users table
   db.exec(`
@@ -203,6 +292,41 @@ export const initDb = (): void => {
     );
   `);
 
+  // Shared accounts table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS shared_accounts (
+      id INTEGER PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      display_name TEXT,
+      description TEXT,
+      created_by INTEGER NOT NULL,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      metadata TEXT,
+      FOREIGN KEY (created_by) REFERENCES users(id)
+    );
+  `);
+
+  // Shared account permissions table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS shared_account_permissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      shared_account_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      permission_level TEXT NOT NULL CHECK(permission_level IN ('view', 'spend', 'admin')),
+      spend_limit REAL,
+      granted_by INTEGER NOT NULL,
+      granted_at INTEGER DEFAULT (strftime('%s', 'now')),
+      revoked INTEGER DEFAULT 0,
+      revoked_at INTEGER,
+      revoked_by INTEGER,
+      UNIQUE(shared_account_id, user_id),
+      FOREIGN KEY (shared_account_id) REFERENCES shared_accounts(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (granted_by) REFERENCES users(id),
+      FOREIGN KEY (revoked_by) REFERENCES users(id)
+    );
+  `);
+
   // Create indexes for performance
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
@@ -229,6 +353,12 @@ export const initDb = (): void => {
     CREATE INDEX IF NOT EXISTS idx_processed_deposits_user ON processed_deposits(user_id);
     CREATE INDEX IF NOT EXISTS idx_processed_deposits_processed ON processed_deposits(processed);
     CREATE INDEX IF NOT EXISTS idx_processed_deposits_height ON processed_deposits(height);
+
+    -- Shared accounts indexes
+    CREATE INDEX IF NOT EXISTS idx_shared_accounts_name ON shared_accounts(name);
+    CREATE INDEX IF NOT EXISTS idx_shared_permissions_account ON shared_account_permissions(shared_account_id);
+    CREATE INDEX IF NOT EXISTS idx_shared_permissions_user ON shared_account_permissions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_shared_permissions_revoked ON shared_account_permissions(revoked);
   `);
 
   logger.info('Database initialized successfully');

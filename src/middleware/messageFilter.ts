@@ -1,3 +1,10 @@
+/**
+ * @module middleware/messageFilter
+ * @description Message filtering middleware for enforcing user restrictions and mutes.
+ * Monitors incoming messages in group chats and applies restrictions like mutes, sticker blocks,
+ * URL blocks, and regex pattern filters. Whitelisted users, owners, and admins are exempt from filtering.
+ */
+
 import { Context, MiddlewareFn } from 'telegraf';
 import { RestrictionService } from '../services/restrictionService';
 import { ensureUserExists } from '../services/userService';
@@ -5,6 +12,30 @@ import { get } from '../database';
 import { User } from '../types';
 import { logger } from '../utils/logger';
 
+/**
+ * Middleware that filters messages based on user restrictions and mute status.
+ * Runs on every message to enforce restrictions like:
+ * - Mutes (jails) - deletes all messages from muted users in group chats
+ * - Sticker restrictions - blocks specific stickers or sticker packs
+ * - URL restrictions - blocks links to specific domains
+ * - Regex pattern restrictions - blocks messages matching patterns
+ *
+ * Important: Only applies in group/supergroup chats. Private DMs are never filtered.
+ * Whitelisted users, owners, and admins bypass all filtering.
+ *
+ * @param ctx - Telegraf context object containing message and user information
+ * @param next - Next middleware function to call if message passes all checks
+ * @returns Promise that resolves when filtering is complete
+ *
+ * @example
+ * // Apply early in middleware chain to filter messages
+ * bot.use(messageFilterMiddleware);
+ *
+ * @example
+ * // Muted user's messages are automatically deleted in groups
+ * // /jail @user 60  <- Mutes user for 60 minutes
+ * // User's messages deleted until mute expires
+ */
 export const messageFilterMiddleware: MiddlewareFn<Context> = async (ctx, next) => {
   // Skip if no message or user
   if (!ctx.message || !ctx.from) {
@@ -12,8 +43,8 @@ export const messageFilterMiddleware: MiddlewareFn<Context> = async (ctx, next) 
   }
 
   try {
-    // Ensure user exists
-    await ensureUserExists(ctx.from.id, ctx.from.username || 'unknown');
+    // Ensure user exists (synchronous operation)
+    ensureUserExists(ctx.from.id, ctx.from.username || 'unknown');
 
     // Get user from database
     const user = get<User>('SELECT * FROM users WHERE id = ?', [ctx.from.id]);

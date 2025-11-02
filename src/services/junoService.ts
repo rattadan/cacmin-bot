@@ -1,13 +1,32 @@
+/**
+ * JUNO blockchain integration service module.
+ * Handles payment verification, balance queries, and blockchain interactions
+ * for the JUNO network via REST API endpoints.
+ *
+ * @module services/junoService
+ */
+
 import { config } from '../config';
+import { StructuredLogger } from '../utils/logger';
 import { logger } from '../utils/logger';
 
+/**
+ * Service for interacting with the JUNO blockchain.
+ * Provides payment verification and balance query functionality.
+ */
 export class JunoService {
   private static client: any = null;
   private static rpcEndpoint = config.junoRpcUrl || 'https://rpc.juno.basementnodes.ca';
 
+  /**
+   * Initializes the JUNO service.
+   * Checks configuration and sets up blockchain connectivity.
+   */
   static async initialize(): Promise<void> {
     if (!config.botTreasuryAddress) {
-      logger.warn('Bot treasury address not configured, some payment features disabled');
+      StructuredLogger.logUserAction('Treasury not configured', {
+        operation: 'init_warning'
+      });
       return;
     }
 
@@ -15,15 +34,40 @@ export class JunoService {
       // Initialize Cosmos client for JUNO
       // Note: Actual implementation would require proper cosmos-client setup
       // Example: this.client = await CosmWasmClient.connect(this.rpcEndpoint);
-      logger.info('JUNO service initialized');
+      StructuredLogger.logUserAction('JUNO service initialized', {
+        operation: 'service_init'
+      });
     } catch (error) {
-      logger.error('Failed to initialize JUNO service', error);
+      StructuredLogger.logError(error as Error, {
+        operation: 'init_juno_service'
+      });
     }
   }
 
+  /**
+   * Verifies a payment transaction on the JUNO blockchain.
+   * Checks that the transaction succeeded, was sent to the treasury,
+   * and contains the expected amount (with 0.01 JUNO tolerance).
+   *
+   * @param txHash - Blockchain transaction hash to verify
+   * @param expectedAmount - Expected payment amount in JUNO
+   * @returns True if payment is verified, false otherwise
+   *
+   * @example
+   * ```typescript
+   * const verified = await JunoService.verifyPayment('ABC123...', 10.5);
+   * if (verified) {
+   *   console.log('Payment confirmed!');
+   * }
+   * ```
+   */
   static async verifyPayment(txHash: string, expectedAmount: number): Promise<boolean> {
     try {
-      logger.info('Verifying JUNO payment', { txHash, expectedAmount });
+      StructuredLogger.logTransaction('Verifying payment', {
+        txHash,
+        amount: expectedAmount.toString(),
+        operation: 'verify_payment'
+      });
 
       // Query using the REST API endpoint
       const apiEndpoint = config.junoApiUrl || 'https://api.juno.basementnodes.ca';
@@ -39,7 +83,10 @@ export class JunoService {
 
       // Check if transaction was successful
       if (tx.code !== 0) {
-        logger.warn('Transaction failed on chain', { txHash, code: tx.code });
+        StructuredLogger.logTransaction('Transaction failed', {
+          txHash,
+          operation: 'verify_failed'
+        });
         return false;
       }
 
@@ -48,7 +95,9 @@ export class JunoService {
       const treasuryAddress = config.botTreasuryAddress;
 
       if (!treasuryAddress) {
-        logger.error('Treasury address not configured');
+        StructuredLogger.logError('Treasury not configured', {
+          operation: 'verify_payment'
+        });
         return false;
       }
 
@@ -66,19 +115,17 @@ export class JunoService {
               const difference = Math.abs(amount - expectedAmount);
 
               if (difference < 0.01) {
-                logger.info('Payment verified successfully', {
+                StructuredLogger.logTransaction('Payment verified', {
                   txHash,
-                  expectedAmount,
-                  actualAmount: amount,
-                  difference
+                  amount: amount.toString(),
+                  operation: 'verify_success'
                 });
                 return true;
               } else {
-                logger.warn('Payment amount mismatch', {
+                StructuredLogger.logTransaction('Amount mismatch', {
                   txHash,
-                  expectedAmount,
-                  actualAmount: amount,
-                  difference
+                  amount: amount.toString(),
+                  operation: 'verify_mismatch'
                 });
               }
             }
@@ -86,20 +133,39 @@ export class JunoService {
         }
       }
 
-      logger.warn('No valid payment found to treasury in transaction', { txHash });
+      StructuredLogger.logTransaction('No valid payment found', {
+        txHash,
+        operation: 'verify_not_found'
+      });
       return false;
     } catch (error) {
-      logger.error('Payment verification failed', { txHash, error });
+      StructuredLogger.logError(error as Error, {
+        txHash,
+        operation: 'verify_payment'
+      });
       return false;
     }
   }
 
+  /**
+   * Gets the configured payment address for the bot treasury.
+   *
+   * @returns Treasury address or 'not_configured'
+   */
   static getPaymentAddress(): string {
     return config.botTreasuryAddress || 'not_configured';
   }
 
   /**
-   * Query account balance
+   * Queries the current balance of the bot treasury address.
+   *
+   * @returns Balance in JUNO tokens
+   *
+   * @example
+   * ```typescript
+   * const balance = await JunoService.getBalance();
+   * console.log(`Treasury has ${balance} JUNO`);
+   * ```
    */
   static async getBalance(): Promise<number> {
     if (!config.botTreasuryAddress) {
@@ -112,7 +178,9 @@ export class JunoService {
       );
 
       if (!response.ok) {
-        logger.error('Failed to query balance');
+        StructuredLogger.logError('Failed to query balance', {
+          operation: 'get_balance'
+        });
         return 0;
       }
 
@@ -121,7 +189,9 @@ export class JunoService {
 
       return junoBalance ? parseFloat(junoBalance.amount) / 1_000_000 : 0;
     } catch (error) {
-      logger.error('Error querying balance', error);
+      StructuredLogger.logError(error as Error, {
+        operation: 'get_balance'
+      });
       return 0;
     }
   }

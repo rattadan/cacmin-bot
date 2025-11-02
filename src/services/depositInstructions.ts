@@ -1,12 +1,31 @@
+/**
+ * Deposit instruction generation service module.
+ * Generates clear, well-formatted deposit instructions with prominent memo warnings
+ * to prevent users from losing funds by forgetting the memo field.
+ *
+ * @module services/depositInstructions
+ */
+
 import { config } from '../config';
 import { logger } from '../utils/logger';
 
 /**
- * Service for generating clear deposit instructions with prominent memo warnings
+ * Service for generating clear deposit instructions with prominent memo warnings.
+ * Provides both plain text and Markdown formatted instructions.
  */
 export class DepositInstructionService {
   /**
-   * Generate deposit instructions with clear memo warning
+   * Generates comprehensive deposit instructions with memo warnings.
+   * Returns both plain text and Markdown formatted versions.
+   *
+   * @param userId - Telegram user ID (used as memo)
+   * @returns Object containing formatted instructions, wallet address, and memo
+   *
+   * @example
+   * ```typescript
+   * const instructions = DepositInstructionService.generateInstructions(123456);
+   * await ctx.reply(instructions.markdown, { parse_mode: 'Markdown' });
+   * ```
    */
   static generateInstructions(userId: number): {
     text: string;
@@ -80,14 +99,19 @@ Deposits without the correct memo will go to an unclaimed pool and require manua
   }
 
   /**
-   * Generate a short reminder about memo requirement
+   * Generates a short reminder about the memo requirement.
+   *
+   * @param userId - Telegram user ID
+   * @returns Short memo reminder message
    */
   static getMemoReminder(userId: number): string {
     return `⚠️ **REMEMBER**: Your memo MUST be \`${userId}\` or funds won't be credited!`;
   }
 
   /**
-   * Generate instructions for claiming unclaimed deposits
+   * Generates instructions for claiming unclaimed deposits.
+   *
+   * @returns Instructions for users who deposited without correct memo
    */
   static getUnclaimedInstructions(): string {
     return `
@@ -107,7 +131,21 @@ Always use your user ID as memo to avoid this!
   }
 
   /**
-   * Validate if a memo matches expected format
+   * Validates if a memo matches the expected format for a user.
+   *
+   * @param memo - Memo string from transaction
+   * @param expectedUserId - Expected user ID
+   * @returns Validation result with error message if invalid
+   *
+   * @example
+   * ```typescript
+   * const result = DepositInstructionService.validateMemo('123456', 123456);
+   * if (result.valid) {
+   *   console.log('Valid memo');
+   * } else {
+   *   console.log(`Invalid: ${result.error}`);
+   * }
+   * ```
    */
   static validateMemo(memo: string, expectedUserId: number): {
     valid: boolean;
@@ -156,7 +194,13 @@ Always use your user ID as memo to avoid this!
   }
 
   /**
-   * Format a deposit confirmation message
+   * Formats a deposit confirmation message.
+   *
+   * @param userId - User ID who deposited
+   * @param amount - Amount deposited in JUNO
+   * @param txHash - Transaction hash
+   * @param newBalance - User's new balance after deposit
+   * @returns Formatted confirmation message
    */
   static formatDepositConfirmation(
     userId: number,
@@ -177,7 +221,11 @@ Your funds are now available for use!
   }
 
   /**
-   * Format a deposit error message
+   * Formats a deposit error message based on the issue type.
+   *
+   * @param issue - Type of deposit issue
+   * @param details - Optional details about the issue
+   * @returns Formatted error message
    */
   static formatDepositError(
     issue: 'no_memo' | 'wrong_memo' | 'wrong_user' | 'not_found',

@@ -1,11 +1,46 @@
-// src/handlers/restrictions.ts
+/**
+ * User restriction management handlers for the CAC Admin Bot.
+ * Provides commands for adding, removing, and listing user-specific restrictions
+ * such as sticker limitations, URL blocking, and regex-based message filtering.
+ *
+ * @module handlers/restrictions
+ */
+
 import { Telegraf, Context } from 'telegraf';
 import { hasRole } from '../utils/roles';
 import { addUserRestriction, removeUserRestriction, getUserRestrictions } from '../services/userService';
-import { logger } from '../utils/logger';
+import { logger, StructuredLogger } from '../utils/logger';
 
+/**
+ * Registers all restriction management command handlers with the bot.
+ * Provides commands for admins and elevated users to manage user-specific restrictions.
+ *
+ * Commands registered:
+ * - /addrestriction - Add a restriction to a user
+ * - /removerestriction - Remove a restriction from a user
+ * - /listrestrictions - List all restrictions for a user
+ *
+ * @param bot - The Telegraf bot instance
+ *
+ * @example
+ * ```typescript
+ * const bot = new Telegraf(token);
+ * registerRestrictionHandlers(bot);
+ * ```
+ */
 export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
-  // Command to add a restriction
+  /**
+   * Command handler for /addrestriction.
+   * Adds a specific restriction to a user with optional expiration.
+   *
+   * Permission: No explicit check (should be added)
+   *
+   * @param ctx - Telegraf context
+   *
+   * @example
+   * Usage: /addrestriction <userId> <restriction> [restrictedAction] [restrictedUntil]
+   * Example: /addrestriction 123456 no_stickers stickerpack_name 1735689600
+   */
   bot.command('addrestriction', async (ctx) => {
     const adminId = ctx.from?.id;
     const [userId, restriction, restrictedAction, restrictedUntil] = ctx.message?.text.split(' ').slice(1) || [];
@@ -27,15 +62,33 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
         untilTimestamp
       );
 
-      logger.info('Restriction added', { adminId, userId, restriction, action, untilTimestamp });
+      StructuredLogger.logSecurityEvent('Restriction added to user', {
+        adminId,
+        userId: parseInt(userId, 10),
+        operation: 'add_restriction',
+        restriction,
+        restrictedAction: action,
+        restrictedUntil: untilTimestamp
+      });
       await ctx.reply(`Restriction '${restriction}' added for user ${userId}.`);
     } catch (error) {
-      logger.error('Error adding restriction', { adminId, userId, restriction, error });
+      StructuredLogger.logError(error as Error, { adminId, userId: parseInt(userId, 10), operation: 'add_restriction', restriction });
       await ctx.reply('An error occurred while adding the restriction.');
     }
   });
 
-  // Command to remove a restriction
+  /**
+   * Command handler for /removerestriction.
+   * Removes a specific restriction from a user.
+   *
+   * Permission: Admin or elevated role required
+   *
+   * @param ctx - Telegraf context
+   *
+   * @example
+   * Usage: /removerestriction <userId> <restriction>
+   * Example: /removerestriction 123456 no_stickers
+   */
   bot.command('removerestriction', async (ctx) => {
     const adminId = ctx.from?.id;
 
@@ -50,15 +103,31 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
 
     try {
       removeUserRestriction(parseInt(userId, 10), restriction);
-      logger.info('Restriction removed', { adminId, userId, restriction });
+      StructuredLogger.logSecurityEvent('Restriction removed from user', {
+        adminId,
+        userId: parseInt(userId, 10),
+        operation: 'remove_restriction',
+        restriction
+      });
       await ctx.reply(`Restriction '${restriction}' removed for user ${userId}.`);
     } catch (error) {
-      logger.error('Error removing restriction', { adminId, userId, restriction, error });
+      StructuredLogger.logError(error as Error, { adminId, userId: parseInt(userId, 10), operation: 'remove_restriction', restriction });
       await ctx.reply('An error occurred while removing the restriction.');
     }
   });
 
-  // Command to list restrictions
+  /**
+   * Command handler for /listrestrictions.
+   * Lists all active restrictions for a specific user.
+   *
+   * Permission: Admin or elevated role required
+   *
+   * @param ctx - Telegraf context
+   *
+   * @example
+   * Usage: /listrestrictions <userId>
+   * Example: /listrestrictions 123456
+   */
   bot.command('listrestrictions', async (ctx) => {
     const adminId = ctx.from?.id;
 
@@ -81,8 +150,15 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
         .map((r) => `Type: ${r.restriction}, Action: ${r.restrictedAction || 'N/A'}, Until: ${r.restrictedUntil || 'Permanent'}`)
         .join('\n');
       await ctx.reply(`Restrictions for user ${userId}:\n${message}`);
+
+      StructuredLogger.logUserAction('Restrictions queried', {
+        adminId,
+        userId: parseInt(userId, 10),
+        operation: 'list_restrictions',
+        count: restrictions.length.toString()
+      });
     } catch (error) {
-      logger.error('Error listing restrictions', { adminId, userId, error });
+      StructuredLogger.logError(error as Error, { adminId, userId: parseInt(userId, 10), operation: 'list_restrictions' });
       await ctx.reply('An error occurred while fetching restrictions.');
     }
   });

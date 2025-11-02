@@ -1,6 +1,17 @@
-import { get, execute } from '../database';
-import { logger } from '../utils/logger';
+/**
+ * Transaction locking service module.
+ * Prevents double-spending by implementing a locking mechanism for concurrent transactions.
+ * Ensures only one transaction can be processed per user at a time.
+ *
+ * @module services/transactionLock
+ */
 
+import { get, execute } from '../database';
+import { StructuredLogger } from '../utils/logger';
+
+/**
+ * Database record for transaction locks.
+ */
 interface TransactionLock {
   userId: number;
   lockType: string;
@@ -9,13 +20,40 @@ interface TransactionLock {
 }
 
 /**
- * Service to prevent double-spending by locking user transactions
+ * Service to prevent double-spending by locking user transactions.
+ * Implements a simple time-based lock with automatic expiration.
  */
 export class TransactionLockService {
   private static readonly LOCK_TIMEOUT_SECONDS = 60; // 1 minute timeout
 
   /**
-   * Attempt to acquire a lock for a user transaction
+   * Attempts to acquire a lock for a user transaction.
+   * If a lock already exists and hasn't expired, the request is denied.
+   *
+   * @param userId - Telegram user ID
+   * @param lockType - Type of transaction (e.g., 'withdrawal', 'transfer')
+   * @param metadata - Optional metadata to store with the lock
+   * @returns True if lock was acquired, false if user is already locked
+   *
+   * @example
+   * ```typescript
+   * const locked = await TransactionLockService.acquireLock(
+   *   123456,
+   *   'withdrawal',
+   *   { amount: 10, address: 'juno1...' }
+   * );
+   *
+   * if (!locked) {
+   *   console.log('Another transaction is in progress');
+   *   return;
+   * }
+   *
+   * try {
+   *   // Process transaction
+   * } finally {
+   *   await TransactionLockService.releaseLock(123456);
+   * }
+   * ```
    */
   static async acquireLock(
     userId: number,
@@ -35,10 +73,10 @@ export class TransactionLockService {
       const age = Math.floor(Date.now() / 1000) - existingLock.lockedAt;
 
       if (age < this.LOCK_TIMEOUT_SECONDS) {
-        logger.warn('User transaction already locked', {
+        StructuredLogger.logUserAction('Transaction lock conflict', {
           userId,
-          existingLockType: existingLock.lockType,
-          age
+          operation: 'lock_conflict',
+          amount: age.toString()
         });
         return false;
       }
@@ -59,24 +97,33 @@ export class TransactionLockService {
         ]
       );
 
-      logger.info('Transaction lock acquired', { userId, lockType });
+      StructuredLogger.logUserAction('Transaction lock acquired', {
+        userId,
+        operation: lockType
+      });
       return true;
     } catch (error) {
-      logger.error('Failed to acquire transaction lock', { userId, lockType, error });
+      StructuredLogger.logError(error as Error, {
+        userId,
+        operation: 'acquire_lock'
+      });
       return false;
     }
   }
 
   /**
-   * Release a user's transaction lock
+   * Releases a user's transaction lock.
+   *
+   * @param userId - Telegram user ID
    */
   static async releaseLock(userId: number): Promise<void> {
     execute('DELETE FROM transaction_locks WHERE user_id = ?', [userId]);
-    logger.debug('Transaction lock released', { userId });
+    StructuredLogger.logDebug('Transaction lock released', { userId });
   }
 
   /**
-   * Clean up expired locks
+   * Cleans up expired locks automatically.
+   * Called before acquiring new locks to prevent stale locks.
    */
   static async cleanExpiredLocks(): Promise<void> {
     const cutoff = Math.floor(Date.now() / 1000) - this.LOCK_TIMEOUT_SECONDS;
@@ -87,14 +134,20 @@ export class TransactionLockService {
     );
 
     if (result.changes > 0) {
-      logger.info('Cleaned expired transaction locks', { count: result.changes });
+      StructuredLogger.logUserAction('Cleaned expired locks', {
+        operation: 'clean_locks',
+        amount: result.changes.toString()
+      });
     }
   }
 
   /**
-   * Check if a user has an active lock
+   * Gets a user's active lock details.
+   *
+   * @param userId - Telegram user ID
+   * @returns Lock object if active, null otherwise
    */
-  static async hasLock(userId: number): Promise<boolean> {
+  static async getLock(userId: number): Promise<TransactionLock | null> {
     await this.cleanExpiredLocks();
 
     const lock = get<TransactionLock>(
@@ -102,14 +155,31 @@ export class TransactionLockService {
       [userId]
     );
 
-    if (!lock) return false;
+    if (!lock) return null;
 
     const age = Math.floor(Date.now() / 1000) - lock.lockedAt;
-    return age < this.LOCK_TIMEOUT_SECONDS;
+    if (age >= this.LOCK_TIMEOUT_SECONDS) {
+      return null;
+    }
+
+    return lock;
   }
 
   /**
-   * Get all active locks (for monitoring)
+   * Checks if a user has an active lock.
+   *
+   * @param userId - Telegram user ID
+   * @returns True if user has an unexpired lock
+   */
+  static async hasLock(userId: number): Promise<boolean> {
+    const lock = await this.getLock(userId);
+    return lock !== null;
+  }
+
+  /**
+   * Gets all active (non-expired) locks for monitoring purposes.
+   *
+   * @returns Array of active transaction locks
    */
   static async getActiveLocks(): Promise<TransactionLock[]> {
     await this.cleanExpiredLocks();

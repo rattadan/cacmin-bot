@@ -1,11 +1,34 @@
 /**
- * Utility for handling JUNO amounts with exact 6-decimal precision
- * NO ROUNDING - exact precision only
+ * @module utils/precision
+ * @description Precise arithmetic utilities for handling JUNO token amounts.
+ * Implements exact 6-decimal precision arithmetic without rounding, using micro-unit
+ * conversion for integer math to avoid floating-point errors. Critical for financial
+ * operations to prevent rounding errors and ensure blockchain-compatible amounts.
+ *
+ * Key features:
+ * - NO ROUNDING - operations maintain exact precision or throw errors
+ * - 6-decimal precision matching JUNO token specification
+ * - Micro-unit conversion (1 JUNO = 1,000,000 uJUNO) for exact integer arithmetic
+ * - Validation to prevent precision loss and invalid amounts
+ */
+
+/**
+ * AmountPrecision class providing static methods for exact JUNO amount arithmetic.
+ * All operations use integer math in micro-units (uJUNO) to avoid floating-point errors.
  */
 export class AmountPrecision {
   /**
-   * Ensure amount has exactly 6 decimal places
-   * Throws error if amount has more than 6 decimals
+   * Validates that an amount has at most 6 decimal places and returns exact 6-decimal representation.
+   * Throws an error if amount exceeds 6 decimal places - NO ROUNDING is performed.
+   *
+   * @param amount - The JUNO amount to validate
+   * @returns The amount with exactly 6 decimal places
+   * @throws Error if amount has more than 6 decimal places
+   *
+   * @example
+   * AmountPrecision.validateAmount(1.5)       // Returns 1.500000
+   * AmountPrecision.validateAmount(1.123456)  // Returns 1.123456
+   * AmountPrecision.validateAmount(1.1234567) // Throws Error
    */
   static validateAmount(amount: number): number {
     // Convert to string to check decimal places
@@ -30,8 +53,17 @@ export class AmountPrecision {
   }
 
   /**
-   * Convert amount to exactly 6 decimal places
-   * Pads with zeros if fewer decimals, throws if more
+   * Converts an amount to exactly 6 decimal places.
+   * Pads with zeros if fewer decimals, throws if more than 6 decimals.
+   *
+   * @param amount - The JUNO amount to convert
+   * @returns The amount as a number with exactly 6 decimal places
+   * @throws Error if amount has more than 6 decimal places
+   *
+   * @example
+   * AmountPrecision.toExact6Decimals(1.5)     // Returns 1.500000
+   * AmountPrecision.toExact6Decimals(1.12)    // Returns 1.120000
+   * AmountPrecision.toExact6Decimals(5)       // Returns 5.000000
    */
   static toExact6Decimals(amount: number): number {
     // First validate it doesn't have too many decimals
@@ -52,15 +84,32 @@ export class AmountPrecision {
   }
 
   /**
-   * Format amount for display (exactly 6 decimals)
+   * Formats an amount for display with exactly 6 decimal places.
+   *
+   * @param amount - The JUNO amount to format
+   * @returns Formatted string with 6 decimal places
+   *
+   * @example
+   * AmountPrecision.format(1.5)      // Returns '1.500000'
+   * AmountPrecision.format(100.123)  // Returns '100.123000'
    */
   static format(amount: number): string {
     return amount.toFixed(6);
   }
 
   /**
-   * Convert JUNO to uJUNO (micro JUNO)
-   * 1 JUNO = 1,000,000 uJUNO
+   * Converts JUNO amount to micro JUNO (uJUNO) for blockchain operations.
+   * Conversion: 1 JUNO = 1,000,000 uJUNO
+   * Uses integer arithmetic to avoid floating-point errors.
+   *
+   * @param amount - The JUNO amount to convert
+   * @returns The amount in uJUNO (micro units) as an integer
+   * @throws Error if precision loss is detected during conversion
+   *
+   * @example
+   * AmountPrecision.toMicroJuno(1.5)      // Returns 1500000
+   * AmountPrecision.toMicroJuno(0.000001) // Returns 1
+   * AmountPrecision.toMicroJuno(100)      // Returns 100000000
    */
   static toMicroJuno(amount: number): number {
     // Validate first
@@ -79,7 +128,17 @@ export class AmountPrecision {
   }
 
   /**
-   * Convert uJUNO to JUNO
+   * Converts micro JUNO (uJUNO) to JUNO amount.
+   * Inverse of toMicroJuno. Always returns exactly 6 decimal places.
+   *
+   * @param microAmount - The uJUNO amount (must be an integer)
+   * @returns The amount in JUNO with exactly 6 decimal places
+   * @throws Error if microAmount is not an integer
+   *
+   * @example
+   * AmountPrecision.fromMicroJuno(1500000)  // Returns 1.500000
+   * AmountPrecision.fromMicroJuno(1)        // Returns 0.000001
+   * AmountPrecision.fromMicroJuno(100000000) // Returns 100.000000
    */
   static fromMicroJuno(microAmount: number): number {
     // Ensure it's an integer
@@ -93,7 +152,18 @@ export class AmountPrecision {
   }
 
   /**
-   * Add two amounts with exact precision
+   * Adds two JUNO amounts with exact precision using integer arithmetic.
+   * Converts both amounts to uJUNO, performs integer addition, converts back.
+   *
+   * @param amount1 - First JUNO amount to add
+   * @param amount2 - Second JUNO amount to add
+   * @returns The sum with exactly 6 decimal places
+   * @throws Error if either amount has invalid precision
+   *
+   * @example
+   * AmountPrecision.add(1.5, 2.3)        // Returns 3.800000
+   * AmountPrecision.add(0.000001, 0.000002) // Returns 0.000003
+   * AmountPrecision.add(100, 50.5)       // Returns 150.500000
    */
   static add(amount1: number, amount2: number): number {
     // Validate both amounts
@@ -112,7 +182,19 @@ export class AmountPrecision {
   }
 
   /**
-   * Subtract two amounts with exact precision
+   * Subtracts two JUNO amounts with exact precision using integer arithmetic.
+   * Converts both amounts to uJUNO, performs integer subtraction, converts back.
+   * Prevents negative results by throwing an error.
+   *
+   * @param amount1 - JUNO amount to subtract from
+   * @param amount2 - JUNO amount to subtract
+   * @returns The difference with exactly 6 decimal places
+   * @throws Error if result would be negative or either amount has invalid precision
+   *
+   * @example
+   * AmountPrecision.subtract(5.5, 2.3)   // Returns 3.200000
+   * AmountPrecision.subtract(1, 0.5)     // Returns 0.500000
+   * AmountPrecision.subtract(1, 2)       // Throws Error (negative result)
    */
   static subtract(amount1: number, amount2: number): number {
     // Validate both amounts
@@ -138,7 +220,17 @@ export class AmountPrecision {
   }
 
   /**
-   * Compare two amounts for equality (within micro precision)
+   * Compares two JUNO amounts for exact equality at micro precision.
+   * Returns true only if amounts are identical at the uJUNO level.
+   *
+   * @param amount1 - First JUNO amount to compare
+   * @param amount2 - Second JUNO amount to compare
+   * @returns True if amounts are exactly equal, false otherwise
+   *
+   * @example
+   * AmountPrecision.equals(1.5, 1.500000)  // Returns true
+   * AmountPrecision.equals(1.5, 1.500001)  // Returns false
+   * AmountPrecision.equals(0, 0.000000)    // Returns true
    */
   static equals(amount1: number, amount2: number): boolean {
     try {
@@ -151,7 +243,17 @@ export class AmountPrecision {
   }
 
   /**
-   * Check if amount1 is greater than amount2
+   * Checks if the first JUNO amount is greater than the second.
+   * Compares at micro precision level for exact comparison.
+   *
+   * @param amount1 - First JUNO amount
+   * @param amount2 - Second JUNO amount
+   * @returns True if amount1 > amount2, false otherwise
+   *
+   * @example
+   * AmountPrecision.isGreaterThan(5.5, 2.3)     // Returns true
+   * AmountPrecision.isGreaterThan(1.5, 1.5)     // Returns false
+   * AmountPrecision.isGreaterThan(1, 1.000001)  // Returns false
    */
   static isGreaterThan(amount1: number, amount2: number): boolean {
     const micro1 = this.toMicroJuno(amount1);
@@ -160,7 +262,17 @@ export class AmountPrecision {
   }
 
   /**
-   * Check if amount1 is greater than or equal to amount2
+   * Checks if the first JUNO amount is greater than or equal to the second.
+   * Compares at micro precision level for exact comparison.
+   *
+   * @param amount1 - First JUNO amount
+   * @param amount2 - Second JUNO amount
+   * @returns True if amount1 >= amount2, false otherwise
+   *
+   * @example
+   * AmountPrecision.isGreaterOrEqual(5.5, 2.3)  // Returns true
+   * AmountPrecision.isGreaterOrEqual(1.5, 1.5)  // Returns true
+   * AmountPrecision.isGreaterOrEqual(1, 1.000001) // Returns false
    */
   static isGreaterOrEqual(amount1: number, amount2: number): boolean {
     const micro1 = this.toMicroJuno(amount1);
@@ -169,8 +281,21 @@ export class AmountPrecision {
   }
 
   /**
-   * Parse amount from user input
-   * Validates and returns exact 6-decimal amount
+   * Parses and validates a JUNO amount from user input string.
+   * Strips whitespace, validates format, ensures positive value, and checks precision.
+   * Suitable for parsing amounts from command arguments and user messages.
+   *
+   * @param input - The user input string to parse
+   * @returns The validated JUNO amount with exactly 6 decimal places
+   * @throws Error if input is not a valid number, is non-positive, or has too many decimals
+   *
+   * @example
+   * AmountPrecision.parseUserInput('1.5')      // Returns 1.500000
+   * AmountPrecision.parseUserInput('  100  ')  // Returns 100.000000
+   * AmountPrecision.parseUserInput('0.000001') // Returns 0.000001
+   * AmountPrecision.parseUserInput('abc')      // Throws Error
+   * AmountPrecision.parseUserInput('-5')       // Throws Error (negative)
+   * AmountPrecision.parseUserInput('1.1234567') // Throws Error (too many decimals)
    */
   static parseUserInput(input: string): number {
     // Remove any whitespace

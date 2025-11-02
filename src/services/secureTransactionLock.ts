@@ -83,7 +83,7 @@ export class SecureTransactionLockService {
       }
 
       // Safe to remove old lock
-      await this.releaseLock(userId);
+      execute('DELETE FROM transaction_locks WHERE user_id = ?', [userId]);
     }
 
     // Create new lock
@@ -454,6 +454,17 @@ export class SecureTransactionLockService {
     }
 
     return lock;
+  }
+
+  /**
+   * Checks if a user has an active transaction lock.
+   *
+   * @param userId - User ID to check
+   * @returns True if user has an active lock, false otherwise
+   */
+  static async hasLock(userId: number): Promise<boolean> {
+    const lock = await this.getActiveLock(userId);
+    return lock !== null;
   }
 
   /**

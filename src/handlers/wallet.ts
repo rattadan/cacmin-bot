@@ -1,18 +1,42 @@
+/**
+ * Wallet and ledger management handlers for the CAC Admin Bot.
+ * Provides a complete internal ledger system with JUNO token management,
+ * including deposits, withdrawals, internal transfers, and administrative functions.
+ *
+ * Features:
+ * - Internal ledger tracking with user balances
+ * - Deposit monitoring with unique memos
+ * - Withdrawals to external Juno addresses
+ * - Internal transfers between users
+ * - Transaction history tracking
+ * - Admin giveaway functionality
+ * - Balance reconciliation and system statistics
+ *
+ * @module handlers/wallet
+ */
+
 import { Context } from 'telegraf';
-import { WalletServiceV2 } from '../services/walletServiceV2';
-import { logger } from '../utils/logger';
+import { UnifiedWalletService } from '../services/unifiedWalletService';
+import { logger, StructuredLogger } from '../utils/logger';
 import { checkIsElevated } from '../utils/roles';
 
 /**
- * Handle /balance command
- * Shows user's internal ledger balance
+ * Handles the /balance command.
+ * Displays the user's current internal ledger balance in JUNO tokens.
+ *
+ * Permission: All users (can only view their own balance)
+ *
+ * @param ctx - Telegraf context
+ *
+ * @example
+ * Usage: /balance
  */
 export async function handleBalance(ctx: Context): Promise<void> {
   try {
     const userId = ctx.from?.id;
     if (!userId) return;
 
-    const balance = await WalletServiceV2.getUserBalance(userId);
+    const balance = await UnifiedWalletService.getBalance(userId);
     const username = ctx.from.username ? `@${ctx.from.username}` : `User ${userId}`;
 
     await ctx.reply(
@@ -20,22 +44,37 @@ export async function handleBalance(ctx: Context): Promise<void> {
       `Current balance: \`${balance.toFixed(6)} JUNO\``,
       { parse_mode: 'Markdown' }
     );
+
+    StructuredLogger.logUserAction('Balance queried', {
+      userId,
+      username: ctx.from.username,
+      operation: 'check_balance',
+      amount: balance.toFixed(6)
+    });
   } catch (error) {
-    logger.error('Error in balance command', { error });
+    StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'check_balance' });
     await ctx.reply('❌ Failed to fetch balance. Please try again later.');
   }
 }
 
 /**
- * Handle /deposit command
- * Shows deposit instructions for the user
+ * Handles the /deposit command.
+ * Displays deposit instructions with a unique address and memo for the user.
+ * Deposits are automatically credited when the transaction is confirmed on-chain.
+ *
+ * Permission: All users
+ *
+ * @param ctx - Telegraf context
+ *
+ * @example
+ * Usage: /deposit
  */
 export async function handleDeposit(ctx: Context): Promise<void> {
   try {
     const userId = ctx.from?.id;
     if (!userId) return;
 
-    const depositInfo = WalletServiceV2.getDepositInfo(userId);
+    const depositInfo = UnifiedWalletService.getDepositInstructions(userId);
 
     await ctx.reply(
       `📥 *Deposit Instructions*\n\n` +
@@ -49,15 +88,32 @@ export async function handleDeposit(ctx: Context): Promise<void> {
       `Your deposit will be credited automatically once confirmed on-chain.`,
       { parse_mode: 'Markdown' }
     );
+
+    StructuredLogger.logUserAction('Deposit instructions requested', {
+      userId,
+      username: ctx.from.username,
+      operation: 'request_deposit',
+      depositAddress: depositInfo.address,
+      depositMemo: depositInfo.memo
+    });
   } catch (error) {
-    logger.error('Error in deposit command', { error });
+    StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'request_deposit' });
     await ctx.reply('❌ Failed to generate deposit information. Please try again later.');
   }
 }
 
 /**
- * Handle /withdraw command
- * Format: /withdraw <amount> <juno_address>
+ * Handles the /withdraw command.
+ * Processes a withdrawal from the user's internal balance to an external Juno address.
+ * Validates balance sufficiency and address format before processing.
+ *
+ * Permission: All users (can only withdraw from their own balance)
+ *
+ * @param ctx - Telegraf context
+ *
+ * @example
+ * Usage: /withdraw <amount> <juno_address>
+ * Example: /withdraw 10 juno1abc123xyz...
  */
 export async function handleWithdraw(ctx: Context): Promise<void> {
   try {
@@ -91,7 +147,7 @@ export async function handleWithdraw(ctx: Context): Promise<void> {
     }
 
     // Check balance first
-    const balance = await WalletServiceV2.getUserBalance(userId);
+    const balance = await UnifiedWalletService.getBalance(userId);
     if (balance < amount) {
       await ctx.reply(
         `❌ *Insufficient balance*\n\n` +
@@ -105,14 +161,22 @@ export async function handleWithdraw(ctx: Context): Promise<void> {
     // Process withdrawal
     await ctx.reply('⏳ Processing withdrawal...');
 
-    const result = await WalletServiceV2.sendToExternalWallet(
+    const result = await UnifiedWalletService.processWithdrawal(
       userId,
       address,
-      amount,
-      `Withdrawal from Telegram bot`
+      amount
     );
 
     if (result.success) {
+      StructuredLogger.logTransaction('Withdrawal successful', {
+        userId,
+        username: ctx.from.username,
+        operation: 'withdrawal',
+        amount: amount.toString(),
+        txHash: result.txHash,
+        toAddress: address
+      });
+
       await ctx.reply(
         `✅ *Withdrawal Successful*\n\n` +
         `Amount: \`${amount} JUNO\`\n` +
@@ -122,6 +186,13 @@ export async function handleWithdraw(ctx: Context): Promise<void> {
         { parse_mode: 'Markdown' }
       );
     } else {
+      StructuredLogger.logError(`Withdrawal failed: ${result.error}`, {
+        userId,
+        operation: 'withdrawal',
+        amount: amount.toString(),
+        toAddress: address
+      });
+
       await ctx.reply(
         `❌ *Withdrawal Failed*\n\n` +
         `Error: ${result.error}\n` +
@@ -130,14 +201,25 @@ export async function handleWithdraw(ctx: Context): Promise<void> {
       );
     }
   } catch (error) {
-    logger.error('Error in withdraw command', { error });
+    StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'withdrawal', amount: undefined });
     await ctx.reply('❌ Failed to process withdrawal. Please try again later.');
   }
 }
 
 /**
- * Handle /send command
- * Format: /send <amount> <@username or userId or juno_address>
+ * Handles the /send command.
+ * Sends JUNO tokens to another user (internal transfer) or to an external address.
+ * Supports three recipient formats: @username, user ID, or juno1... address.
+ *
+ * Permission: All users (can only send from their own balance)
+ *
+ * @param ctx - Telegraf context
+ *
+ * @example
+ * Usage: /send <amount> <recipient>
+ * Example: /send 5 @alice (internal transfer)
+ * Example: /send 10 123456789 (internal transfer by ID)
+ * Example: /send 2.5 juno1abc... (external transfer)
  */
 export async function handleSend(ctx: Context): Promise<void> {
   try {
@@ -173,7 +255,7 @@ export async function handleSend(ctx: Context): Promise<void> {
     }
 
     // Check sender's balance
-    const balance = await WalletServiceV2.getUserBalance(userId);
+    const balance = await UnifiedWalletService.getBalance(userId);
     if (balance < amount) {
       await ctx.reply(
         `❌ *Insufficient balance*\n\n` +
@@ -189,14 +271,22 @@ export async function handleSend(ctx: Context): Promise<void> {
       // External transfer
       await ctx.reply('⏳ Processing external transfer...');
 
-      const result = await WalletServiceV2.sendToExternalWallet(
+      const result = await UnifiedWalletService.processWithdrawal(
         userId,
         recipient,
-        amount,
-        `Transfer from @${ctx.from.username || userId}`
+        amount
       );
 
       if (result.success) {
+        StructuredLogger.logTransaction('External transfer successful', {
+          userId,
+          username: ctx.from.username,
+          operation: 'external_transfer',
+          amount: amount.toString(),
+          txHash: result.txHash,
+          toAddress: recipient
+        });
+
         await ctx.reply(
           `✅ *External Transfer Successful*\n\n` +
           `Amount: \`${amount} JUNO\`\n` +
@@ -206,6 +296,13 @@ export async function handleSend(ctx: Context): Promise<void> {
           { parse_mode: 'Markdown' }
         );
       } else {
+        StructuredLogger.logError(`External transfer failed: ${result.error}`, {
+          userId,
+          operation: 'external_transfer',
+          amount: amount.toString(),
+          recipient
+        });
+
         await ctx.reply(
           `❌ *Transfer Failed*\n\n` +
           `Error: ${result.error}`,
@@ -216,21 +313,38 @@ export async function handleSend(ctx: Context): Promise<void> {
       // Internal transfer by username
       await ctx.reply('⏳ Processing internal transfer...');
 
-      const result = await WalletServiceV2.sendToUsername(
+      const result = await UnifiedWalletService.sendToUsername(
         userId,
         recipient,
-        amount
+        amount,
+        undefined,
+        ctx  // Pass context for username resolution
       );
 
       if (result.success) {
+        StructuredLogger.logTransaction('Internal transfer by username successful', {
+          userId,
+          username: ctx.from.username,
+          operation: 'internal_transfer',
+          amount: amount.toString(),
+          recipient: result.recipient
+        });
+
         await ctx.reply(
           `✅ *Transfer Successful*\n\n` +
           `Amount: \`${amount} JUNO\`\n` +
           `To: @${result.recipient}\n` +
-          `Your New Balance: \`${result.newBalance?.toFixed(6)} JUNO\``,
+          `Your New Balance: \`${result.fromBalance?.toFixed(6)} JUNO\``,
           { parse_mode: 'Markdown' }
         );
       } else {
+        StructuredLogger.logError(`Internal transfer failed: ${result.error}`, {
+          userId,
+          operation: 'internal_transfer',
+          amount: amount.toString(),
+          recipient
+        });
+
         await ctx.reply(
           `❌ *Transfer Failed*\n\n` +
           `Error: ${result.error}`,
@@ -248,13 +362,21 @@ export async function handleSend(ctx: Context): Promise<void> {
 
       await ctx.reply('⏳ Processing internal transfer...');
 
-      const result = await WalletServiceV2.sendToUser(
+      const result = await UnifiedWalletService.transferToUser(
         userId,
         recipientId,
         amount
       );
 
       if (result.success) {
+        StructuredLogger.logTransaction('Internal transfer by user ID successful', {
+          userId,
+          username: ctx.from.username,
+          operation: 'internal_transfer',
+          amount: amount.toString(),
+          recipientId: recipientId.toString()
+        });
+
         await ctx.reply(
           `✅ *Transfer Successful*\n\n` +
           `Amount: \`${amount} JUNO\`\n` +
@@ -263,6 +385,13 @@ export async function handleSend(ctx: Context): Promise<void> {
           { parse_mode: 'Markdown' }
         );
       } else {
+        StructuredLogger.logError(`Internal transfer failed: ${result.error}`, {
+          userId,
+          operation: 'internal_transfer',
+          amount: amount.toString(),
+          recipientId: recipientId.toString()
+        });
+
         await ctx.reply(
           `❌ *Transfer Failed*\n\n` +
           `Error: ${result.error}`,
@@ -275,21 +404,29 @@ export async function handleSend(ctx: Context): Promise<void> {
       );
     }
   } catch (error) {
-    logger.error('Error in send command', { error });
+    StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'send_tokens' });
     await ctx.reply('❌ Failed to process transfer. Please try again later.');
   }
 }
 
 /**
- * Handle /transactions command
- * Shows user's recent transaction history
+ * Handles the /transactions command.
+ * Displays the user's recent transaction history (last 10 transactions).
+ * Shows deposits, withdrawals, transfers, fines, and giveaways.
+ *
+ * Permission: All users (can only view their own transactions)
+ *
+ * @param ctx - Telegraf context
+ *
+ * @example
+ * Usage: /transactions
  */
 export async function handleTransactions(ctx: Context): Promise<void> {
   try {
     const userId = ctx.from?.id;
     if (!userId) return;
 
-    const transactions = await WalletServiceV2.getUserTransactionHistory(userId, 10);
+    const transactions = await UnifiedWalletService.getUserTransactionHistory(userId, 10);
 
     if (transactions.length === 0) {
       await ctx.reply(' You have no transaction history yet.');
@@ -339,15 +476,30 @@ export async function handleTransactions(ctx: Context): Promise<void> {
     }
 
     await ctx.reply(message, { parse_mode: 'Markdown' });
+
+    StructuredLogger.logUserAction('Transaction history queried', {
+      userId,
+      username: ctx.from.username,
+      operation: 'view_transactions',
+      transactionCount: transactions.length.toString()
+    });
   } catch (error) {
-    logger.error('Error in transactions command', { error });
+    StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'view_transactions' });
     await ctx.reply('❌ Failed to fetch transaction history. Please try again later.');
   }
 }
 
 /**
- * Handle /walletstats command (admin only)
- * Shows system wallet statistics
+ * Handles the /walletstats command.
+ * Displays comprehensive system wallet statistics including balances,
+ * ledger statistics, and reconciliation status.
+ *
+ * Permission: Elevated users only (admin/owner)
+ *
+ * @param ctx - Telegraf context
+ *
+ * @example
+ * Usage: /walletstats
  */
 export async function handleWalletStats(ctx: Context): Promise<void> {
   try {
@@ -361,15 +513,16 @@ export async function handleWalletStats(ctx: Context): Promise<void> {
 
     await ctx.reply(' Fetching wallet statistics...');
 
-    const systemBalances = await WalletServiceV2.getSystemBalances();
-    const ledgerStats = await WalletServiceV2.getLedgerStats();
-    const reconciliation = await WalletServiceV2.reconcileBalances();
+    const systemBalances = await UnifiedWalletService.getSystemBalances();
+    const ledgerStats = await UnifiedWalletService.getLedgerStats();
+    const reconciliation = await UnifiedWalletService.reconcileBalances();
 
     let message = ' *Wallet System Statistics*\n\n';
 
     message += '*System Wallets:*\n';
-    message += `Treasury: \`${systemBalances.treasury.onChain.toFixed(6)} JUNO\`\n`;
-    message += `User Funds: \`${systemBalances.userFunds.onChain.toFixed(6)} JUNO\`\n\n`;
+    message += `Treasury: \`${systemBalances.treasury.toFixed(6)} JUNO\`\n`;
+    message += `Reserve: \`${systemBalances.reserve.toFixed(6)} JUNO\`\n`;
+    message += `Unclaimed: \`${systemBalances.unclaimed.toFixed(6)} JUNO\`\n\n`;
 
     message += '*Ledger Statistics:*\n';
     message += `Total Users: ${ledgerStats.totalUsers}\n`;
@@ -385,15 +538,34 @@ export async function handleWalletStats(ctx: Context): Promise<void> {
     message += `Status: ${reconciliation.matched ? ' Balanced' : ' Mismatch'}\n`;
 
     await ctx.reply(message, { parse_mode: 'Markdown' });
+
+    StructuredLogger.logUserAction('Wallet statistics viewed', {
+      userId,
+      operation: 'view_wallet_stats',
+      treasuryBalance: systemBalances.treasury.toFixed(6),
+      reserveBalance: systemBalances.reserve.toFixed(6),
+      unclaimedBalance: systemBalances.unclaimed.toFixed(6),
+      internalTotal: ledgerStats.totalBalance.toFixed(6),
+      reconciled: reconciliation.matched.toString()
+    });
   } catch (error) {
-    logger.error('Error in walletstats command', { error });
+    StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'view_wallet_stats' });
     await ctx.reply('❌ Failed to fetch wallet statistics. Please try again later.');
   }
 }
 
 /**
- * Handle /giveaway command (admin only)
- * Format: /giveaway <amount> <@user1> <@user2> ...
+ * Handles the /giveaway command.
+ * Distributes a specified amount of JUNO to multiple users from the treasury.
+ * Only elevated users can perform giveaways.
+ *
+ * Permission: Elevated users only (admin/owner)
+ *
+ * @param ctx - Telegraf context
+ *
+ * @example
+ * Usage: /giveaway <amount> <@user1> <@user2> ...
+ * Example: /giveaway 5 @alice @bob @charlie
  */
 export async function handleGiveaway(ctx: Context): Promise<void> {
   try {
@@ -430,7 +602,7 @@ export async function handleGiveaway(ctx: Context): Promise<void> {
     // Resolve usernames to userIds
     for (const recipient of recipients) {
       if (recipient.startsWith('@')) {
-        const user = await WalletServiceV2.findUserByUsername(recipient);
+        const user = await UnifiedWalletService.findUserByUsername(recipient);
         if (user) {
           userIds.push(user.id);
         } else {
@@ -448,7 +620,7 @@ export async function handleGiveaway(ctx: Context): Promise<void> {
 
     await ctx.reply(` Distributing ${amount} JUNO to ${userIds.length} users...`);
 
-    const result = await WalletServiceV2.distributeGiveaway(
+    const result = await UnifiedWalletService.distributeGiveaway(
       userIds,
       amount,
       `Giveaway from admin`
@@ -462,16 +634,35 @@ export async function handleGiveaway(ctx: Context): Promise<void> {
       `Total distributed: \`${result.totalDistributed.toFixed(6)} JUNO\``,
       { parse_mode: 'Markdown' }
     );
+
+    StructuredLogger.logTransaction('Giveaway distributed', {
+      userId,
+      username: ctx.from.username,
+      operation: 'giveaway',
+      amount: amount.toString(),
+      recipients: userIds.length.toString(),
+      totalDistributed: result.totalDistributed.toFixed(6),
+      succeeded: result.succeeded.length.toString(),
+      failed: result.failed.length.toString()
+    });
   } catch (error) {
-    logger.error('Error in giveaway command', { error });
+    StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'giveaway' });
     await ctx.reply('❌ Failed to process giveaway. Please try again later.');
   }
 }
 
 /**
- * Handle /checkdeposit command
- * Format: /checkdeposit <tx_hash>
- * Manually check and credit a specific deposit
+ * Handles the /checkdeposit command.
+ * Manually checks and credits a specific deposit transaction by hash.
+ * Useful for troubleshooting missed deposits or verifying transactions.
+ *
+ * Permission: All users (can check any transaction)
+ *
+ * @param ctx - Telegraf context
+ *
+ * @example
+ * Usage: /checkdeposit <tx_hash>
+ * Example: /checkdeposit ABCD1234567890...
  */
 export async function handleCheckDeposit(ctx: Context): Promise<void> {
   try {
@@ -495,37 +686,69 @@ export async function handleCheckDeposit(ctx: Context): Promise<void> {
 
     await ctx.reply(' Checking transaction...');
 
-    // Import DepositMonitor here to avoid circular dependencies
-    const { DepositMonitor } = await import('../services/depositMonitor');
-    const result = await DepositMonitor.checkSpecificTransaction(txHash);
+    // Use UnifiedWalletService to verify transaction
+    const result = await UnifiedWalletService.verifyTransaction(txHash);
 
-    if (!result.found) {
-      await ctx.reply('❌ Transaction not found on-chain.');
-    } else if (result.processed) {
+    if (!result.verified) {
+      await ctx.reply('❌ Transaction not found on-chain or invalid.');
+      return;
+    }
+
+    // Check if transaction was already processed
+    const { get } = await import('../database');
+    const processedDeposit = get<any>(
+      'SELECT * FROM processed_deposits WHERE tx_hash = ?',
+      [txHash]
+    );
+
+    const recipientUserId = result.memo ? parseInt(result.memo) : null;
+
+    if (processedDeposit) {
       await ctx.reply(
-        ` This transaction has already been processed.\n` +
-        (result.userId ? `User ID: ${result.userId}\n` : '') +
-        (result.amount ? `Amount: ${result.amount} JUNO` : '')
+        ` *Transaction Already Processed*\n\n` +
+        `From: \`${result.from}\`\n` +
+        `Amount: \`${result.amount} JUNO\`\n` +
+        (recipientUserId ? `User ID: ${recipientUserId}\n` : '') +
+        (result.memo ? `Memo: ${result.memo}\n` : '') +
+        `Processed: ✅`,
+        { parse_mode: 'Markdown' }
       );
-    } else if (result.error) {
-      await ctx.reply(`❌ Error: ${result.error}`);
     } else {
       await ctx.reply(
-        `✅ *Deposit Processed*\n\n` +
-        `User ID: ${result.userId}\n` +
-        `Amount: \`${result.amount} JUNO\``,
+        `✅ *Transaction Found*\n\n` +
+        `From: \`${result.from}\`\n` +
+        `Amount: \`${result.amount} JUNO\`\n` +
+        (recipientUserId ? `Recipient User ID: ${recipientUserId}\n` : 'No valid user ID in memo\n') +
+        (result.memo ? `Memo: ${result.memo}\n` : 'No memo\n') +
+        `Status: Pending processing`,
         { parse_mode: 'Markdown' }
       );
     }
+
+    StructuredLogger.logTransaction('Manual deposit check', {
+      userId,
+      txHash,
+      operation: 'check_deposit',
+      amount: result.amount?.toString(),
+      processed: !!processedDeposit
+    });
   } catch (error) {
-    logger.error('Error in checkdeposit command', { error });
+    StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'check_deposit', txHash: undefined });
     await ctx.reply('❌ Failed to check deposit. Please try again later.');
   }
 }
 
 /**
- * Handle /reconcile command
- * Manually triggers balance reconciliation check (admin only)
+ * Handles the /reconcile command.
+ * Manually triggers a balance reconciliation check between the internal ledger
+ * and on-chain wallet balances. Alerts if there's a mismatch.
+ *
+ * Permission: Elevated users only (admin/owner)
+ *
+ * @param ctx - Telegraf context
+ *
+ * @example
+ * Usage: /reconcile
  */
 export async function handleReconcile(ctx: Context): Promise<void> {
   try {
@@ -543,8 +766,27 @@ export async function handleReconcile(ctx: Context): Promise<void> {
       `Status: ${result.matched ? '✅ Balanced' : '⚠️ MISMATCH'}`,
       { parse_mode: 'Markdown' }
     );
+
+    StructuredLogger.logUserAction('Balance reconciliation triggered', {
+      userId: ctx.from?.id,
+      operation: 'reconcile_balances',
+      internalTotal: result.internalTotal.toFixed(6),
+      onChainTotal: result.onChainTotal.toFixed(6),
+      difference: result.difference.toFixed(6),
+      matched: result.matched.toString()
+    });
+
+    if (!result.matched) {
+      StructuredLogger.logSecurityEvent('Balance mismatch detected', {
+        userId: ctx.from?.id,
+        operation: 'reconcile_balances',
+        internalTotal: result.internalTotal.toFixed(6),
+        onChainTotal: result.onChainTotal.toFixed(6),
+        difference: result.difference.toFixed(6)
+      });
+    }
   } catch (error) {
-    logger.error('Error in reconcile command', { error });
+    StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'reconcile_balances' });
     await ctx.reply('❌ Failed to run reconciliation.');
   }
 }

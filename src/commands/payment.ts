@@ -1,14 +1,63 @@
+/**
+ * Payment command handlers for the CAC Admin Bot.
+ * Provides commands for viewing and paying fines through internal wallet
+ * or on-chain verification.
+ *
+ * @module commands/payment
+ */
+
 import { Telegraf, Context } from 'telegraf';
+import { UnifiedWalletService } from '../services/unifiedWalletService';
 import { JunoService } from '../services/junoService';
-import { WalletServiceV2 } from '../services/walletServiceV2';
+import { config } from '../config';
 import { JailService } from '../services/jailService';
 import { getUnpaidViolations, markViolationPaid, getTotalFines } from '../services/violationService';
 import { get, query, execute } from '../database';
 import { Violation, User } from '../types';
-import { logger } from '../utils/logger';
+import { logger, StructuredLogger } from '../utils/logger';
 
+/**
+ * Registers all payment-related commands with the bot.
+ *
+ * Commands registered:
+ * - /payfines - View unpaid fines (DM only)
+ * - /payallfines - Pay all fines from internal wallet (DM only)
+ * - /payfine - Pay a specific fine or view all fines
+ * - /verifypayment - Verify an on-chain payment for a fine
+ *
+ * @param bot - Telegraf bot instance
+ *
+ * @example
+ * ```typescript
+ * import { Telegraf } from 'telegraf';
+ * import { registerPaymentCommands } from './commands/payment';
+ *
+ * const bot = new Telegraf(process.env.BOT_TOKEN);
+ * registerPaymentCommands(bot);
+ * ```
+ */
 export function registerPaymentCommands(bot: Telegraf<Context>): void {
-  // Pay fines from user wallet (DM only)
+  /**
+   * Command: /payfines
+   * View all unpaid fines and wallet balance (DM only).
+   *
+   * Permission: Any user
+   * Syntax: /payfines
+   * Location: Direct message only
+   *
+   * @example
+   * User: /payfines
+   * Bot: Your Unpaid Fines
+   *
+   *      • ID 1: spam - 2.50 JUNO
+   *      • ID 2: urls - 1.50 JUNO
+   *
+   *      Total: 4.00 JUNO
+   *      Your wallet balance: 10.000000 JUNO
+   *
+   *      You have sufficient funds.
+   *      Use /payallfines to pay all fines at once.
+   */
   bot.command('payfines', async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
@@ -26,7 +75,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
       }
 
       const totalFines = getTotalFines(userId);
-      const balance = await WalletServiceV2.getUserBalance(userId);
+      const balance = await UnifiedWalletService.getBalance(userId);
 
       let message = ` *Your Unpaid Fines*\n\n`;
       violations.forEach(v => {
@@ -50,7 +99,24 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
     }
   });
 
-  // Pay all fines at once from wallet
+  /**
+   * Command: /payallfines
+   * Pay all outstanding fines from internal wallet balance (DM only).
+   *
+   * Permission: Any user
+   * Syntax: /payallfines
+   * Location: Direct message only
+   *
+   * @example
+   * User: /payallfines
+   * Bot: All Fines Paid!
+   *
+   *      Violations cleared: 2
+   *      Amount paid: 4.00 JUNO
+   *      New balance: 6.000000 JUNO
+   *
+   *      You have been released from jail (if applicable).
+   */
   bot.command('payallfines', async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
@@ -67,7 +133,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
       }
 
       const totalFines = getTotalFines(userId);
-      const balance = await WalletServiceV2.getUserBalance(userId);
+      const balance = await UnifiedWalletService.getBalance(userId);
 
       if (balance < totalFines) {
         return ctx.reply(
@@ -79,10 +145,9 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
       }
 
       // Use internal ledger to process fine payment
-      const result = await WalletServiceV2.payFine(
+      const result = await UnifiedWalletService.payFine(
         userId,
         totalFines,
-        undefined, // No specific violation ID for bulk payment
         `Payment for ${violations.length} violations`
       );
 
@@ -102,16 +167,16 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
           ` *All Fines Paid!*\n\n` +
           `Violations cleared: ${violations.length}\n` +
           `Amount paid: ${totalFines.toFixed(2)} JUNO\n` +
-          `New balance: ${result.newBalance.toFixed(6)} JUNO\n\n` +
+          `New balance: ${result.newBalance?.toFixed(6) || 'N/A'} JUNO\n\n` +
           `You have been released from jail (if applicable).`,
           { parse_mode: 'Markdown' }
         );
 
-        logger.info('User paid all fines from internal balance', {
+        StructuredLogger.logTransaction('User paid all fines from internal balance', {
           userId,
-          violations: violations.length,
-          amount: totalFines,
-          newBalance: result.newBalance
+          operation: 'pay_all_fines',
+          amount: totalFines.toString(),
+          violationsCleared: violations.length
         });
       } else {
         await ctx.reply(
@@ -126,7 +191,40 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
     }
   });
 
-  // Original payfine command (kept for backwards compatibility)
+  /**
+   * Command: /payfine
+   * View all unpaid fines or get payment instructions for a specific fine.
+   *
+   * Permission: Any user
+   * Syntax: /payfine (list all)
+   * Syntax: /payfine <violationId> (specific fine)
+   *
+   * @example
+   * User: /payfine
+   * Bot: Your Unpaid Fines
+   *
+   *      ID: 1 - spam - 2.50 JUNO
+   *      ID: 2 - urls - 1.50 JUNO
+   *
+   *      Total: 4.00 JUNO
+   *
+   *      To pay a specific fine:
+   *      /payfine <violationId>
+   *
+   * @example
+   * User: /payfine 1
+   * Bot: Payment Instructions
+   *
+   *      Violation ID: 1
+   *      Type: spam
+   *      Amount: 2.50 JUNO
+   *
+   *      Send exactly 2.50 JUNO to:
+   *      `juno1...`
+   *
+   *      After payment, send:
+   *      /verifypayment 1 <transaction_hash>
+   */
   bot.command('payfine', async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
@@ -149,7 +247,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
 
       message += `\n*Total: ${totalFines.toFixed(2)} JUNO*\n\n`;
       message += `To pay a specific fine:\n/payfine \\<violationId\\>\n\n`;
-      message += `Payment address:\n\`${JunoService.getPaymentAddress()}\`\n\n`;
+      message += `Payment address:\n\`${config.botTreasuryAddress}\`\n\n`;
       message += `After payment, send:\n/verifypayment \\<violationId\\> \\<txHash\\>`;
 
       return ctx.reply(message, { parse_mode: 'MarkdownV2' });
@@ -174,13 +272,24 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
       `Type: ${violation.restriction}\n` +
       `Amount: ${violation.bailAmount.toFixed(2)} JUNO\n\n` +
       `Send exactly ${violation.bailAmount.toFixed(2)} JUNO to:\n` +
-      `\`${JunoService.getPaymentAddress()}\`\n\n` +
+      `\`${config.botTreasuryAddress}\`\n\n` +
       `After payment, send:\n` +
       `/verifypayment ${violation.id} \\<transaction\\_hash\\>`;
 
     await ctx.reply(message, { parse_mode: 'MarkdownV2' });
   });
 
+  /**
+   * Command: /verifypayment
+   * Verify an on-chain payment for a specific violation.
+   *
+   * Permission: Any user
+   * Syntax: /verifypayment <violationId> <txHash>
+   *
+   * @example
+   * User: /verifypayment 1 ABC123DEF456...
+   * Bot: Payment verified! Your fine has been marked as paid.
+   */
   bot.command('verifypayment', async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
@@ -222,6 +331,11 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
     markViolationPaid(violationId, txHash, userId);
 
     await ctx.reply(' Payment verified! Your fine has been marked as paid.');
-    logger.info('Payment verified', { userId, violationId, txHash });
+    StructuredLogger.logTransaction('Payment verified', {
+      userId,
+      txHash,
+      operation: 'verify_fine_payment',
+      violationId: violationId
+    });
   });
 }

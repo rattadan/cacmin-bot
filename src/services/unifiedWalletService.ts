@@ -234,8 +234,9 @@ export class UnifiedWalletService {
           continue; // No valid transfer to our address
         }
 
-        // Extract memo from base64-encoded protobuf
-        const memo = this.extractMemoFromProtobuf(tx.tx);
+        // Extract memo from base64-encoded protobuf (pass amount to exclude from memo candidates)
+        const amountInUjuno = (amount * 1_000_000).toString();
+        const memo = this.extractMemoFromProtobuf(tx.tx, amountInUjuno);
         const userId = this.parseUserId(memo);
 
         deposits.push({
@@ -266,8 +267,10 @@ export class UnifiedWalletService {
 
   /**
    * Extract memo from base64-encoded protobuf transaction data
+   * @param base64Tx - Base64-encoded transaction data
+   * @param excludeAmount - Amount in ujuno to exclude from memo candidates (optional)
    */
-  private static extractMemoFromProtobuf(base64Tx: string): string {
+  private static extractMemoFromProtobuf(base64Tx: string, excludeAmount?: string): string {
     try {
       const buffer = Buffer.from(base64Tx, 'base64');
       const strings: string[] = [];
@@ -290,8 +293,12 @@ export class UnifiedWalletService {
       }
 
       // Find the memo by looking for patterns
-      // Priority 1: Numeric strings (user IDs) between 5-12 digits
-      const numericMemo = strings.find(s => /^\d{5,12}$/.test(s));
+      // Priority 1: Numeric strings (user IDs) between 5-12 digits (excluding the transaction amount)
+      const numericMemo = strings.find(s => {
+        if (!/^\d{5,12}$/.test(s)) return false;
+        if (excludeAmount && s === excludeAmount) return false; // Exclude transaction amount
+        return true;
+      });
       if (numericMemo) {
         return numericMemo;
       }

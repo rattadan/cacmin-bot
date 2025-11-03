@@ -444,18 +444,17 @@ export class UnifiedWalletService {
       `Deposit from ${deposit.fromAddress}${deposit.memo ? ` (memo: ${deposit.memo})` : ''}`
     );
 
-    // Update processed status
-    execute(
-      'UPDATE processed_deposits SET processed = 1, processed_at = ?, user_id = ?, error = ? WHERE tx_hash = ?',
-      [
-        Math.floor(Date.now() / 1000),
-        targetUserId,
-        result.success ? null : 'Ledger processing failed',
-        deposit.txHash
-      ]
-    );
-
+    // Update processed status - only mark as processed=1 if successful
     if (result.success) {
+      execute(
+        'UPDATE processed_deposits SET processed = 1, processed_at = ?, user_id = ?, error = NULL WHERE tx_hash = ?',
+        [
+          Math.floor(Date.now() / 1000),
+          targetUserId,
+          deposit.txHash
+        ]
+      );
+
       logger.info('Deposit processed successfully', {
         userId: targetUserId,
         amount: deposit.amount,
@@ -463,6 +462,16 @@ export class UnifiedWalletService {
         newBalance: result.newBalance
       });
     } else {
+      // Leave processed=0 and record error so it can be retried
+      execute(
+        'UPDATE processed_deposits SET error = ?, user_id = ? WHERE tx_hash = ?',
+        [
+          result.error || 'Ledger processing failed',
+          targetUserId,
+          deposit.txHash
+        ]
+      );
+
       logger.error('Failed to process deposit', {
         userId: targetUserId,
         txHash: deposit.txHash,

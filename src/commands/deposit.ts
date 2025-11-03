@@ -12,7 +12,7 @@ import { DepositInstructionService } from '../services/depositInstructions';
 import { LedgerService } from '../services/ledgerService';
 import { AmountPrecision } from '../utils/precision';
 import { logger, StructuredLogger } from '../utils/logger';
-import { get, query } from '../database';
+import { get, query, execute } from '../database';
 import { config } from '../config';
 
 /**
@@ -166,6 +166,32 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
       );
 
       if (result.success) {
+        // Mark deposit as processed in database
+        if (!existing) {
+          // Insert new record if it doesn't exist
+          execute(
+            `INSERT INTO processed_deposits (
+              tx_hash, user_id, amount, from_address, memo, height, processed, processed_at, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+            [
+              txHash,
+              userId,
+              verification.amount!,
+              verification.sender!,
+              verification.memo || null,
+              0, // height unknown for manual verification
+              Math.floor(Date.now() / 1000),
+              Math.floor(Date.now() / 1000)
+            ]
+          );
+        } else {
+          // Update existing record
+          execute(
+            'UPDATE processed_deposits SET processed = 1, processed_at = ?, user_id = ?, error = NULL WHERE tx_hash = ?',
+            [Math.floor(Date.now() / 1000), userId, txHash]
+          );
+        }
+
         StructuredLogger.logTransaction('Deposit verified and credited', {
           userId,
           txHash,
@@ -183,6 +209,30 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
           { parse_mode: 'Markdown' }
         );
       } else {
+        // Mark deposit as failed in database
+        if (!existing) {
+          execute(
+            `INSERT INTO processed_deposits (
+              tx_hash, user_id, amount, from_address, memo, height, processed, error, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+            [
+              txHash,
+              userId,
+              verification.amount!,
+              verification.sender!,
+              verification.memo || null,
+              0,
+              result.error || 'Unknown error',
+              Math.floor(Date.now() / 1000)
+            ]
+          );
+        } else {
+          execute(
+            'UPDATE processed_deposits SET error = ? WHERE tx_hash = ?',
+            [result.error || 'Unknown error', txHash]
+          );
+        }
+
         await ctx.reply(
           ` **Failed to credit deposit**\n\n` +
           `${result.error}\n\n` +
@@ -451,6 +501,32 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
       );
 
       if (result.success) {
+        // Mark deposit as processed in database
+        if (!existing) {
+          // Insert new record if it doesn't exist
+          execute(
+            `INSERT INTO processed_deposits (
+              tx_hash, user_id, amount, from_address, memo, height, processed, processed_at, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+            [
+              txHash,
+              userId,
+              deposit.amount,
+              deposit.sender,
+              tx.memo || null,
+              tx.height || 0,
+              Math.floor(Date.now() / 1000),
+              Math.floor(Date.now() / 1000)
+            ]
+          );
+        } else {
+          // Update existing record
+          execute(
+            'UPDATE processed_deposits SET processed = 1, processed_at = ?, user_id = ?, error = NULL WHERE tx_hash = ?',
+            [Math.floor(Date.now() / 1000), userId, txHash]
+          );
+        }
+
         StructuredLogger.logUserAction('Deposit manually processed by admin', {
           userId: adminId,
           operation: 'process_deposit',
@@ -469,6 +545,30 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
           { parse_mode: 'Markdown' }
         );
       } else {
+        // Mark deposit as failed in database
+        if (!existing) {
+          execute(
+            `INSERT INTO processed_deposits (
+              tx_hash, user_id, amount, from_address, memo, height, processed, error, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+            [
+              txHash,
+              userId,
+              deposit.amount,
+              deposit.sender,
+              tx.memo || null,
+              tx.height || 0,
+              result.error || 'Unknown error',
+              Math.floor(Date.now() / 1000)
+            ]
+          );
+        } else {
+          execute(
+            'UPDATE processed_deposits SET error = ? WHERE tx_hash = ?',
+            [result.error || 'Unknown error', txHash]
+          );
+        }
+
         await ctx.reply(
           `Failed to process deposit\n\n${result.error}`,
           { parse_mode: 'Markdown' }

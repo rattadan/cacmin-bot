@@ -62,10 +62,11 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
     if (!userId) return;
 
     try {
-      // Send brief warning
+      // Send brief warning (no link preview)
       await ctx.reply(
         'This bot is highly experimental -- do NOT deposit any funds you are not prepared to immediately lose.\n\n' +
-        'Report any issues on https://github.com/cac-group/cacmin-bot/issues/new or message @BasementNodes'
+        'Report any issues on https://github.com/cac-group/cacmin-bot/issues/new or message @BasementNodes',
+        { link_preview_options: { is_disabled: true } }
       );
 
       // Send CAC satellite sticker
@@ -76,6 +77,12 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
         // Silently fail if sticker can't be sent
         logger.debug('Failed to send deposit sticker', { userId, error: stickerError });
       }
+
+      // Send deposit instructions with memo
+      const instructions = UnifiedWalletService.getDepositInstructions(userId);
+      await ctx.reply(instructions.markdown, {
+        parse_mode: 'Markdown'
+      });
     } catch (error) {
       logger.error('Failed to send deposit response', { userId, error });
       await ctx.reply('Failed to process deposit command');

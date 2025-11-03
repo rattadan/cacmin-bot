@@ -33,19 +33,19 @@ import { logger, StructuredLogger } from '../utils/logger';
  */
 export function registerGiveawayCommands(bot: Telegraf<Context>): void {
   /**
-   * Command: /balance
+   * Command: /botbalance
    * Check the bot's on-chain wallet balance.
    *
    * Permission: Admin or higher
-   * Syntax: /balance
+   * Syntax: /botbalance
    *
    * @example
-   * User: /balance
+   * User: /botbalance
    * Bot: Bot Wallet Balance
    *      Address: `juno1...`
    *      Balance: *123.456789 JUNO*
    */
-  bot.command('balance', adminOrHigher, async (ctx) => {
+  bot.command('botbalance', adminOrHigher, async (ctx) => {
     try {
       const balance = await UnifiedWalletService.getBotBalance();
 

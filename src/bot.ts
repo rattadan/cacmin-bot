@@ -22,6 +22,7 @@ import { registerModerationCommands } from './commands/moderation';
 import { registerPaymentCommands } from './commands/payment';
 import { registerJailCommands } from './commands/jail';
 import { registerGiveawayCommands } from './commands/giveaway';
+import { registerDepositCommands } from './commands/deposit';
 import { registerWalletCommands } from './commands/wallet';
 import { registerWalletTestCommands } from './commands/walletTest';
 import { registerSharedAccountCommands } from './commands/sharedAccounts';
@@ -112,6 +113,7 @@ async function main() {
     registerPaymentCommands(bot);
     registerJailCommands(bot);
     registerGiveawayCommands(bot);
+    registerDepositCommands(bot); // Deposit management commands
     registerWalletCommands(bot);
     registerWalletTestCommands(bot); // Owner-only test commands
     registerSharedAccountCommands(bot); // Shared account management

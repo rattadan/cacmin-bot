@@ -61,7 +61,7 @@ export class TransactionLockService {
 
       // Check if the old transaction needs verification
       if (existingLock.txHash) {
-        const verification = await this.verifyWithdrawalCompletion(
+        const verification = await this.verifyTxComplete(
           userId,
           existingLock.txHash,
           existingLock.amount
@@ -144,10 +144,8 @@ export class TransactionLockService {
     logger.info('Lock updated with transaction hash', { userId, txHash });
   }
 
-  /**
-   * Verify withdrawal completion with dual checks
-   */
-  static async verifyWithdrawalCompletion(
+  /** Verify tx confirmed on-chain and ledger updated (dual verification) */
+  static async verifyTxComplete(
     userId: number,
     txHash: string,
     expectedAmount: number
@@ -307,7 +305,7 @@ export class TransactionLockService {
 
       if (age < this.WITHDRAWAL_TIMEOUT && txHash) {
         // Verify before releasing
-        const verification = await this.verifyWithdrawalCompletion(
+        const verification = await this.verifyTxComplete(
           userId,
           txHash,
           lock.amount
@@ -491,7 +489,7 @@ export class TransactionLockService {
     for (const lock of expiredLocks) {
       // For withdrawals with tx hash, verify before cleaning
       if (lock.lock_type === 'withdrawal' && lock.tx_hash) {
-        const verification = await this.verifyWithdrawalCompletion(
+        const verification = await this.verifyTxComplete(
           lock.user_id,
           lock.tx_hash,
           lock.amount

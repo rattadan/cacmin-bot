@@ -77,7 +77,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
       const totalFines = getTotalFines(userId);
       const balance = await UnifiedWalletService.getBalance(userId);
 
-      let message = ` *Your Unpaid Fines*\n\n`;
+      let message = `*Your Unpaid Fines*\n\n`;
       violations.forEach(v => {
         message += `• ID ${v.id}: ${v.restriction} - ${v.bailAmount.toFixed(2)} JUNO\n`;
       });
@@ -164,7 +164,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
         }
 
         await ctx.reply(
-          ` *All Fines Paid!*\n\n` +
+          `*All Fines Paid!*\n\n` +
           `Violations cleared: ${violations.length}\n` +
           `Amount paid: ${totalFines.toFixed(2)} JUNO\n` +
           `New balance: ${result.newBalance?.toFixed(6) || 'N/A'} JUNO\n\n` +
@@ -180,7 +180,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
         });
       } else {
         await ctx.reply(
-          ` *Payment Failed*\n\n` +
+          `*Payment Failed*\n\n` +
           `Error: ${result.error}`,
           { parse_mode: 'Markdown' }
         );
@@ -239,7 +239,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
       }
 
       const totalFines = getTotalFines(userId);
-      let message = ` *Your Unpaid Fines*\n\n`;
+      let message = `*Your Unpaid Fines*\n\n`;
 
       violations.forEach(v => {
         message += `ID: ${v.id} \\- ${v.restriction} \\- ${v.bailAmount.toFixed(2)} JUNO\n`;
@@ -267,7 +267,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
       return ctx.reply(' This fine has already been paid.');
     }
 
-    const message = ` *Payment Instructions*\n\n` +
+    const message = `*Payment Instructions*\n\n` +
       `Violation ID: ${violation.id}\n` +
       `Type: ${violation.restriction}\n` +
       `Amount: ${violation.bailAmount.toFixed(2)} JUNO\n\n` +

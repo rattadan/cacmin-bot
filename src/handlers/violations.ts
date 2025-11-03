@@ -53,7 +53,7 @@ export const registerViolationHandlers = (bot: Telegraf<Context>) => {
         return ctx.reply(' You have no violations\\!', { parse_mode: 'MarkdownV2' });
       }
 
-      let message = ' *Your Violations*\n\n';
+      let message = '*Your Violations*\n\n';
       let totalUnpaid = 0;
       let unpaidCount = 0;
 

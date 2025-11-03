@@ -571,10 +571,8 @@ export class LedgerService {
     return result?.total || 0;
   }
 
-  /**
-   * Check on-chain balance of system wallets
-   */
-  static async getSystemWalletBalance(walletType: 'treasury' | 'user_funds'): Promise<number> {
+  /** Get on-chain balance of system wallets */
+  static async getSysBalance(walletType: 'treasury' | 'user_funds'): Promise<number> {
     const address = walletType === 'treasury' ? this.botTreasuryAddress : this.userFundsAddress;
 
     if (!address) {
@@ -612,7 +610,7 @@ export class LedgerService {
     matched: boolean;
   }> {
     const internalTotal = await this.getTotalUserBalance();
-    const onChainBalance = await this.getSystemWalletBalance('treasury');
+    const onChainBalance = await this.getSysBalance('treasury');
 
     const difference = Math.abs(internalTotal - onChainBalance);
     const matched = difference < 0.000001; // Allow for minor rounding differences

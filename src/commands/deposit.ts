@@ -278,9 +278,11 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
     const adminId = ctx.from?.id;
     if (!adminId) return;
 
-    // Check if admin
+    // Check if owner (from config) or admin (from database)
+    const isOwner = config.ownerIds.includes(adminId);
     const admin = get<any>('SELECT role FROM users WHERE id = ?', [adminId]);
-    if (!admin || (admin.role !== 'owner' && admin.role !== 'admin')) {
+
+    if (!isOwner && (!admin || (admin.role !== 'owner' && admin.role !== 'admin'))) {
       return ctx.reply(' This command requires admin permissions');
     }
 
@@ -350,9 +352,11 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
     const adminId = ctx.from?.id;
     if (!adminId) return;
 
-    // Check if admin
+    // Check if owner (from config) or admin (from database)
+    const isOwner = config.ownerIds.includes(adminId);
     const admin = get<any>('SELECT role FROM users WHERE id = ?', [adminId]);
-    if (!admin || (admin.role !== 'owner' && admin.role !== 'admin')) {
+
+    if (!isOwner && (!admin || (admin.role !== 'owner' && admin.role !== 'admin'))) {
       return ctx.reply('This command requires admin permissions');
     }
 

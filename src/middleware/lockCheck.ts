@@ -6,7 +6,7 @@
  */
 
 import { Context } from 'telegraf';
-import { SecureTransactionLockService } from '../services/secureTransactionLock';
+import { TransactionLockService } from '../services/transactionLock';
 import { logger } from '../utils/logger';
 
 /**
@@ -37,7 +37,7 @@ export async function lockCheckMiddleware(ctx: Context, next: () => Promise<void
     }
 
     // Check if user is locked
-    const lock = await SecureTransactionLockService.getActiveLock(userId);
+    const lock = await TransactionLockService.getActiveLock(userId);
 
     if (lock) {
       const now = Math.floor(Date.now() / 1000);
@@ -120,7 +120,7 @@ export async function financialLockCheck(ctx: Context, next: () => Promise<void>
 
     // Only check lock for financial commands
     if (command && financialCommands.includes(command)) {
-      const isLocked = await SecureTransactionLockService.hasLock(userId);
+      const isLocked = await TransactionLockService.hasLock(userId);
 
       if (isLocked) {
         await ctx.reply(

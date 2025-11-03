@@ -15,6 +15,7 @@ import { JailService } from '../services/jailService';
 import { JunoService } from '../services/junoService';
 import { getUnpaidViolations, getTotalFines } from '../services/violationService';
 import { formatUserIdDisplay, resolveUserId } from '../utils/userResolver';
+import { elevatedOrHigher } from '../middleware/index';
 
 /**
  * Formats a duration in seconds into a human-readable time string.
@@ -71,7 +72,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
    * Command: /jailstats
    * View comprehensive jail system statistics.
    *
-   * Permission: Elevated users or higher
+   * Permission: Elevated users or higher (enforced by elevatedOrHigher middleware)
    * Syntax: /jailstats
    *
    * Displays:
@@ -88,15 +89,9 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
    *      1. User 123456 - 45m 30s (5.00 JUNO)
    *      2. @alice - 1h 15m 0s (10.50 JUNO)
    */
-  bot.command('jailstats', async (ctx) => {
+  bot.command('jailstats', elevatedOrHigher, async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
-
-    // Check if user is elevated or higher
-    const { checkIsElevated } = await import('../utils/roles');
-    if (!checkIsElevated(userId)) {
-      return ctx.reply(' This command requires elevated privileges or higher.');
-    }
 
     const { query, get: getRecord } = await import('../database');
     const now = Math.floor(Date.now() / 1000);

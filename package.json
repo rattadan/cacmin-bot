@@ -13,7 +13,6 @@
     "rebuild:quick": "./rebuild.sh --quick",
     "rebuild:full": "./rebuild.sh --full",
     "setup-db": "ts-node scripts/setup-db.ts",
-    "migrate:wallet": "ts-node scripts/migrate-to-unified-wallet.ts",
     "validate": "ts-node scripts/validate.ts",
     "validate:postbuild": "BUILD_VALIDATION=true ts-node scripts/validate.ts",
     "test": "jest",

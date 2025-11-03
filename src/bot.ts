@@ -30,7 +30,7 @@ import { RestrictionService } from './services/restrictionService';
 import { JailService } from './services/jailService';
 import { UnifiedWalletService } from './services/unifiedWalletService';
 import { LedgerService } from './services/ledgerService';
-import { SecureTransactionLockService } from './services/secureTransactionLock';
+import { TransactionLockService } from './services/transactionLock';
 
 /**
  * Main initialization and startup function for the CAC Admin Bot.
@@ -87,7 +87,7 @@ async function main() {
     await UnifiedWalletService.initialize();
 
     // Clean up any stale locks from previous session
-    await SecureTransactionLockService.cleanExpiredLocks();
+    await TransactionLockService.cleanExpiredLocks();
     logger.info('Cleaned up stale transaction locks');
 
     // Create bot instance
@@ -135,7 +135,7 @@ async function main() {
 
     // Periodic cleanup of expired transaction locks (every minute)
     setInterval(async () => {
-      await SecureTransactionLockService.cleanExpiredLocks();
+      await TransactionLockService.cleanExpiredLocks();
     }, 60 * 1000);
 
     // Periodic balance reconciliation check (every hour)

@@ -7,7 +7,7 @@
  */
 
 import { Telegraf, Context } from 'telegraf';
-import { adminOrHigher } from '../middleware/index';
+import { adminOrHigher, ownerOnly } from '../middleware/index';
 import { financialLockCheck } from '../middleware/lockCheck';
 import {
   handleBalance,
@@ -101,30 +101,30 @@ export function registerWalletCommands(bot: Telegraf<Context>): void {
 
   /**
    * Command: /walletstats
-   * View system wallet statistics and ledger reconciliation (admin only).
+   * View system wallet statistics and ledger reconciliation (owner only).
    *
-   * Permission: Admin or higher
+   * Permission: Owner only
    * Syntax: /walletstats
    */
-  bot.command('walletstats', adminOrHigher, handleWalletStats);
+  bot.command('walletstats', ownerOnly, handleWalletStats);
 
   /**
    * Command: /giveaway
-   * Distribute tokens to users (admin only).
+   * Distribute tokens to users (owner only).
    *
-   * Permission: Admin or higher
+   * Permission: Owner only
    * Syntax: /giveaway <amount> <@user1> <@user2> ...
    */
-  bot.command('giveaway', adminOrHigher, handleGiveaway);
+  bot.command('giveaway', ownerOnly, handleGiveaway);
 
   /**
    * Command: /reconcile
-   * Check internal ledger balance against on-chain balance (admin only).
+   * Check internal ledger balance against on-chain balance (owner only).
    *
-   * Permission: Admin or higher
+   * Permission: Owner only
    * Syntax: /reconcile
    */
-  bot.command('reconcile', adminOrHigher, handleReconcile);
+  bot.command('reconcile', ownerOnly, handleReconcile);
 
   /**
    * Command: /checkdeposit (alias: /checktx)

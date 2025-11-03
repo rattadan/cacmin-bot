@@ -153,16 +153,6 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
       helpText += '/removeblacklist \\<@username\\|userId\\> \\- Remove from blacklist\n';
       helpText += '/addaction \\<restriction\\> \\<action\\> \\- Add global restriction\n';
       helpText += '/removeaction \\<restriction\\> \\- Remove global restriction\n\n';
-
-      helpText += '*Admin Commands \\- Treasury \\& Deposits:*\n';
-      helpText += '/botbalance \\- Check bot on\\-chain wallet balance\n';
-      helpText += '/treasury \\- View comprehensive treasury \\& ledger status\n';
-      helpText += '/giveaway \\<@username\\|userId\\> \\<amount\\> \\- Credit JUNO to user balance\n';
-      helpText += '/walletstats \\- View detailed wallet statistics\n';
-      helpText += '/reconcile \\- Reconcile ledger balances\n';
-      helpText += '/processdeposit \\<tx\\_hash\\> \\- Manually process pending deposit\n';
-      helpText += '/claimdeposit \\<tx\\_hash\\> \\<userId\\> \\- Manually assign unclaimed deposit\n';
-      helpText += '/stats \\- View comprehensive bot statistics\n\n';
     }
 
     // Owner commands
@@ -173,9 +163,19 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
       helpText += '/makeadmin \\<@username\\|userId\\> \\- Promote user to admin role\n';
       helpText += '/clearviolations \\<userId\\> \\- Clear all violations for a user\n\n';
 
+      helpText += '*Owner Commands \\- Treasury \\& Wallet Management:*\n';
+      helpText += '/botbalance \\- Check bot on\\-chain wallet balance\n';
+      helpText += '/treasury \\- View comprehensive treasury \\& ledger status\n';
+      helpText += '/giveaway \\<@username\\|userId\\> \\<amount\\> \\- Credit JUNO to user balance\n';
+      helpText += '/walletstats \\- View detailed wallet statistics\n';
+      helpText += '/reconcile \\- Reconcile ledger balances\n';
+      helpText += '/stats \\- View comprehensive bot statistics\n\n';
+
       helpText += '*Owner Commands \\- Data Access:*\n';
       helpText += '/transactions \\<userId\\> \\- View any user transaction history\n';
-      helpText += '/unclaimeddeposits \\- View all unclaimed deposits\n\n';
+      helpText += '/unclaimeddeposits \\- View all unclaimed deposits\n';
+      helpText += '/processdeposit \\<tx\\_hash\\> \\- Manually process pending deposit\n';
+      helpText += '/claimdeposit \\<tx\\_hash\\> \\<userId\\> \\- Manually assign unclaimed deposit\n\n';
 
       helpText += '*Owner Commands \\- Testing:*\n';
       helpText += '/testbalance \\- Test balance checking functionality\n';

@@ -10,6 +10,7 @@ import { Telegraf, Context } from 'telegraf';
 import { query, execute } from '../database';
 import { GlobalAction } from '../types';
 import { logger, StructuredLogger } from '../utils/logger';
+import { adminOrHigher } from '../middleware';
 
 /**
  * Registers all global action restriction command handlers with the bot.
@@ -61,7 +62,7 @@ export const registerActionHandlers = (bot: Telegraf<Context>) => {
    * Command handler for /addaction.
    * Adds a new global restriction that applies to all users.
    *
-   * Permission: Owner only (no explicit check - should be added)
+   * Permission: Admin or higher
    *
    * @param ctx - Telegraf context
    *
@@ -70,7 +71,7 @@ export const registerActionHandlers = (bot: Telegraf<Context>) => {
    * Example: /addaction no_stickers offensive_pack
    * Example: /addaction no_urls
    */
-  bot.command('addaction', async (ctx) => {
+  bot.command('addaction', adminOrHigher, async (ctx) => {
     const ownerId = ctx.from?.id;
     const [restriction, restrictedAction] = ctx.message?.text.split(' ').slice(1);
 
@@ -97,7 +98,7 @@ export const registerActionHandlers = (bot: Telegraf<Context>) => {
    * Command handler for /removeaction.
    * Removes a global restriction from all users.
    *
-   * Permission: Owner only (no explicit check - should be added)
+   * Permission: Admin or higher
    *
    * @param ctx - Telegraf context
    *
@@ -105,7 +106,7 @@ export const registerActionHandlers = (bot: Telegraf<Context>) => {
    * Usage: /removeaction <restriction>
    * Example: /removeaction no_stickers
    */
-  bot.command('removeaction', async (ctx) => {
+  bot.command('removeaction', adminOrHigher, async (ctx) => {
     const ownerId = ctx.from?.id;
     const [restriction] = ctx.message?.text.split(' ').slice(1);
 

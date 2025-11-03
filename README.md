@@ -5,10 +5,13 @@ Cosmos Airdrops Chat **Improved Admin Bot** built with [Telegraf](https://telegr
 ## **Features**
 
 - **Role Management**:
-  - Supports `owner`, `admin`, `elevated`, and `pleb` roles.
-  - Owners can promote admins and users to `elevated` role.
-  - `Elevated admins` can promote users to `elevated` role.
-  - `Elevated` users can manage certain bot functions but cannot assign roles.
+  - **Four-tier role hierarchy**: `owner` > `admin` > `elevated` > `pleb`
+  - **Owner**: Full control including wallet/treasury access, role promotions, and bot configuration
+  - **Admin**: Moderation powers (jail, restrictions, blacklist) but NO access to funds, treasury, or config
+  - **Elevated**: Basic user with wallet access, can view lists and statistics, minor perks
+  - **Pleb**: Default role for all users
+  - Owners can promote users to admin or elevated roles
+  - Admins can promote users to elevated role and revoke elevated privileges
 
 - **User Restrictions**:
   - Restrict specific users from performing actions like:
@@ -42,120 +45,22 @@ Cosmos Airdrops Chat **Improved Admin Bot** built with [Telegraf](https://telegr
 
 ## **Installation**
 
-### **Quick Start**
-
-For the fastest setup with automatic wallet configuration:
-
 ```bash
-# Clone and install
-git clone <repo-url>
-cd cacmin-bot
+# Clone and setup
+git clone <repo-url> && cd cacmin-bot
 yarn install
 
-# Create minimal .env file
-echo "BOT_TOKEN=your_bot_token_here" > .env
-echo "OWNER_ID=your_telegram_user_id_1,your_telegram_user_id_2" >> .env
-echo "ADMIN_ID=admin_user_id_1,admin_user_id_2" >> .env
-echo "BOT_TREASURY_ADDRESS=juno1..." >> .env
-echo "BOT_TREASURY_MNEMONIC=word1 word2 ..." >> .env
-echo "JUNO_RPC_URL=https://rpc.juno.basementnodes.ca" >> .env
+# Configure .env
+cp .env.example .env
+# Edit .env with: BOT_TOKEN, OWNER_ID, ADMIN_ID, BOT_TREASURY_ADDRESS, BOT_TREASURY_MNEMONIC, JUNO_RPC_URL
 
-# Initialize database and migrate to unified wallet
+# Initialize and run
 yarn setup-db
-yarn migrate:wallet
-
-# Build and launch
-./rebuild.sh
+./rebuild.sh          # Production
+./rebuild.sh --dev    # Development
 ```
 
-### **Rebuild & Deploy**
-
-The project includes a unified rebuild script for easy deployment:
-
-```bash
-# Default: Clean, rebuild, and restart service
-./rebuild.sh
-
-# Development mode: Clean, rebuild, and run with hot reload
-./rebuild.sh --dev
-
-# Quick rebuild: Skip cleaning, just rebuild and restart
-./rebuild.sh --quick
-
-# Full clean: Remove everything including caches, then rebuild
-./rebuild.sh --full
-```
-
-NPM scripts are also available:
-
-```bash
-yarn rebuild       # Default rebuild
-yarn rebuild:dev   # Development mode
-yarn rebuild:quick # Quick rebuild
-yarn rebuild:full  # Full clean rebuild
-```
-
-### **Manual Installation**
-
-1. Clone the repository:
-
-   ```bash
-   git clone <repo-url>
-   cd cacmin-bot
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   yarn install
-   ```
-
-3. Configure the bot:
-   - Copy `.env.example` to `.env`:
-
-     ```bash
-     cp .env.example .env
-     ```
-
-   - Edit `.env` and set required configuration:
-
-     ```env
-     BOT_TOKEN=your_bot_token_here
-     OWNER_ID=owner_id_1,owner_id_2
-     ADMIN_ID=admin_id_1,admin_id_2
-     BOT_TREASURY_ADDRESS=juno1...
-     BOT_TREASURY_MNEMONIC=word1 word2 ...
-     JUNO_RPC_URL=https://rpc.juno.basementnodes.ca
-     ```
-
-4. Set up wallet (if needed):
-
-   ```bash
-   # Generate a new wallet (optional)
-   npx ts-node scripts/wallet-utils.ts
-
-   # Add the generated address and mnemonic to .env as shown above
-   ```
-
-5. Initialize the database:
-
-   ```bash
-   yarn run setup-db
-   ```
-
-6. Build and start the bot:
-
-   ```bash
-   # For production with systemd
-   sudo ./rebuild.sh
-
-   # For development
-   ./rebuild.sh --dev
-
-   # Or use yarn scripts
-   yarn rebuild      # Production
-   yarn rebuild:dev  # Development
-   ```
+**Rebuild options**: `./rebuild.sh [--dev|--quick|--full]` or use `yarn rebuild[:dev|:quick|:full]`
 
 ---
 
@@ -218,170 +123,22 @@ The workflow builds on `ubuntu-latest` which is compatible with ARM64 servers li
 
 ## **Usage**
 
-### **Role Management**
+Use `/help` in a DM with the bot for a comprehensive, role-based command reference.
 
-- **Set Group Owner**:
+### **Key Commands**
 
-  ```plaintext
-  /setowner
-  ```
+**Wallet** (All Users):
+- `/balance`, `/deposit`, `/send`, `/withdraw`, `/transactions`
 
-  - Automatically assigns the group creator as the owner.
+**Moderation** (Admin+):
+- `/jail <user> <minutes>`, `/unjail <user>`, `/warn <userId> <reason>`
+- `/addrestriction`, `/addblacklist`, `/addwhitelist`
 
-- **Promote Users**:
-  - `Elevate` a user to manage bot functions:
+**Treasury** (Owner Only):
+- `/botbalance`, `/treasury`, `/giveaway`, `/walletstats`, `/reconcile`
 
-    ```plaintext
-    /elevate <username>
-    ```
-
-  - Promote a user to `admin`:
-
-    ```plaintext
-    /makeadmin <username>
-    ```
-
-- **Demote Users**:
-  - Revoke elevated/admin privileges:
-
-    ```plaintext
-    /revoke <username>
-    ```
-
----
-
-### **Blacklist Management**
-
-- **View Blacklist**:
-
-  ```plaintext
-  /viewblacklist
-  ```
-
-  - Lists all blacklisted users.
-
-- **Add to Blacklist**:
-
-  ```plaintext
-  /addblacklist <userId>
-  ```
-
-  - Blacklists a user by their Telegram ID.
-
-- **Remove from Blacklist**:
-
-  ```plaintext
-  /removeblacklist <userId>
-  ```
-
----
-
-### **Global Action Management**
-
-- **View Global Restrictions**:
-
-  ```plaintext
-  /viewactions
-  ```
-
-- **Add a Global Restriction**:
-
-  ```plaintext
-  /addaction <restriction> [restrictedAction]
-  ```
-
-- **Remove a Global Restriction**:
-
-  ```plaintext
-  /removeaction <restriction>
-  ```
-
----
-
-### **Wallet Commands**
-
-- **Check Balance**:
-
-  ```plaintext
-  /balance
-  ```
-
-- **Get Deposit Instructions**:
-
-  ```plaintext
-  /deposit
-  ```
-
-  - Provides unique deposit address and memo for automatic crediting
-
-- **Send Funds**:
-
-  ```plaintext
-  /send <amount> <@user|userId|address>
-  ```
-
-  - Internal transfers (to other users) are instant and fee-free
-  - External transfers (to Juno addresses) go on-chain
-
-- **Withdraw to External Address**:
-
-  ```plaintext
-  /withdraw <amount> <juno_address>
-  ```
-
-- **View Transaction History**:
-
-  ```plaintext
-  /transactions
-  ```
-
-- **Verify Deposit**:
-
-  ```plaintext
-  /verifydeposit <tx_hash>
-  ```
-
-  - Manually verify and credit a deposit transaction
-
-- **Check Deposit Status**:
-
-  ```plaintext
-  /checkdeposit <tx_hash>
-  ```
-
----
-
-### **User-Specific Restrictions**
-
-- **View User Restrictions**:
-
-  ```plaintext
-  /listrestrictions <userId>
-  ```
-
-- **Add a User Restriction**:
-
-  ```plaintext
-  /addrestriction <userId> <restriction> [restrictedAction] [restrictedUntil]
-  ```
-
-- **Remove a User Restriction**:
-
-  ```plaintext
-  /removerestriction <userId> <restriction>
-  ```
-
----
-
-### **Violation Management**
-
-- **View Violations**:
-
-  ```plaintext
-  /violations
-  ```
-
-  - Lists the current user's violations.
+**Role Management** (Owner):
+- `/setowner`, `/makeadmin <user>`, `/elevate <user>`, `/revoke <user>`
 
 ---
 

@@ -4,7 +4,7 @@ import { config } from '../config';
 import { logger } from '../utils/logger';
 import { LedgerService, TransactionType } from './ledgerService';
 import { query, get, execute } from '../database';
-import { SecureTransactionLockService } from './secureTransactionLock';
+import { TransactionLockService } from './transactionLock';
 import { DepositInstructionService } from './depositInstructions';
 import { AmountPrecision } from '../utils/precision';
 import { RPCTransactionVerification } from './rpcTransactionVerification';
@@ -581,7 +581,7 @@ export class UnifiedWalletService {
     }
 
     // Acquire secure withdrawal lock
-    const lockResult = await SecureTransactionLockService.acquireWithdrawalLock(
+    const lockResult = await TransactionLockService.acquireWithdrawalLock(
       userId,
       validatedAmount,
       toAddress
@@ -607,7 +607,7 @@ export class UnifiedWalletService {
 
       if (!withdrawalResult.success) {
         // Release lock if ledger update failed
-        await SecureTransactionLockService.releaseWithdrawalLock(userId, '', true);
+        await TransactionLockService.releaseWithdrawalLock(userId, '', true);
 
         return {
           success: false,
@@ -620,7 +620,7 @@ export class UnifiedWalletService {
       if (!this.wallet) {
         // Refund if we can't sign
         await LedgerService.processGiveaway(userId, validatedAmount, 'Withdrawal refund - signing unavailable');
-        await SecureTransactionLockService.releaseWithdrawalLock(userId, '', true);
+        await TransactionLockService.releaseWithdrawalLock(userId, '', true);
 
         return {
           success: false,
@@ -652,7 +652,7 @@ export class UnifiedWalletService {
         logger.error('On-chain transaction failed', { userId, error: txError });
 
         await LedgerService.processGiveaway(userId, amount, 'Withdrawal refund - transaction failed');
-        await SecureTransactionLockService.releaseWithdrawalLock(userId, '', true);
+        await TransactionLockService.releaseWithdrawalLock(userId, '', true);
 
         return {
           success: false,
@@ -662,13 +662,13 @@ export class UnifiedWalletService {
       }
 
       // Update lock with transaction hash
-      await SecureTransactionLockService.updateLockWithTxHash(userId, result.transactionHash);
+      await TransactionLockService.updateLockWithTxHash(userId, result.transactionHash);
 
       // Verify transaction status
       if (result.code !== 0) {
         // Transaction failed on-chain - refund and release lock
         await LedgerService.processGiveaway(userId, amount, 'Withdrawal refund - transaction rejected');
-        await SecureTransactionLockService.releaseWithdrawalLock(userId, result.transactionHash, true);
+        await TransactionLockService.releaseWithdrawalLock(userId, result.transactionHash, true);
 
         return {
           success: false,
@@ -687,7 +687,7 @@ export class UnifiedWalletService {
       }
 
       // Attempt to verify and release lock
-      const releaseResult = await SecureTransactionLockService.releaseWithdrawalLock(
+      const releaseResult = await TransactionLockService.releaseWithdrawalLock(
         userId,
         result.transactionHash,
         false // Don't force - verify first
@@ -725,7 +725,7 @@ export class UnifiedWalletService {
         logger.error('Failed to refund user after error', { userId, refundError });
       }
 
-      await SecureTransactionLockService.releaseWithdrawalLock(userId, '', true);
+      await TransactionLockService.releaseWithdrawalLock(userId, '', true);
 
       return {
         success: false,
@@ -781,7 +781,7 @@ export class UnifiedWalletService {
       const validatedAmount = AmountPrecision.validateAmount(amount);
 
       // Acquire simple locks for both users
-      const lockResult = await SecureTransactionLockService.acquireTransferLocks(
+      const lockResult = await TransactionLockService.acquireTransferLocks(
         fromUserId,
         toUserId,
         validatedAmount
@@ -804,7 +804,7 @@ export class UnifiedWalletService {
         );
 
         // Release locks after ledger update
-        await SecureTransactionLockService.releaseTransferLocks(fromUserId, toUserId);
+        await TransactionLockService.releaseTransferLocks(fromUserId, toUserId);
 
         if (result.success) {
           logger.info('Internal transfer completed', {
@@ -819,7 +819,7 @@ export class UnifiedWalletService {
         return result;
       } catch (error) {
         // Release locks on error
-        await SecureTransactionLockService.releaseTransferLocks(fromUserId, toUserId);
+        await TransactionLockService.releaseTransferLocks(fromUserId, toUserId);
         throw error;
       }
     } catch (error) {

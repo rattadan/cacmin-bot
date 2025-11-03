@@ -14,6 +14,7 @@ import { config } from '../config';
 import { resolveUserId, formatUserIdDisplay } from '../utils/userResolver';
 import { JailService } from '../services/jailService';
 import { getUserIdentifier, getCommandArgs } from '../utils/commandHelper';
+import { adminOrHigher, ownerOnly } from '../middleware/index';
 
 /**
  * Registers all moderation commands with the bot.
@@ -59,11 +60,6 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
   const jailHandler = async (ctx: Context) => {
     const adminId = ctx.from?.id;
     if (!adminId) return;
-
-    const admin = get<User>('SELECT * FROM users WHERE id = ?', [adminId]);
-    if (!admin || (admin.role !== 'admin' && admin.role !== 'owner')) {
-      return ctx.reply(' You do not have permission to use this command.');
-    }
 
     // Get user identifier (supports reply-to-message or explicit username/userId)
     const userIdentifier = getUserIdentifier(ctx);
@@ -183,8 +179,8 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
     logger.info('User jailed', { adminId, userId, minutes, bailAmount });
   };
 
-  bot.command('jail', jailHandler);
-  bot.command('silence', jailHandler); // Alias for jail
+  bot.command('jail', adminOrHigher, jailHandler);
+  bot.command('silence', adminOrHigher, jailHandler); // Alias for jail
 
   /**
    * Command: /unjail (alias: /unsilence)
@@ -204,11 +200,6 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
   const unjailHandler = async (ctx: Context) => {
     const adminId = ctx.from?.id;
     if (!adminId) return;
-
-    const admin = get<User>('SELECT * FROM users WHERE id = ?', [adminId]);
-    if (!admin || (admin.role !== 'admin' && admin.role !== 'owner')) {
-      return ctx.reply(' You do not have permission to use this command.');
-    }
 
     const userIdentifier = ctx.message && 'text' in ctx.message ? ctx.message.text.split(' ')[1] || '' : '';
     if (!userIdentifier) {
@@ -272,14 +263,14 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
     logger.info('User unjailed', { adminId, userId });
   };
 
-  bot.command('unjail', unjailHandler);
-  bot.command('unsilence', unjailHandler); // Alias for unjail
+  bot.command('unjail', adminOrHigher, unjailHandler);
+  bot.command('unsilence', adminOrHigher, unjailHandler); // Alias for unjail
 
   /**
    * Command: /warn
    * Issue a formal warning to a user.
    *
-   * Permission: Admin or owner
+   * Permission: Admin or owner (enforced by adminOrHigher middleware)
    * Syntax: /warn <userId> <reason>
    *
    * @example
@@ -287,14 +278,9 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
    * Bot: User 123456 has been warned.
    *      Reason: Spamming in chat
    */
-  bot.command('warn', async (ctx) => {
+  bot.command('warn', adminOrHigher, async (ctx) => {
     const adminId = ctx.from?.id;
     if (!adminId) return;
-
-    const admin = get<User>('SELECT * FROM users WHERE id = ?', [adminId]);
-    if (!admin || (admin.role !== 'admin' && admin.role !== 'owner')) {
-      return ctx.reply(' You do not have permission to use this command.');
-    }
 
     const args = ctx.message?.text.split(' ').slice(1);
     if (!args || args.length < 2) {
@@ -338,18 +324,16 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
    * Command: /clearviolations
    * Clear all violations and reset warning count for a user.
    *
-   * Permission: Owner only
+   * Permission: Owner only (enforced by ownerOnly middleware)
    * Syntax: /clearviolations <userId>
    *
    * @example
    * User: /clearviolations 123456
    * Bot: All violations cleared for user 123456.
    */
-  bot.command('clearviolations', async (ctx) => {
+  bot.command('clearviolations', ownerOnly, async (ctx) => {
     const ownerId = ctx.from?.id;
-    if (!ownerId || !config.ownerIds.includes(ownerId)) {
-      return ctx.reply(' Only the owner can use this command.');
-    }
+    if (!ownerId) return;
 
     const userId = parseInt(ctx.message?.text.split(' ')[1] || '');
     if (isNaN(userId)) {
@@ -370,7 +354,7 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
    * Command: /stats
    * View comprehensive bot statistics including users, violations, jails, and fines.
    *
-   * Permission: Owner only
+   * Permission: Owner only (enforced by ownerOnly middleware)
    * Syntax: /stats
    *
    * Displays:
@@ -393,11 +377,9 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
    *      Unpaid Fines: 125.50 JUNO
    *      Paid Fines: 300.75 JUNO
    */
-  bot.command('stats', async (ctx) => {
+  bot.command('stats', ownerOnly, async (ctx) => {
     const ownerId = ctx.from?.id;
-    if (!ownerId || !config.ownerIds.includes(ownerId)) {
-      return ctx.reply(' Only the owner can use this command.');
-    }
+    if (!ownerId) return;
 
     const now = Math.floor(Date.now() / 1000);
 

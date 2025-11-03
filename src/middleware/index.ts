@@ -1,10 +1,4 @@
-/**
- * @module middleware/index
- * @description Core middleware functions for user management and permission control.
- * Provides middleware for user database synchronization, role-based access control,
- * and restriction loading. These middleware functions run before command handlers
- * to ensure proper authorization and context setup.
- */
+/** User management and permission control middleware */
 
 import { Context, MiddlewareFn } from 'telegraf';
 import { ensureUserExists, getUserRestrictions } from '../services/userService';
@@ -170,20 +164,5 @@ export const elevatedOrHigher: MiddlewareFn<Context> = (ctx, next) => {
   return ctx.reply('You do not have permission to use this command.');
 };
 
-/**
- * Legacy alias for elevatedOrHigher middleware.
- * @deprecated Use elevatedOrHigher instead
- */
-export const isElevated = elevatedOrHigher;
-
-/**
- * Legacy alias for elevatedOrHigher middleware.
- * @deprecated Use elevatedOrHigher instead
- */
-export const elevatedUserOnly = elevatedOrHigher;
-
-/**
- * Legacy alias for adminOrHigher middleware.
- * @deprecated Use adminOrHigher instead
- */
+// Alias for clarity in command context
 export const elevatedAdminOnly = adminOrHigher;

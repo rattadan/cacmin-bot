@@ -10,6 +10,7 @@ import { Telegraf, Context } from 'telegraf';
 import { hasRole } from '../utils/roles';
 import { addUserRestriction, removeUserRestriction, getUserRestrictions } from '../services/userService';
 import { logger, StructuredLogger } from '../utils/logger';
+import { adminOrHigher, elevatedOrHigher } from '../middleware';
 
 /**
  * Registers all restriction management command handlers with the bot.
@@ -33,7 +34,7 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
    * Command handler for /addrestriction.
    * Adds a specific restriction to a user with optional expiration.
    *
-   * Permission: No explicit check (should be added)
+   * Permission: Admin or higher
    *
    * @param ctx - Telegraf context
    *
@@ -41,7 +42,7 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
    * Usage: /addrestriction <userId> <restriction> [restrictedAction] [restrictedUntil]
    * Example: /addrestriction 123456 no_stickers stickerpack_name 1735689600
    */
-  bot.command('addrestriction', async (ctx) => {
+  bot.command('addrestriction', adminOrHigher, async (ctx) => {
     const adminId = ctx.from?.id;
     const [userId, restriction, restrictedAction, restrictedUntil] = ctx.message?.text.split(' ').slice(1) || [];
 
@@ -81,7 +82,7 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
    * Command handler for /removerestriction.
    * Removes a specific restriction from a user.
    *
-   * Permission: Admin or elevated role required
+   * Permission: Elevated or higher
    *
    * @param ctx - Telegraf context
    *
@@ -89,12 +90,8 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
    * Usage: /removerestriction <userId> <restriction>
    * Example: /removerestriction 123456 no_stickers
    */
-  bot.command('removerestriction', async (ctx) => {
+  bot.command('removerestriction', elevatedOrHigher, async (ctx) => {
     const adminId = ctx.from?.id;
-
-    if (!hasRole(ctx.from?.id!, 'admin') && !hasRole(ctx.from?.id!, 'elevated')) {
-      return ctx.reply('You do not have permission to manage restrictions.');
-    }
 
     const [userId, restriction] = ctx.message?.text.split(' ').slice(1) || [];
     if (!userId || !restriction) {
@@ -120,7 +117,7 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
    * Command handler for /listrestrictions.
    * Lists all active restrictions for a specific user.
    *
-   * Permission: Admin or elevated role required
+   * Permission: Elevated or higher
    *
    * @param ctx - Telegraf context
    *
@@ -128,12 +125,8 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
    * Usage: /listrestrictions <userId>
    * Example: /listrestrictions 123456
    */
-  bot.command('listrestrictions', async (ctx) => {
+  bot.command('listrestrictions', elevatedOrHigher, async (ctx) => {
     const adminId = ctx.from?.id;
-
-    if (!hasRole(ctx.from?.id!, 'admin') && !hasRole(ctx.from?.id!, 'elevated')) {
-      return ctx.reply('You do not have permission to view restrictions.');
-    }
 
     const [userId] = ctx.message?.text.split(' ').slice(1) || [];
     if (!userId) {

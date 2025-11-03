@@ -9,7 +9,7 @@
 import { Telegraf, Context } from 'telegraf';
 import { UnifiedWalletService } from '../services/unifiedWalletService';
 import { config } from '../config';
-import { adminOrHigher } from '../middleware/index';
+import { adminOrHigher, ownerOnly } from '../middleware/index';
 import { logger, StructuredLogger } from '../utils/logger';
 
 /**
@@ -36,7 +36,7 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
    * Command: /botbalance
    * Check the bot's on-chain wallet balance.
    *
-   * Permission: Admin or higher
+   * Permission: Owner only
    * Syntax: /botbalance
    *
    * @example
@@ -45,7 +45,7 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
    *      Address: `juno1...`
    *      Balance: *123.456789 JUNO*
    */
-  bot.command('botbalance', adminOrHigher, async (ctx) => {
+  bot.command('botbalance', ownerOnly, async (ctx) => {
     try {
       const balance = await UnifiedWalletService.getBotBalance();
 
@@ -88,7 +88,7 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
    *      Recipient: 123456789 (123456789)
    *      Amount: 5.000000 JUNO
    */
-  bot.command('giveaway', adminOrHigher, async (ctx) => {
+  bot.command('giveaway', ownerOnly, async (ctx) => {
     const args = ctx.message?.text.split(' ').slice(1);
 
     if (!args || args.length < 2) {
@@ -196,7 +196,7 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
    *      Fines Collected: `50.000000 JUNO`
    *      Bail Collected: `100.000000 JUNO`
    */
-  bot.command('treasury', adminOrHigher, async (ctx) => {
+  bot.command('treasury', ownerOnly, async (ctx) => {
     try {
       // On-chain treasury balance
       const treasuryBalance = await UnifiedWalletService.getBotBalance();

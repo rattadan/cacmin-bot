@@ -68,11 +68,30 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
         parse_mode: 'Markdown'
       });
 
+      // Send experimental warning
+      await ctx.reply(
+        '⚠️ **IMPORTANT WARNING** ⚠️\n\n' +
+        'This bot is **highly experimental and permanently in early stage development**.\n\n' +
+        '**DO NOT deposit any funds you are not prepared to immediately lose.**\n\n' +
+        'By depositing, you acknowledge and accept all risks associated with using experimental software.',
+        { parse_mode: 'Markdown' }
+      );
+
       // Send a follow-up reminder
       await ctx.reply(
         DepositInstructionService.getMemoReminder(userId),
         { parse_mode: 'Markdown' }
       );
+
+      // Send CAC sticker (first sticker from CACGifs pack)
+      // File ID for the first sticker in https://t.me/addstickers/CACGifs
+      // Note: This file_id may need to be updated if the sticker pack changes
+      try {
+        await ctx.replyWithSticker('CAACAgQAAxkBAAIBBGddYxMAAcCKiKpJV-uT_7hxGNqOsAACCgADDbbSGmTjWpYn0t-rNgQ');
+      } catch (stickerError) {
+        // Silently fail if sticker can't be sent
+        logger.debug('Failed to send deposit sticker', { userId, error: stickerError });
+      }
     } catch (error) {
       logger.error('Failed to generate deposit instructions', { userId, error });
       await ctx.reply(' Failed to generate deposit instructions');

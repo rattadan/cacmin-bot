@@ -15,7 +15,7 @@
 import { Telegraf, Context } from 'telegraf';
 import { User } from '../types';
 import { query, execute } from '../database';
-import { ownerOnly, elevatedAdminOnly } from '../middleware/index';
+import { ownerOnly, elevatedAdminOnly, adminOrHigher } from '../middleware/index';
 import { logger, StructuredLogger } from '../utils/logger';
 import { config } from '../config';
 
@@ -155,7 +155,7 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
    * Elevates a user to the elevated role.
    * Both admins and owners can elevate users.
    *
-   * Permission: Admin or owner role required
+   * Permission: Admin or owner role required (enforced by adminOrHigher middleware)
    *
    * @param ctx - Telegraf context
    *
@@ -164,15 +164,9 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
    * Example: /elevate @bob
    * Example: /elevate 987654321
    */
-  bot.command('elevate', async (ctx) => {
+  bot.command('elevate', adminOrHigher, async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
-
-    // Check if user is admin or owner
-    const requester = query<User>('SELECT * FROM users WHERE id = ?', [userId])[0];
-    if (requester?.role !== 'admin' && requester?.role !== 'owner') {
-      return ctx.reply('You do not have permission to use this command.');
-    }
 
     const args = ctx.message?.text.split(' ').slice(1);
     if (!args || args.length === 0) {
@@ -306,7 +300,7 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
    * Revokes elevated or admin privileges from a user, demoting them to pleb.
    * Admins can only revoke elevated users. Owners can revoke any role except other owners.
    *
-   * Permission: Admin or owner role required
+   * Permission: Admin or owner role required (enforced by adminOrHigher middleware)
    *
    * @param ctx - Telegraf context
    *
@@ -315,15 +309,12 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
    * Example: /revoke @bob
    * Example: /revoke 987654321
    */
-  bot.command('revoke', async (ctx) => {
+  bot.command('revoke', adminOrHigher, async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId) return;
 
-    // Check if user is admin or owner
+    // Get requester role for additional permission check
     const requester = query<User>('SELECT * FROM users WHERE id = ?', [userId])[0];
-    if (requester?.role !== 'admin' && requester?.role !== 'owner') {
-      return ctx.reply('You do not have permission to use this command.');
-    }
 
     const args = ctx.message?.text.split(' ').slice(1);
     if (!args || args.length === 0) {

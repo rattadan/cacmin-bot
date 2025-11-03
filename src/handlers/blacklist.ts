@@ -10,6 +10,7 @@ import { Telegraf, Context } from 'telegraf';
 import { query, execute } from '../database';
 import { User } from '../types';
 import { logger, StructuredLogger } from '../utils/logger';
+import { adminOrHigher } from '../middleware';
 
 /**
  * Registers all whitelist and blacklist command handlers with the bot.
@@ -62,7 +63,7 @@ export const registerBlacklistHandlers = (bot: Telegraf<Context>) => {
    * Command handler for /addwhitelist.
    * Adds a user to the whitelist, granting them special permissions or exemptions.
    *
-   * Permission: Admin required (no explicit check - should be added)
+   * Permission: Admin or higher
    *
    * @param ctx - Telegraf context
    *
@@ -70,7 +71,7 @@ export const registerBlacklistHandlers = (bot: Telegraf<Context>) => {
    * Usage: /addwhitelist <userId>
    * Example: /addwhitelist 123456789
    */
-  bot.command('addwhitelist', async (ctx) => {
+  bot.command('addwhitelist', adminOrHigher, async (ctx) => {
     const adminId = ctx.from?.id;
     const [userId] = ctx.message?.text.split(' ').slice(1);
 
@@ -101,7 +102,7 @@ export const registerBlacklistHandlers = (bot: Telegraf<Context>) => {
    * Command handler for /removewhitelist.
    * Removes a user from the whitelist.
    *
-   * Permission: Admin required (no explicit check - should be added)
+   * Permission: Admin or higher
    *
    * @param ctx - Telegraf context
    *
@@ -109,7 +110,7 @@ export const registerBlacklistHandlers = (bot: Telegraf<Context>) => {
    * Usage: /removewhitelist <userId>
    * Example: /removewhitelist 123456789
    */
-  bot.command('removewhitelist', async (ctx) => {
+  bot.command('removewhitelist', adminOrHigher, async (ctx) => {
     const adminId = ctx.from?.id;
     const [userId] = ctx.message?.text.split(' ').slice(1);
 
@@ -161,7 +162,7 @@ export const registerBlacklistHandlers = (bot: Telegraf<Context>) => {
    * Command handler for /addblacklist.
    * Adds a user to the blacklist, restricting their access and privileges.
    *
-   * Permission: Admin required (no explicit check - should be added)
+   * Permission: Admin or higher
    *
    * @param ctx - Telegraf context
    *
@@ -169,7 +170,7 @@ export const registerBlacklistHandlers = (bot: Telegraf<Context>) => {
    * Usage: /addblacklist <userId>
    * Example: /addblacklist 123456789
    */
-  bot.command('addblacklist', async (ctx) => {
+  bot.command('addblacklist', adminOrHigher, async (ctx) => {
     const adminId = ctx.from?.id;
     const [userId] = ctx.message?.text.split(' ').slice(1);
 
@@ -200,7 +201,7 @@ export const registerBlacklistHandlers = (bot: Telegraf<Context>) => {
    * Command handler for /removeblacklist.
    * Removes a user from the blacklist.
    *
-   * Permission: Admin required (no explicit check - should be added)
+   * Permission: Admin or higher
    *
    * @param ctx - Telegraf context
    *
@@ -208,7 +209,7 @@ export const registerBlacklistHandlers = (bot: Telegraf<Context>) => {
    * Usage: /removeblacklist <userId>
    * Example: /removeblacklist 123456789
    */
-  bot.command('removeblacklist', async (ctx) => {
+  bot.command('removeblacklist', adminOrHigher, async (ctx) => {
     const adminId = ctx.from?.id;
     const [userId] = ctx.message?.text.split(' ').slice(1);
     if (!userId) {

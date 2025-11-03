@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CAC Admin Bot is a production-ready Telegram bot for the Cosmos Airdrops Chat group, built with Telegraf (TypeScript). It provides comprehensive administrative controls including role-based permissions, user restrictions, blacklist management, violation tracking, and a unified wallet system with internal ledger for JUNO token management.
+CAC Admin Bot is a production-ready Telegram bot for the Cosmos Airdrops Chat group, built with Telegraf (TypeScript). It provides comprehensive administrative controls including role-based permissions, user restrictions, blacklist management, violation tracking, shared multi-user accounts, and a unified wallet system with internal ledger for JUNO token management.
 
 ## Technology Stack
 
@@ -21,7 +21,6 @@ CAC Admin Bot is a production-ready Telegram bot for the Cosmos Airdrops Chat gr
 ```bash
 yarn install              # Install dependencies
 yarn setup-db             # Initialize SQLite database schema
-yarn migrate:wallet       # Migrate to unified wallet system (if upgrading)
 yarn dev                  # Start in development mode with hot reload
 ```
 
@@ -67,7 +66,15 @@ yarn format               # Format code with Prettier
 ### Database Operations
 ```bash
 yarn setup-db             # Initialize/reset database schema
-yarn migrate:wallet       # Migrate from old HD wallet to unified wallet
+```
+
+### Utility Scripts
+```bash
+# Wallet configuration and verification
+npx ts-node scripts/auto-setup-wallets.ts           # Auto-configure wallets
+npx ts-node scripts/verify-wallets.ts               # Verify wallet configuration
+npx ts-node scripts/wallet-utils.ts                 # Wallet utility operations
+npx ts-node scripts/setup-from-single-mnemonic.ts   # Setup from single mnemonic
 ```
 
 ## Architecture
@@ -76,17 +83,18 @@ yarn migrate:wallet       # Migrate from old HD wallet to unified wallet
 **src/bot.ts**: Main entry point with strict initialization order:
 1. Validate environment configuration
 2. Initialize SQLite database schema
-3. Initialize ledger system (internal accounting)
-4. Initialize unified wallet system (includes deposit monitoring)
-5. Clean up stale transaction locks from previous session
-6. Create Telegraf bot instance
-7. Set bot instance for admin notifications
-8. Initialize jail service with bot reference
-9. Register global middleware (message filters)
-10. Register all command handlers
-11. Set up periodic cleanup tasks (restrictions, jails, locks, reconciliation)
-12. Configure graceful shutdown handlers
-13. Launch bot
+3. Initialize configured owners and admins from env vars
+4. Initialize ledger system (internal accounting)
+5. Initialize unified wallet system (includes deposit monitoring)
+6. Clean up stale transaction locks from previous session
+7. Create Telegraf bot instance
+8. Set bot instance for admin notifications
+9. Initialize jail service with bot reference
+10. Register global middleware (message filters)
+11. Register all command handlers
+12. Set up periodic cleanup tasks (restrictions, jails, locks, reconciliation)
+13. Configure graceful shutdown handlers
+14. Launch bot
 
 ### Database Layer (src/database.ts)
 
@@ -97,6 +105,8 @@ yarn migrate:wallet       # Migrate from old HD wallet to unified wallet
 - `user_balances`: Internal ledger for JUNO token balances (includes bot treasury as ID -1)
 - `transactions`: Complete audit trail of all financial operations
 - `system_wallets`: Configuration for wallet addresses
+- `shared_accounts`: Multi-user shared wallet configurations
+- `shared_account_users`: User access and permissions for shared accounts
 - `rules`: Violation rule definitions
 - `violations`: Tracked violations with bail amounts and payment status
 - `jail_events`: Log of jail/unjail actions
@@ -118,24 +128,30 @@ execute(sql, params): RunResult      // INSERT/UPDATE/DELETE
 
 **Required**:
 - `BOT_TOKEN`: Telegram bot token from @BotFather
-- `OWNER_ID`: Telegram user ID of bot owner
+- `OWNER_ID`: Comma-separated Telegram user IDs of bot owners (supports multiple)
 - `USER_FUNDS_ADDRESS`: Shared Juno wallet address for all operations
 - `USER_FUNDS_MNEMONIC`: 24-word mnemonic for signing withdrawals
 
 **Optional**:
+- `ADMIN_ID`: Comma-separated Telegram user IDs of pre-configured admins
 - `ADMIN_CHAT_ID`: Private chat for admin notifications
 - `GROUP_CHAT_ID`: Main group chat ID
+- `BOT_TREASURY_ADDRESS`: Bot treasury address (defaults to USER_FUNDS_ADDRESS)
 - `JUNO_RPC_URL`: Juno RPC endpoint (default: basementnodes.ca)
 - `JUNO_API_URL`: Juno API endpoint (default: basementnodes.ca)
 - `DATABASE_PATH`: Database file location (default: ./data/bot.db)
 - `LOG_LEVEL`: Winston log level (default: info)
 
+**Configurable Defaults** (src/config.ts):
+- **Fine Amounts**: sticker (1.0), url (2.0), regex (1.5), blacklist (5.0) JUNO
+- **Restriction Durations**: warning (24h), mute (1h), tempBan (7d)
+
 Configuration is validated on startup via `validateConfig()`.
 
 ### Role System (src/utils/roles.ts, src/handlers/roles.ts)
 
-Four-tier hierarchy with strict permission checks:
-1. **owner**: Group creator, full control (set via OWNER_ID env var)
+Four-tier hierarchy with strict permission checks (supports multiple owners):
+1. **owner**: Group creator, full control (set via OWNER_ID env var, comma-separated)
 2. **admin**: Promoted by owner, can manage users and restrictions
 3. **elevated**: Promoted by owner or elevated admin, can manage bot functions but not assign roles
 4. **pleb**: Default role for all users
@@ -157,7 +173,7 @@ Applied in order:
    - Prevents concurrent wallet operations
 
 **Permission Middlewares** (src/middleware/index.ts):
-- `ownerOnly`: Restricts to bot owner
+- `ownerOnly`: Restricts to bot owner(s)
 - `elevatedAdminOnly`: Owner or admins with elevated role
 - `elevatedUserOnly`: Owner or elevated users
 - `isElevated`: Owner or elevated role (any level)
@@ -168,12 +184,20 @@ Applied in order:
 **src/commands/**: User-facing command implementations
 - `help.ts`: `/help` - DM-only comprehensive command listing
 - `moderation.ts`: `/warn`, `/mute`, `/unmute`, `/ban`, `/unban`, `/kick`
-- `wallet.ts`: `/balance`, `/withdraw`, `/send`, `/receive`
+- `wallet.ts`: `/balance`, `/withdraw`, `/send`, `/receive`, `/transactions`
 - `walletTest.ts`: Owner-only wallet testing commands
-- `deposit.ts`: `/deposit` - Shows deposit instructions
+- `deposit.ts`: `/deposit` - Shows deposit instructions, `/checkdeposit` - Check deposit status
 - `payment.ts`: `/paybail` - Pay violation fines
 - `jail.ts`: `/jail`, `/unjail` - Temporary restriction system
 - `giveaway.ts`: `/giveaway` - Token distribution
+- `sharedAccounts.ts`: Shared multi-user wallet commands
+  - `/createshared` - Create shared account (elevated admin only)
+  - `/deleteshared` - Delete shared account
+  - `/grantaccess`, `/revokeaccess`, `/updateaccess` - Manage user permissions
+  - `/sharedbalance`, `/sharedsend`, `/shareddeposit` - Shared wallet operations
+  - `/myshared` - List user's shared accounts
+  - `/sharedinfo`, `/sharedhistory` - Account details and transaction history
+  - `/listshared` - Admin view of all shared accounts
 
 **src/handlers/**: Bot administrative handlers (typically DM-only)
 - `roles.ts`: `/setowner`, `/elevate`, `/makeadmin`, `/revoke`
@@ -181,7 +205,11 @@ Applied in order:
 - `actions.ts`: `/addaction`, `/removeaction`, `/viewactions` (global restrictions)
 - `blacklist.ts`: `/viewblacklist`, `/addblacklist`, `/removeblacklist`
 - `violations.ts`: `/violations` - View user violations
-- `wallet.ts`: Wallet-related administrative handlers
+- `wallet.ts`: Admin wallet operations
+  - `/verifydeposit` - Manually verify and credit deposit
+  - `/checkdeposit` - Check deposit processing status
+  - `/manualdeposit` - Manual deposit crediting
+  - `/processunclaimed` - Process unclaimed deposits
 
 ### Services Layer
 
@@ -191,27 +219,34 @@ Applied in order:
   - Automatic deposit detection and processing
   - Withdrawal flow with transaction locking
   - Balance reconciliation
-  - Integrates LedgerService and DepositMonitor
+  - Integrates LedgerService and deposit monitoring
 
 - **LedgerService** (src/services/ledgerService.ts):
   - Internal accounting system
   - User balances tracked in database
   - Bot treasury as user ID -1
+  - System reserve as user ID -2
   - Unclaimed deposits as user ID -3
   - Complete transaction history
   - Balance queries and adjustments
-
-- **DepositMonitor** (src/services/depositMonitor.ts):
-  - Polls Juno blockchain for incoming deposits
-  - Memo-based routing (userId or 'bot')
-  - Deduplication via processed_deposits table
-  - Notifies users of deposits via Telegram
 
 - **TransactionLockService** (src/services/transactionLock.ts):
   - Prevents double-spending during concurrent operations
   - User-specific locks with expiration
   - Automatic cleanup of stale locks
   - Used for withdrawals and balance modifications
+  - Dual verification (on-chain + ledger) before release
+
+- **DepositInstructionService** (src/services/depositInstructions.ts):
+  - Generates user-specific deposit instructions
+  - Creates formatted messages with wallet address and memo
+  - Handles both user and bot treasury deposits
+
+- **SharedAccountService** (src/services/sharedAccountService.ts):
+  - Multi-user wallet management
+  - Permission-based access control (owner, admin, user)
+  - Shared balance tracking and operations
+  - Access grant/revoke functionality
 
 - **JunoService** (src/services/junoService.ts):
   - Blockchain interaction via CosmJS
@@ -237,10 +272,10 @@ Applied in order:
   - Restriction enforcement logic
   - Pattern matching for URLs and regex
 
-**Transaction Verification** (src/services/transactionVerification.ts, rpcTransactionVerification.ts):
-- Verify blockchain transactions
-- Parse memos and amounts
-- Fallback between REST API and RPC methods
+**Transaction Verification** (src/services/rpcTransactionVerification.ts):
+- Verify blockchain transactions via RPC
+- Parse memos and amounts using structural protobuf parsing
+- Reliable extraction of deposit information
 
 ### Key Implementation Patterns
 
@@ -250,7 +285,7 @@ Applied in order:
 
 **Deposit Flow**:
 1. User sends JUNO to `USER_FUNDS_ADDRESS` with userId as memo
-2. DepositMonitor detects transaction on blockchain
+2. Deposit monitoring detects transaction on blockchain
 3. LedgerService credits user's internal balance
 4. User receives Telegram notification
 5. Transaction recorded in audit trail
@@ -262,7 +297,7 @@ Applied in order:
 4. JunoService creates and signs transaction
 5. Transaction broadcast to blockchain
 6. LedgerService debits user balance
-7. Lock released, audit trail updated
+7. Lock released after dual verification, audit trail updated
 
 **Internal Transfers**:
 - Instant, fee-free transfers between users
@@ -274,23 +309,39 @@ Applied in order:
 - Can distribute via giveaways
 - Balance tracked separately from user funds
 
+**Shared Accounts**: Multi-user wallets with permission levels
+- Owner: Full control (create, delete, manage access)
+- Admin: Can send funds and manage users
+- User: Can view balance and send funds
+
 #### Transaction Locking Pattern
 
 Prevents race conditions in concurrent operations:
 
 ```typescript
-// Acquire lock
-const lock = await TransactionLockService.acquireLock(userId, 'withdrawal', 60000);
-if (!lock) {
-  throw new Error('Transaction already in progress');
+// Acquire lock with verification
+const lockResult = await TransactionLockService.acquireWithdrawalLock(
+  userId,
+  amount,
+  targetAddress
+);
+
+if (!lockResult.success) {
+  throw new Error(lockResult.error || 'Failed to acquire lock');
 }
 
 try {
-  // Perform operation
-  await performTransaction();
-} finally {
-  // Always release
-  await TransactionLockService.releaseLock(userId);
+  // Perform withdrawal operation
+  const txHash = await performWithdrawal();
+
+  // Update lock with transaction hash
+  await TransactionLockService.updateLockWithTxHash(userId, txHash);
+
+  // Release with verification (ensures tx confirmed + ledger updated)
+  await TransactionLockService.releaseWithdrawalLock(userId, txHash);
+} catch (error) {
+  // Force release on error
+  await TransactionLockService.releaseWithdrawalLock(userId, '', true);
 }
 ```
 
@@ -357,13 +408,6 @@ yarn test:watch        # Watch mode
 
 ## Important Implementation Notes
 
-### Wallet Migration
-When upgrading from old HD wallet system:
-1. Backup database
-2. Run `yarn migrate:wallet` to migrate user balances
-3. Update `.env` with unified wallet credentials
-4. Old `user_wallets` table is deprecated but may exist in older databases
-
 ### Periodic Tasks
 Bot runs scheduled tasks via node-cron:
 - **Restriction expiration**: Every 5 minutes
@@ -385,6 +429,7 @@ Bot handles SIGINT and SIGTERM:
 - Audit trail records all operations
 - Balance reconciliation detects discrepancies
 - Environment variables never logged
+- Multiple owners supported for operational redundancy
 
 ### Systemd Deployment
 Bot includes systemd service file: `cacmin-bot.service`

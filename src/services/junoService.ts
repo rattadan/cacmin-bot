@@ -1,66 +1,13 @@
-/**
- * JUNO blockchain integration service module.
- * Handles payment verification, balance queries, and blockchain interactions
- * for the JUNO network via REST API endpoints.
- *
- * @module services/junoService
- */
+/** JUNO blockchain REST API verification service */
 
 import { config } from '../config';
 import { StructuredLogger } from '../utils/logger';
 import { logger } from '../utils/logger';
 
-/**
- * Service for interacting with the JUNO blockchain.
- * Provides payment verification and balance query functionality.
- */
 export class JunoService {
-  private static client: any = null;
   private static rpcEndpoint = config.junoRpcUrl || 'https://rpc.juno.basementnodes.ca';
 
-  /**
-   * Initializes the JUNO service.
-   * Checks configuration and sets up blockchain connectivity.
-   */
-  static async initialize(): Promise<void> {
-    if (!config.botTreasuryAddress) {
-      StructuredLogger.logUserAction('Treasury not configured', {
-        operation: 'init_warning'
-      });
-      return;
-    }
-
-    try {
-      // Initialize Cosmos client for JUNO
-      // Note: Actual implementation would require proper cosmos-client setup
-      // Example: this.client = await CosmWasmClient.connect(this.rpcEndpoint);
-      StructuredLogger.logUserAction('JUNO service initialized', {
-        operation: 'service_init'
-      });
-    } catch (error) {
-      StructuredLogger.logError(error as Error, {
-        operation: 'init_juno_service'
-      });
-    }
-  }
-
-  /**
-   * Verifies a payment transaction on the JUNO blockchain.
-   * Checks that the transaction succeeded, was sent to the treasury,
-   * and contains the expected amount (with 0.01 JUNO tolerance).
-   *
-   * @param txHash - Blockchain transaction hash to verify
-   * @param expectedAmount - Expected payment amount in JUNO
-   * @returns True if payment is verified, false otherwise
-   *
-   * @example
-   * ```typescript
-   * const verified = await JunoService.verifyPayment('ABC123...', 10.5);
-   * if (verified) {
-   *   console.log('Payment confirmed!');
-   * }
-   * ```
-   */
+  /** Verify payment tx sent to treasury with expected amount (0.01 JUNO tolerance) */
   static async verifyPayment(txHash: string, expectedAmount: number): Promise<boolean> {
     try {
       StructuredLogger.logTransaction('Verifying payment', {
@@ -147,26 +94,12 @@ export class JunoService {
     }
   }
 
-  /**
-   * Gets the configured payment address for the bot treasury.
-   *
-   * @returns Treasury address or 'not_configured'
-   */
+  /** Get configured bot treasury address */
   static getPaymentAddress(): string {
     return config.botTreasuryAddress || 'not_configured';
   }
 
-  /**
-   * Queries the current balance of the bot treasury address.
-   *
-   * @returns Balance in JUNO tokens
-   *
-   * @example
-   * ```typescript
-   * const balance = await JunoService.getBalance();
-   * console.log(`Treasury has ${balance} JUNO`);
-   * ```
-   */
+  /** Query bot treasury balance in JUNO */
   static async getBalance(): Promise<number> {
     if (!config.botTreasuryAddress) {
       return 0;

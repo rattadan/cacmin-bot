@@ -174,6 +174,11 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
       helpText += '/makeadmin \\<@username\\|userId\\> \\- Promote user to admin role\n';
       helpText += '/clearviolations \\<userId\\> \\- Clear all violations for a user\n\n';
 
+      helpText += '*Owner Commands \\- Deposit Management:*\n';
+      helpText += '/processdeposit \\<tx\\_hash\\> \\- Process pending deposit with valid memo\n';
+      helpText += '/claimdeposit \\<tx\\_hash\\> \\<userId\\> \\- Assign unclaimed deposit to user\n';
+      helpText += '/unclaimeddeposits \\- View all unclaimed deposits\n\n';
+
       helpText += '*Owner Commands \\- Advanced:*\n';
       helpText += '/transactions \\<userId\\> \\- View any user transaction history\n';
       helpText += '/testbalance \\- Test balance checking functionality\n';

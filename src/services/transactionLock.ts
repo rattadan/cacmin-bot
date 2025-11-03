@@ -37,10 +37,8 @@ export class TransactionLockService {
 
   private static readonly API_ENDPOINT = config.junoApiUrl || 'https://api.juno.basementnodes.ca';
 
-  /**
-   * Acquire a lock for withdrawal with strict verification
-   */
-  static async acquireWithdrawalLock(
+  /** Acquire withdrawal lock with strict verification */
+  static async lockWithdrawal(
     userId: number,
     amount: number,
     targetAddress: string

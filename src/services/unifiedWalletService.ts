@@ -576,7 +576,7 @@ export class UnifiedWalletService {
     }
 
     // Acquire secure withdrawal lock
-    const lockResult = await TransactionLockService.acquireWithdrawalLock(
+    const lockResult = await TransactionLockService.lockWithdrawal(
       userId,
       validatedAmount,
       toAddress

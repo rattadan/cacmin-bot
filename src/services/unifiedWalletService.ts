@@ -80,7 +80,7 @@ export class UnifiedWalletService {
     }
 
     // Initialize system users in the ledger
-    await this.initializeSystemUsers();
+    await this.initSysUsers();
 
     // Get last checked height for deposits
     const lastProcessed = get<{ height: number }>(
@@ -98,10 +98,8 @@ export class UnifiedWalletService {
     this.startDepositMonitoring();
   }
 
-  /**
-   * Initialize system users in the ledger
-   */
-  private static async initializeSystemUsers(): Promise<void> {
+  /** Initialize system users in ledger */
+  private static async initSysUsers(): Promise<void> {
     const { createUser, userExists } = await import('./userService');
 
     // Ensure bot treasury user exists

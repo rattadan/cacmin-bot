@@ -17,6 +17,8 @@
 import { Telegraf, Context } from 'telegraf';
 import { get } from '../database';
 import { User } from '../types';
+import { ensureUserExists } from '../services/userService';
+import { logger } from '../utils/logger';
 
 /**
  * Registers the help command with the bot.
@@ -70,11 +72,16 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
 
     // Only allow help command in DMs (private chats)
     if (ctx.chat?.type !== 'private') {
-      return ctx.reply(' The /help command is only available via direct message. Please DM me @' + ctx.botInfo.username);
+      const botInfo = await ctx.telegram.getMe();
+      return ctx.reply(` The /help command is only available via direct message. Please DM me @${botInfo.username}`);
     }
 
-    const user = get<User>('SELECT * FROM users WHERE id = ?', [userId]);
-    const role = user?.role || 'pleb';
+    try {
+      // Ensure user exists in database
+      ensureUserExists(userId, ctx.from?.username || 'unknown');
+
+      const user = get<User>('SELECT * FROM users WHERE id = ?', [userId]);
+      const role = user?.role || 'pleb';
 
     let helpText = ' *CAC Admin Bot \\- Command Reference*\n\n';
     helpText += `Your Role: \`${role}\`\n\n`;
@@ -203,6 +210,10 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
     helpText += '_ Tip: Most commands support reply\\-to\\-message for easier user targeting\\._\n';
     helpText += '_Commands can be used with @botname or just the command\\._';
 
-    await ctx.reply(helpText, { parse_mode: 'MarkdownV2' });
+      await ctx.reply(helpText, { parse_mode: 'MarkdownV2' });
+    } catch (error) {
+      logger.error('Error in help command', { userId, error });
+      await ctx.reply('An error occurred while generating the help text. Please try again or contact support.');
+    }
   });
 }

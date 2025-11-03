@@ -15,6 +15,7 @@ import { resolveUserId, formatUserIdDisplay } from '../utils/userResolver';
 import { JailService } from '../services/jailService';
 import { getUserIdentifier, getCommandArgs } from '../utils/commandHelper';
 import { adminOrHigher, ownerOnly } from '../middleware/index';
+import { isImmuneToModeration } from '../utils/roles';
 
 /**
  * Registers all moderation commands with the bot.
@@ -91,6 +92,12 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
     const userId = resolveUserId(userIdentifier);
     if (!userId) {
       return ctx.reply(' User not found. Please use a valid @username or userId.');
+    }
+
+    // Check if target user is immune to moderation
+    if (isImmuneToModeration(userId)) {
+      const userDisplay = formatUserIdDisplay(userId);
+      return ctx.reply(` Cannot jail ${userDisplay} - admins and owners are immune to moderation actions.`);
     }
 
     if (isNaN(minutes) || minutes < 1) {
@@ -292,6 +299,11 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
 
     if (isNaN(userId)) {
       return ctx.reply(' Invalid user ID');
+    }
+
+    // Check if target user is immune to moderation
+    if (isImmuneToModeration(userId)) {
+      return ctx.reply(` Cannot warn user ${userId} - admins and owners are immune to moderation actions.`);
     }
 
     // Create warning violation

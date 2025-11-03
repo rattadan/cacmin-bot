@@ -11,6 +11,7 @@ import { query, execute } from '../database';
 import { User } from '../types';
 import { logger, StructuredLogger } from '../utils/logger';
 import { adminOrHigher } from '../middleware';
+import { isImmuneToModeration } from '../utils/roles';
 
 /**
  * Registers all whitelist and blacklist command handlers with the bot.
@@ -183,8 +184,15 @@ export const registerBlacklistHandlers = (bot: Telegraf<Context>) => {
       return ctx.reply('Usage: /addblacklist <userId>');
     }
 
+    const targetUserId = parseInt(userId, 10);
+
+    // Check if target user is immune to moderation
+    if (isImmuneToModeration(targetUserId)) {
+      return ctx.reply(` Cannot blacklist user ${targetUserId} - admins and owners are immune to moderation actions.`);
+    }
+
     try {
-      execute('UPDATE users SET blacklist = 1 WHERE id = ?', [parseInt(userId, 10)]);
+      execute('UPDATE users SET blacklist = 1 WHERE id = ?', [targetUserId]);
       StructuredLogger.logSecurityEvent('User added to blacklist', {
         adminId,
         userId: parseInt(userId, 10),

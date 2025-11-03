@@ -7,7 +7,7 @@
  */
 
 import { Telegraf, Context } from 'telegraf';
-import { hasRole } from '../utils/roles';
+import { hasRole, isImmuneToModeration } from '../utils/roles';
 import { addUserRestriction, removeUserRestriction, getUserRestrictions } from '../services/userService';
 import { logger, StructuredLogger } from '../utils/logger';
 import { adminOrHigher, elevatedOrHigher } from '../middleware';
@@ -70,12 +70,19 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
     }
 
     try {
+      const targetUserId = parseInt(userId, 10);
+
+      // Check if target user is immune to moderation
+      if (isImmuneToModeration(targetUserId)) {
+        return ctx.reply(` Cannot restrict user ${targetUserId} - admins and owners are immune to moderation actions.`);
+      }
+
       const untilTimestamp = restrictedUntil ? parseInt(restrictedUntil, 10) : undefined;
       const action = restrictedAction || undefined;
       const metadata: Record<string, any> | undefined = undefined;
 
       addUserRestriction(
-        parseInt(userId, 10),
+        targetUserId,
         restriction,
         action,
         metadata,

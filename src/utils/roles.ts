@@ -25,3 +25,12 @@ export const checkIsElevated = (userId: number): boolean => {
   const user = query<User>('SELECT * FROM users WHERE id = ?', [userId])[0];
   return user?.role === 'owner' || user?.role === 'admin' || user?.role === 'elevated';
 };
+
+/**
+ * Check if user is immune to moderation actions
+ * Admins and owners cannot be jailed, warned, muted, banned, or restricted
+ */
+export const isImmuneToModeration = (userId: number): boolean => {
+  const user = query<User>('SELECT * FROM users WHERE id = ?', [userId])[0];
+  return user?.role === 'owner' || user?.role === 'admin';
+};

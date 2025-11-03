@@ -62,33 +62,9 @@ Deposits without the correct memo will go to an unclaimed pool and require manua
 `;
 
     // Markdown formatted version for Telegram
-    const markdown = `
- **DEPOSIT INSTRUCTIONS**
-═══════════════════════════
-
- **Send JUNO to:**
-\`${walletAddress}\`
-
- **CRITICAL - MEMO REQUIRED** 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-**➤➤➤ MEMO: \`${memo}\` **
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
- **WARNING** 
-• Deposits **WITHOUT** the memo **CANNOT** be credited!
-• The memo **MUST** be **EXACTLY**: \`${memo}\`
-• This is **YOUR** user ID - do not change it!
-
- **Before sending, verify:**
- Address: \`${walletAddress}\`
- Memo: \`${memo}\`
- NO extra text in memo field
-
- _Deposits without correct memo go to unclaimed pool_
- _Manual processing may take days_
-`;
+    const markdown = `Send JUNO to \`${walletAddress}\`
+**MEMO: \`${memo}\`** (required - no memo = no credit)
+/balance to check deposit`;
 
     return {
       text,

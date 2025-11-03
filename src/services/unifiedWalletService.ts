@@ -272,7 +272,7 @@ export class UnifiedWalletService {
       const buffer = Buffer.from(base64Tx, 'base64');
       const strings: string[] = [];
 
-      // Scan buffer for printable ASCII strings
+      // Scan buffer for printable ASCII strings (minimum length 1 for user IDs)
       for (let i = 0; i < buffer.length; i++) {
         let strStart = i;
         let strLength = 0;
@@ -283,25 +283,46 @@ export class UnifiedWalletService {
           i++;
         }
 
-        if (strLength >= 2) {
+        if (strLength >= 1) {
           const str = buffer.slice(strStart, strStart + strLength).toString('utf8');
           strings.push(str);
         }
       }
 
-      // Filter to find the memo (exclude known patterns)
+      // Find the memo by looking for patterns
+      // Priority 1: Numeric strings (user IDs) between 5-12 digits
+      const numericMemo = strings.find(s => /^\d{5,12}$/.test(s));
+      if (numericMemo) {
+        return numericMemo;
+      }
+
+      // Priority 2: Alphanumeric memo (but exclude known patterns)
       const memo = strings.find(s => {
+        // Must be at least 2 characters
+        if (s.length < 2) return false;
+
         // Exclude message types
         if (s.startsWith('/cosmos.') || s.startsWith('/cosmwasm.')) return false;
-        // Exclude addresses (start with +juno or match bech32)
-        if (s.startsWith('+juno') || s.startsWith('+cosmos')) return false;
-        if (s.match(/^(juno|cosmos|osmo|neutron|sei)[a-z0-9]{38,}/)) return false;
+
+        // Exclude addresses (bech32 format)
+        if (s.match(/^(juno|cosmos|osmo|neutron|sei|terra)[a-z0-9]{38,}/)) return false;
+
+        // Exclude addresses with length prefix (protobuf encodes strings with length byte)
+        if (s.startsWith('+')) return false;
+
         // Exclude denominations
-        if (s.match(/^u(atom|juno|osmo|sei|axl|cre)/)) return false;
-        // Exclude pure numbers
-        if (s.match(/^\d+$/)) return false;
-        // Exclude binary garbage
-        if (s.match(/^[^a-zA-Z0-9\s-]+$/)) return false;
+        if (s.match(/^u(atom|juno|osmo|sei|axl|cre|akt)/)) return false;
+
+        // Exclude crypto key types
+        if (s.includes('PubKey') || s.includes('crypto')) return false;
+
+        // Exclude amounts that are just numbers with no other context
+        // (But this is after we checked for user ID patterns above)
+        if (s.match(/^\d+$/) && (parseInt(s) > 10000000 || parseInt(s) < 1000)) return false;
+
+        // Exclude binary garbage (too many non-alphanumeric)
+        const alphanumericRatio = (s.match(/[a-zA-Z0-9]/g) || []).length / s.length;
+        if (alphanumericRatio < 0.5) return false;
 
         return true;
       });

@@ -477,7 +477,7 @@ export async function handleTransactions(ctx: Context): Promise<void> {
       targetUserId = specifiedUserId;
     }
 
-    const transactions = await UnifiedWalletService.getUserTransactionHistory(targetUserId, 10);
+    const transactions = await UnifiedWalletService.getTxHistory(targetUserId, 10);
 
     if (transactions.length === 0) {
       const userDisplay = targetUserId === requesterId ? 'You have' : `User ${targetUserId} has`;

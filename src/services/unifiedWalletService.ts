@@ -1188,14 +1188,8 @@ export class UnifiedWalletService {
     return { succeeded, failed, totalDistributed };
   }
 
-  /**
-   * Gets transaction history for a user
-   *
-   * @param userId - User ID
-   * @param limit - Maximum number of transactions to return
-   * @returns Array of transactions
-   */
-  static async getUserTransactionHistory(
+  /** Get transaction history for a user */
+  static async getTxHistory(
     userId: number,
     limit: number = 10
   ): Promise<any[]> {
@@ -1429,7 +1423,7 @@ export class UnifiedWalletService {
     accountId: number,
     limit: number = 20
   ): Promise<any[]> {
-    return await this.getUserTransactionHistory(accountId, limit);
+    return await this.getTxHistory(accountId, limit);
   }
 
   /**

@@ -19,6 +19,7 @@ import { Context } from 'telegraf';
 import { UnifiedWalletService } from '../services/unifiedWalletService';
 import { logger, StructuredLogger } from '../utils/logger';
 import { checkIsElevated } from '../utils/roles';
+import { config } from '../config';
 
 /**
  * Handles the /balance command.
@@ -414,26 +415,56 @@ export async function handleSend(ctx: Context): Promise<void> {
  * Displays the user's recent transaction history (last 10 transactions).
  * Shows deposits, withdrawals, transfers, fines, and giveaways.
  *
- * Permission: All users (can only view their own transactions)
+ * Permission: All users (can view their own transactions)
+ *             Owners only (can view any user's transactions by specifying userId)
  *
  * @param ctx - Telegraf context
  *
  * @example
- * Usage: /transactions
+ * Usage: /transactions (view your own transactions)
+ * Usage: /transactions <userId> (owners only - view specific user's transactions)
  */
 export async function handleTransactions(ctx: Context): Promise<void> {
   try {
-    const userId = ctx.from?.id;
-    if (!userId) return;
+    const requesterId = ctx.from?.id;
+    if (!requesterId) return;
 
-    const transactions = await UnifiedWalletService.getUserTransactionHistory(userId, 10);
+    // Parse arguments
+    const text = (ctx.message as any)?.text || '';
+    const args = text.split(' ').slice(1);
+
+    // Check if requester is owner
+    const isOwner = config.ownerIds.includes(requesterId);
+
+    // Determine which user's transactions to fetch
+    let targetUserId = requesterId;
+    if (args.length > 0) {
+      const specifiedUserId = parseInt(args[0]);
+
+      if (!isOwner) {
+        await ctx.reply('Only owners can view other users\' transaction history.');
+        return;
+      }
+
+      if (isNaN(specifiedUserId)) {
+        await ctx.reply('Invalid user ID. Please provide a numeric user ID.');
+        return;
+      }
+
+      targetUserId = specifiedUserId;
+    }
+
+    const transactions = await UnifiedWalletService.getUserTransactionHistory(targetUserId, 10);
 
     if (transactions.length === 0) {
-      await ctx.reply('You have no transaction history yet.');
+      const userDisplay = targetUserId === requesterId ? 'You have' : `User ${targetUserId} has`;
+      await ctx.reply(`${userDisplay} no transaction history yet.`);
       return;
     }
 
-    let message = '*Recent Transactions*\n\n';
+    let message = targetUserId === requesterId
+      ? '*Recent Transactions*\n\n'
+      : `*Transaction History for User ${targetUserId}*\n\n`;
 
     for (const tx of transactions) {
       const date = new Date((tx.created_at || 0) * 1000).toLocaleString();
@@ -449,7 +480,7 @@ export async function handleTransactions(ctx: Context): Promise<void> {
           description = `-${amount} JUNO (Withdrawal)`;
           break;
         case 'transfer':
-          if (tx.from_user_id === userId) {
+          if (tx.from_user_id === targetUserId) {
             description = `-${amount} JUNO (Sent)`;
           } else {
             description = `+${amount} JUNO (Received)`;
@@ -494,9 +525,10 @@ export async function handleTransactions(ctx: Context): Promise<void> {
     await ctx.reply(message, { parse_mode: 'Markdown' });
 
     StructuredLogger.logUserAction('Transaction history queried', {
-      userId,
+      userId: requesterId,
       username: ctx.from.username,
       operation: 'view_transactions',
+      targetUserId: targetUserId,
       transactionCount: transactions.length.toString()
     });
   } catch (error) {

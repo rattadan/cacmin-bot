@@ -91,8 +91,10 @@ export function registerWalletCommands(bot: Telegraf<Context>): void {
    * Command: /transactions (alias: /history)
    * View transaction history.
    *
-   * Permission: Any user
-   * Syntax: /transactions [limit]
+   * Permission: Any user (own transactions only)
+   *             Owners (can specify userId to view any user's transactions)
+   * Syntax: /transactions
+   *         /transactions <userId> (owners only)
    */
   bot.command('transactions', handleTransactions);
   bot.command('history', handleTransactions); // Alias

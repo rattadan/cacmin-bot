@@ -14,9 +14,9 @@ import { logger } from '../utils/logger';
  * To get file_id: Send a sticker to the bot and it will be logged
  */
 const STICKER_PACK = {
-  // CACGifs pack stickers - file_ids will be populated when stickers are sent to the bot
+  // CACGifs pack stickers
   cacgifs: {
-    first: '' // This will be filled in once we get the file_id from the pack
+    first: 'CAACAgIAAxkBAAICIGkIxVYID2ee6Z3t3fzMKGyrzCLlAAJmNgACfvIoSL_cdmEGklS0NgQ' // 🛰 satellite sticker
   }
 };
 

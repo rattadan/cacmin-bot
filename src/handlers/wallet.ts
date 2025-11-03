@@ -77,6 +77,29 @@ export async function handleDeposit(ctx: Context): Promise<void> {
 
     const depositInfo = UnifiedWalletService.getDepositInstructions(userId);
 
+    // Send warning sticker first
+    const CACGIFS_SATELLITE_STICKER = 'CAACAgIAAxkBAAICIGkIxVYID2ee6Z3t3fzMKGyrzCLlAAJmNgACfvIoSL_cdmEGklS0NgQ';
+    try {
+      await ctx.replyWithSticker(CACGIFS_SATELLITE_STICKER);
+    } catch (stickerError) {
+      logger.warn('Failed to send warning sticker', { userId, error: stickerError });
+      // Continue even if sticker fails
+    }
+
+    // Send experimental warning
+    await ctx.reply(
+      `⚠️ *EXPERIMENTAL SOFTWARE WARNING* ⚠️\n\n` +
+      `This bot is **highly experimental** and under active development.\n\n` +
+      `**DO NOT deposit funds you are not prepared to immediately lose.**\n\n` +
+      `By depositing, you acknowledge:\n` +
+      `• This software may contain bugs\n` +
+      `• Funds may be irretrievably lost\n` +
+      `• No guarantees or warranties are provided\n` +
+      `• You use this service entirely at your own risk\n\n` +
+      `If you understand and accept these risks, proceed with deposit instructions below.`,
+      { parse_mode: 'Markdown' }
+    );
+
     await ctx.reply(
       ` *Deposit Instructions*\n\n` +
       `To deposit JUNO to your account:\n\n` +

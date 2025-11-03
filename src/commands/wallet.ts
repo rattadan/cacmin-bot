@@ -127,13 +127,15 @@ export function registerWalletCommands(bot: Telegraf<Context>): void {
   bot.command('reconcile', adminOrHigher, handleReconcile);
 
   /**
-   * Command: /checkdeposit
+   * Command: /checkdeposit (alias: /checktx)
    * Check status of a specific deposit by transaction hash.
    *
    * Permission: Any user
    * Syntax: /checkdeposit <tx_hash>
+   *         /checktx <tx_hash>
    */
   bot.command('checkdeposit', handleCheckDeposit);
+  bot.command('checktx', handleCheckDeposit); // Alias
 
   /**
    * Command: /wallethelp

@@ -87,7 +87,7 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
     helpText += '/send \\<amount\\> \\<@user\\|userId\\|address\\> \\- Send funds internally or externally\n';
     helpText += '/transfer \\- Alias for /send\n';
     helpText += '/transactions \\(or /history\\) \\- View your transaction history\n';
-    helpText += '/checkdeposit \\<tx\\_hash\\> \\- Check status of a specific deposit\n';
+    helpText += '/checkdeposit \\(or /checktx\\) \\<tx\\_hash\\> \\- Check status of a deposit\n';
     helpText += '/verifydeposit \\<tx\\_hash\\> \\- Verify and credit a deposit transaction\n';
     helpText += '/unclaimeddeposits \\- View deposits without valid memo\n';
     helpText += '/wallethelp \\- Detailed wallet usage information\n\n';

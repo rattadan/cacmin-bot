@@ -47,7 +47,21 @@ jobs:
           path: cacmin-bot-dist.tar.gz
           retention-days: 90
 
-      - name: Create Release
+      - name: Create or Update Latest Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: latest
+          name: Latest Build
+          files: cacmin-bot-dist.tar.gz
+          prerelease: true
+          body: |
+            Automated build from main branch
+            Commit: ${{ github.sha }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Version Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:

@@ -16,10 +16,16 @@ INSTALL_DIR="/opt/cacmin-bot"
 SERVICE_NAME="cacmin-bot.service"
 DOWNLOAD_DIR="/tmp/cacmin-bot-update"
 
+# Parse arguments
+FORCE_UPDATE=false
+if [ "$1" == "--force" ] || [ "$1" == "-f" ]; then
+    FORCE_UPDATE=true
+fi
+
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
     echo -e "${RED}Error: This script must be run as root${NC}"
-    echo "Usage: sudo ./auto-update.sh"
+    echo "Usage: sudo ./auto-update.sh [--force]"
     exit 1
 fi
 
@@ -45,12 +51,19 @@ fi
 
 # Get latest release info from GitHub
 echo -e "\n${YELLOW}Checking for latest release...${NC}"
-RELEASE_INFO=$(curl -s "https://api.github.com/repos/$REPO/releases/latest")
+RELEASE_INFO=$(curl -s "https://api.github.com/repos/$REPO/releases/tags/latest")
 
 # Check if we got valid JSON
 if ! echo "$RELEASE_INFO" | jq empty 2>/dev/null; then
     echo -e "${RED}Error: Failed to fetch release information from GitHub${NC}"
     echo "Response: $RELEASE_INFO"
+    echo ""
+    echo "This might mean:"
+    echo "1. No builds have completed yet"
+    echo "2. The GitHub Actions workflow is still running"
+    echo "3. Network connectivity issue"
+    echo ""
+    echo "Check: https://github.com/$REPO/actions"
     exit 1
 fi
 
@@ -58,16 +71,23 @@ LATEST_VERSION=$(echo "$RELEASE_INFO" | jq -r '.tag_name')
 DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name == "cacmin-bot-dist.tar.gz") | .browser_download_url')
 
 if [ "$LATEST_VERSION" == "null" ] || [ -z "$LATEST_VERSION" ]; then
-    echo -e "${RED}Error: No releases found${NC}"
+    echo -e "${RED}Error: No 'latest' release found${NC}"
+    echo "The build may still be in progress."
+    echo "Check: https://github.com/$REPO/releases"
     exit 1
 fi
 
 echo -e "Latest version: ${GREEN}${LATEST_VERSION}${NC}"
 
 # Check if update is needed
-if [ "$CURRENT_VERSION" == "$LATEST_VERSION" ]; then
+if [ "$CURRENT_VERSION" == "$LATEST_VERSION" ] && [ "$FORCE_UPDATE" != true ]; then
     echo -e "\n${GREEN}Already up to date!${NC}"
+    echo "Use --force to reinstall anyway."
     exit 0
+fi
+
+if [ "$FORCE_UPDATE" == true ]; then
+    echo -e "${YELLOW}Force update enabled - will reinstall${NC}"
 fi
 
 if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" == "null" ]; then

@@ -235,7 +235,7 @@ export class UnifiedWalletService {
         }
 
         // Extract memo from protobuf using structural position
-        const memo = this.extractMemoFromProtobuf(tx.tx, amount);
+        const memo = this.parseMemo(tx.tx, amount);
         const userId = this.parseUserId(memo);
 
         deposits.push({
@@ -264,13 +264,8 @@ export class UnifiedWalletService {
     }
   }
 
-  /**
-   * Extract memo from base64-encoded protobuf transaction data
-   * Uses structural position: memo comes AFTER amount in Cosmos SDK MsgSend
-   * @param base64Tx - Base64-encoded transaction data
-   * @param amount - Transaction amount in JUNO (to locate position in protobuf)
-   */
-  private static extractMemoFromProtobuf(base64Tx: string, amount: number): string {
+  /** Extract memo from protobuf tx by structural position (after amount) */
+  private static parseMemo(base64Tx: string, amount: number): string {
     try {
       const buffer = Buffer.from(base64Tx, 'base64');
       const amountInUjuno = (amount * 1_000_000).toString();

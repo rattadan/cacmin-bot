@@ -83,11 +83,11 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
       const user = get<User>('SELECT * FROM users WHERE id = ?', [userId]);
       const role = user?.role || 'pleb';
 
-    let helpText = ' *CAC Admin Bot \\- Command Reference*\n\n';
+    let helpText = '*CAC Admin Bot \\- Command Reference*\n\n';
     helpText += `Your Role: \`${role}\`\n\n`;
 
     // Universal commands
-    helpText += '* Wallet Commands:*\n';
+    helpText += '*Wallet Commands:*\n';
     helpText += '/balance \\(or /bal\\) \\- Check your wallet balance\n';
     helpText += '/deposit \\- Get deposit instructions with unique memo\n';
     helpText += '/withdraw \\<amount\\> \\<address\\> \\- Withdraw funds to external Juno address\n';
@@ -98,7 +98,7 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
     helpText += '/verifydeposit \\<tx\\_hash\\> \\- Verify and credit a deposit transaction\n';
     helpText += '/wallethelp \\- Detailed wallet usage information\n\n';
 
-    helpText += '* Shared Accounts:*\n';
+    helpText += '*Shared Accounts:*\n';
     helpText += '/myshared \\- View your shared accounts\n';
     helpText += '/sharedbalance \\<account\\_name\\> \\- Check shared account balance\n';
     helpText += '/sharedsend \\<account\\_name\\> \\<amount\\> \\<recipient\\> \\- Send from shared account\n';
@@ -110,12 +110,12 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
     helpText += '/updateaccess \\<account\\_name\\> \\<@user\\|userId\\> \\<level\\> \\- Update permissions\n';
     helpText += '/deleteshared \\<account\\_name\\> \\- Delete shared account \\(admin only\\)\n\n';
 
-    helpText += '* User Commands:*\n';
+    helpText += '*User Commands:*\n';
     helpText += '/mystatus \\- Check your jail status and fines\n';
     helpText += '/jails \\- View all active jails\n';
     helpText += '/violations \\- Check your violations\n\n';
 
-    helpText += '* Payment Commands:*\n';
+    helpText += '*Payment Commands:*\n';
     helpText += '/payfine \\<violationId\\> \\- Pay a specific fine\n';
     helpText += '/payfines \\- Pay multiple fines interactively\n';
     helpText += '/payallfines \\- Pay all outstanding fines\n';
@@ -127,7 +127,7 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
 
     // Elevated user commands
     if (role === 'elevated' || role === 'admin' || role === 'owner') {
-      helpText += '* Elevated User Commands:*\n';
+      helpText += '*Elevated User Commands:*\n';
       helpText += '/viewactions \\- View global restrictions\n';
       helpText += '/viewwhitelist \\- View whitelisted users\n';
       helpText += '/viewblacklist \\- View blacklisted users\n';
@@ -139,12 +139,12 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
 
     // Admin commands
     if (role === 'admin' || role === 'owner') {
-      helpText += '* Admin Commands \\- Role Management:*\n';
+      helpText += '*Admin Commands \\- Role Management:*\n';
       helpText += '/elevate \\<username\\|userId\\> \\- Grant elevated privileges\n';
       helpText += '/revoke \\<username\\|userId\\> \\- Revoke privileges\n';
       helpText += '/listadmins \\- List all users with elevated roles\n\n';
 
-      helpText += '* Admin Commands \\- Moderation:*\n';
+      helpText += '*Admin Commands \\- Moderation:*\n';
       helpText += '/jail \\<@user\\|userId\\> \\<minutes\\> \\- Jail user \\(reply to message supported\\)\n';
       helpText += '/unjail \\<@user\\|userId\\> \\- Release user from jail\n';
       helpText += '/silence \\- Alias for /jail\n';
@@ -153,7 +153,7 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
       helpText += '/addrestriction \\<userId\\> \\<type\\> \\<action\\> \\<until\\> \\- Add user restriction\n';
       helpText += '/removerestriction \\<userId\\> \\<type\\> \\- Remove user restriction\n\n';
 
-      helpText += '* Admin Commands \\- Lists:*\n';
+      helpText += '*Admin Commands \\- Lists:*\n';
       helpText += '/addwhitelist \\<userId\\> \\- Add user to whitelist\n';
       helpText += '/removewhitelist \\<userId\\> \\- Remove from whitelist\n';
       helpText += '/addblacklist \\<@username\\|userId\\> \\- Add user to blacklist\n';
@@ -198,7 +198,7 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
     }
 
     // Footer with restriction types
-    helpText += '* Restriction Types:*\n';
+    helpText += '*Restriction Types:*\n';
     helpText += '• `no_stickers` \\- Block stickers\n';
     helpText += '• `no_urls` \\- Block URLs\n';
     helpText += '• `regex_block` \\- Block text patterns\n';

@@ -182,77 +182,134 @@ export class UnifiedWalletService {
    */
   private static async fetchRecentDeposits(): Promise<DepositCheck[]> {
     try {
-      const response = await fetch(
-        `${this.apiEndpoint}/cosmos/tx/v1beta1/txs?events=transfer.recipient='${this.walletAddress}'&order_by=ORDER_BY_DESC&limit=20`
-      );
+      // Use RPC tx_search instead of REST API
+      const query = `transfer.recipient='${this.walletAddress}'`;
+      const url = `${this.rpcEndpoint}/tx_search?query="${encodeURIComponent(query)}"&prove=false&per_page=20`;
+
+      const response = await fetch(url);
 
       if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
+        throw new Error(`RPC request failed: ${response.status}`);
       }
 
       const data = await response.json() as any;
       const deposits: DepositCheck[] = [];
 
-      for (const tx of (data.tx_responses || [])) {
-        // Skip if already processed (height <= last checked)
-        if (parseInt(tx.height) <= this.lastCheckedHeight) {
+      for (const tx of (data.result?.txs || [])) {
+        const height = parseInt(tx.height);
+
+        // Skip if already processed
+        if (height <= this.lastCheckedHeight) {
           continue;
         }
 
-        // Skip failed transactions (code !== 0 means error)
-        if (tx.code !== 0) {
-          logger.debug('Skipping failed transaction', { txHash: tx.txhash, code: tx.code });
+        // Skip failed transactions
+        if (tx.tx_result.code !== 0) {
+          logger.debug('Skipping failed transaction', { txHash: tx.hash, code: tx.tx_result.code });
           continue;
         }
 
-        // Parse transaction messages
-        for (const msg of (tx.tx?.body?.messages || [])) {
-          // Only process bank send messages to our wallet
-          if (msg['@type'] === '/cosmos.bank.v1beta1.MsgSend' &&
-              msg.to_address === this.walletAddress) {
+        // Extract amount and sender from events (already decoded JSON)
+        let amount = 0;
+        let fromAddress = '';
 
-            // Find ujuno amount (JUNO's base denomination)
-            const junoAmount = msg.amount?.find((a: any) => a.denom === 'ujuno');
+        for (const event of tx.tx_result.events) {
+          if (event.type === 'transfer') {
+            const recipient = event.attributes.find((a: any) => a.key === 'recipient')?.value;
+            const amountStr = event.attributes.find((a: any) => a.key === 'amount')?.value;
+            const sender = event.attributes.find((a: any) => a.key === 'sender')?.value;
 
-            if (junoAmount) {
-              // Convert ujuno to JUNO: 1 JUNO = 1,000,000 ujuno
-              const amount = parseFloat(junoAmount.amount) / 1_000_000;
-
-              // Extract memo (should contain userId)
-              const memo = tx.tx?.body?.memo || '';
-              const userId = this.parseUserId(memo);
-
-              deposits.push({
-                txHash: tx.txhash,
-                userId,  // Will be null if memo invalid
-                amount,
-                fromAddress: msg.from_address,
-                memo,
-                height: parseInt(tx.height),
-                timestamp: Math.floor(new Date(tx.timestamp).getTime() / 1000)
-              });
-
-              logger.debug('Deposit detected', {
-                txHash: tx.txhash,
-                amount: `${amount} JUNO`,
-                ujunoAmount: junoAmount.amount,
-                memo,
-                userId: userId || 'invalid'
-              });
-            } else {
-              logger.warn('Transaction without ujuno amount', {
-                txHash: tx.txhash,
-                amounts: msg.amount
-              });
+            if (recipient === this.walletAddress && amountStr) {
+              // Parse amount (format: "1000000ujuno")
+              const match = amountStr.match(/^(\d+)ujuno$/);
+              if (match) {
+                amount = parseFloat(match[1]) / 1_000_000;
+                fromAddress = sender || '';
+              }
             }
           }
         }
+
+        if (amount === 0) {
+          continue; // No valid transfer to our address
+        }
+
+        // Extract memo from base64-encoded protobuf
+        const memo = this.extractMemoFromProtobuf(tx.tx);
+        const userId = this.parseUserId(memo);
+
+        deposits.push({
+          txHash: tx.hash,
+          userId,
+          amount,
+          fromAddress,
+          memo,
+          height,
+          timestamp: Math.floor(Date.now() / 1000) // RPC doesn't provide timestamp
+        });
+
+        logger.debug('Deposit detected', {
+          txHash: tx.hash,
+          amount: `${amount} JUNO`,
+          memo,
+          userId: userId || 'invalid',
+          fromAddress
+        });
       }
 
       return deposits;
     } catch (error) {
       logger.error('Failed to fetch deposits', error);
       return [];
+    }
+  }
+
+  /**
+   * Extract memo from base64-encoded protobuf transaction data
+   */
+  private static extractMemoFromProtobuf(base64Tx: string): string {
+    try {
+      const buffer = Buffer.from(base64Tx, 'base64');
+      const strings: string[] = [];
+
+      // Scan buffer for printable ASCII strings
+      for (let i = 0; i < buffer.length; i++) {
+        let strStart = i;
+        let strLength = 0;
+
+        // Find sequences of printable ASCII (0x20-0x7E)
+        while (i < buffer.length && buffer[i] >= 0x20 && buffer[i] <= 0x7E) {
+          strLength++;
+          i++;
+        }
+
+        if (strLength >= 2) {
+          const str = buffer.slice(strStart, strStart + strLength).toString('utf8');
+          strings.push(str);
+        }
+      }
+
+      // Filter to find the memo (exclude known patterns)
+      const memo = strings.find(s => {
+        // Exclude message types
+        if (s.startsWith('/cosmos.') || s.startsWith('/cosmwasm.')) return false;
+        // Exclude addresses (start with +juno or match bech32)
+        if (s.startsWith('+juno') || s.startsWith('+cosmos')) return false;
+        if (s.match(/^(juno|cosmos|osmo|neutron|sei)[a-z0-9]{38,}/)) return false;
+        // Exclude denominations
+        if (s.match(/^u(atom|juno|osmo|sei|axl|cre)/)) return false;
+        // Exclude pure numbers
+        if (s.match(/^\d+$/)) return false;
+        // Exclude binary garbage
+        if (s.match(/^[^a-zA-Z0-9\s-]+$/)) return false;
+
+        return true;
+      });
+
+      return memo || '';
+    } catch (error) {
+      logger.error('Failed to extract memo from protobuf', error);
+      return '';
     }
   }
 

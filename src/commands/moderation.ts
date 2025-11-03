@@ -347,7 +347,7 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
    */
   bot.command('clearviolations', async (ctx) => {
     const ownerId = ctx.from?.id;
-    if (!ownerId || ownerId !== config.ownerId) {
+    if (!ownerId || !config.ownerIds.includes(ownerId)) {
       return ctx.reply(' Only the owner can use this command.');
     }
 
@@ -395,7 +395,7 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
    */
   bot.command('stats', async (ctx) => {
     const ownerId = ctx.from?.id;
-    if (!ownerId || ownerId !== config.ownerId) {
+    if (!ownerId || !config.ownerIds.includes(ownerId)) {
       return ctx.reply(' Only the owner can use this command.');
     }
 

@@ -13,6 +13,7 @@ import { query } from '../database';
 import { User } from '../types';
 import { logger } from '../utils/logger';
 import { LedgerService } from '../services/ledgerService';
+import { config } from '../config';
 
 /**
  * Middleware that ensures users exist in the database, initializes their wallet balance,
@@ -86,6 +87,12 @@ export const ownerOnly: MiddlewareFn<Context> = (ctx, next) => {
     return ctx.reply('User ID not found.');
   }
 
+  // Check if user is in the configured owner IDs list
+  if (config.ownerIds.includes(userId)) {
+    return next();
+  }
+
+  // Also check database role for backward compatibility
   const user = query<User>('SELECT * FROM users WHERE id = ?', [userId])[0];
   if (user?.role === 'owner') {
     return next();

@@ -34,8 +34,11 @@ interface Config {
   /** Telegram group chat ID where bot operates (optional) */
   groupChatId?: number;
 
-  /** Telegram user ID of the bot owner */
-  ownerId: number;
+  /** Telegram user ID(s) of the bot owner(s) - supports multiple via comma-separated list */
+  ownerIds: number[];
+
+  /** Telegram user ID(s) of pre-configured admin(s) - supports multiple via comma-separated list */
+  adminIds: number[];
 
   /** Juno wallet address for user fund operations (optional) */
   userFundsAddress?: string;
@@ -88,7 +91,8 @@ export const config: Config = {
   junoApiUrl: process.env.JUNO_API_URL || 'https://api.juno.basementnodes.ca',
   adminChatId: parseInt(process.env.ADMIN_CHAT_ID || '0'),
   groupChatId: process.env.GROUP_CHAT_ID ? parseInt(process.env.GROUP_CHAT_ID) : undefined,
-  ownerId: parseInt(process.env.OWNER_ID || '0'),
+  ownerIds: (process.env.OWNER_ID || '').split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)),
+  adminIds: (process.env.ADMIN_ID || '').split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)),
   userFundsAddress: process.env.USER_FUNDS_ADDRESS,
   userFundsMnemonic: process.env.USER_FUNDS_MNEMONIC,
   botTreasuryAddress: process.env.BOT_TREASURY_ADDRESS || process.env.USER_FUNDS_ADDRESS,
@@ -131,8 +135,8 @@ export function validateConfig(): void {
   if (!config.botToken) {
     throw new Error('BOT_TOKEN is required in environment variables');
   }
-  if (!config.ownerId) {
-    throw new Error('OWNER_ID is required in environment variables');
+  if (!config.ownerIds || config.ownerIds.length === 0) {
+    throw new Error('OWNER_ID is required in environment variables (comma-separated for multiple owners)');
   }
 
   // Warn about ledger system configuration

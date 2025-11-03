@@ -8,7 +8,7 @@
 
 import { Telegraf } from 'telegraf';
 import { validateConfig, config } from './config';
-import { initDb } from './database';
+import { initDb, execute } from './database';
 import { logger } from './utils/logger';
 import { setBotInstance } from './utils/adminNotify';
 import { messageFilterMiddleware } from './middleware/messageFilter';
@@ -61,6 +61,23 @@ async function main() {
 
     // Initialize database
     initDb();
+
+    // Initialize configured owners and admins
+    const { createUser, userExists } = await import('./services/userService');
+    for (const ownerId of config.ownerIds) {
+      if (!userExists(ownerId)) {
+        createUser(ownerId, `owner_${ownerId}`, 'owner', 'config_initialization');
+        logger.info(`Created owner from config: ${ownerId}`);
+      }
+    }
+    for (const adminId of config.adminIds) {
+      if (!userExists(adminId)) {
+        createUser(adminId, `admin_${adminId}`, 'admin', 'config_initialization');
+        // Set elevated flag for admins
+        execute('UPDATE users SET elevated = 1 WHERE id = ?', [adminId]);
+        logger.info(`Created admin from config: ${adminId}`);
+      }
+    }
 
     // Initialize ledger system
     LedgerService.initialize();

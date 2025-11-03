@@ -55,15 +55,9 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
   bot.command('setowner', async (ctx) => {
     const userId = ctx.from?.id;
 
-    // Only allow if user is the master owner from config or no owner exists yet
-    const existingOwner = query<User>('SELECT * FROM users WHERE role = ?', ['owner'])[0];
-
-    if (existingOwner && userId !== config.ownerId) {
-      return ctx.reply('Owner already set. Only the master owner can modify ownership.');
-    }
-
-    if (userId !== config.ownerId) {
-      return ctx.reply('Only the master owner (from .env) can initialize ownership.');
+    // Only allow if user is a configured owner from .env
+    if (!config.ownerIds.includes(userId!)) {
+      return ctx.reply('Only configured owners (from .env OWNER_ID) can use this command.');
     }
 
     execute('INSERT OR REPLACE INTO users (id, username, role) VALUES (?, ?, ?)', [

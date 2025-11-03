@@ -13,6 +13,7 @@ import { LedgerService } from '../services/ledgerService';
 import { AmountPrecision } from '../utils/precision';
 import { logger, StructuredLogger } from '../utils/logger';
 import { get, query } from '../database';
+import { config } from '../config';
 
 /**
  * Registers all deposit-related commands with the bot.
@@ -22,6 +23,7 @@ import { get, query } from '../database';
  * - /verifydeposit - Verify a deposit by transaction hash
  * - /unclaimeddeposits - View unclaimed deposits (missing or invalid memo)
  * - /claimdeposit - Assign an unclaimed deposit to a user (admin only)
+ * - /processdeposit - Manually process a pending deposit (admin only)
  *
  * @param bot - Telegraf bot instance
  *
@@ -73,7 +75,7 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
       );
     } catch (error) {
       logger.error('Failed to generate deposit instructions', { userId, error });
-      await ctx.reply('❌ Failed to generate deposit instructions');
+      await ctx.reply(' Failed to generate deposit instructions');
     }
   });
 
@@ -102,7 +104,7 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
 
     if (args.length < 1) {
       return ctx.reply(
-        '📝 **Usage**: /verifydeposit <transaction_hash>\n\n' +
+        ' **Usage**: /verifydeposit <transaction_hash>\n\n' +
         'Provide the transaction hash of your deposit to verify and credit it.',
         { parse_mode: 'Markdown' }
       );
@@ -110,7 +112,7 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
 
     const txHash = args[0].trim();
 
-    await ctx.reply('🔍 Verifying transaction...');
+    await ctx.reply(' Verifying transaction...');
 
     try {
       // Get wallet address
@@ -125,7 +127,7 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
 
       if (!verification.valid) {
         return ctx.reply(
-          `❌ **Deposit Verification Failed**\n\n` +
+          ` **Deposit Verification Failed**\n\n` +
           `${verification.error}\n\n` +
           (verification.memo !== undefined ?
             `Memo found: \`${verification.memo || 'none'}\`\n` +
@@ -146,7 +148,7 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
 
       if (existing && existing.processed) {
         return ctx.reply(
-          `ℹ️ **Already Processed**\n\n` +
+          ` **Already Processed**\n\n` +
           `This deposit has already been credited.\n` +
           `Amount: \`${AmountPrecision.format(verification.amount!)} JUNO\`\n` +
           `From: \`${verification.sender}\``,
@@ -182,7 +184,7 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
         );
       } else {
         await ctx.reply(
-          `❌ **Failed to credit deposit**\n\n` +
+          ` **Failed to credit deposit**\n\n` +
           `${result.error}\n\n` +
           `Please contact an admin for assistance.`,
           { parse_mode: 'Markdown' }
@@ -191,7 +193,7 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
     } catch (error) {
       logger.error('Deposit verification failed', { userId, txHash, error });
       await ctx.reply(
-        '❌ Failed to verify deposit. Please try again or contact an admin.',
+        ' Failed to verify deposit. Please try again or contact an admin.',
         { parse_mode: 'Markdown' }
       );
     }
@@ -224,7 +226,7 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
       const unclaimedBalance = await LedgerService.getUserBalance(SYSTEM_USER_IDS.UNCLAIMED);
 
       if (unclaimedBalance === 0) {
-        return ctx.reply('✅ No unclaimed deposits');
+        return ctx.reply(' No unclaimed deposits');
       }
 
       // Get recent unclaimed deposits
@@ -236,7 +238,7 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
         [SYSTEM_USER_IDS.UNCLAIMED]
       );
 
-      let message = `💰 **Unclaimed Deposits**\n\n`;
+      let message = ` **Unclaimed Deposits**\n\n`;
       message += `Total: \`${AmountPrecision.format(unclaimedBalance)} JUNO\`\n\n`;
 
       if (unclaimed.length > 0) {
@@ -253,7 +255,7 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
       await ctx.reply(message, { parse_mode: 'Markdown' });
     } catch (error) {
       logger.error('Failed to get unclaimed deposits', { userId, error });
-      await ctx.reply('❌ Failed to retrieve unclaimed deposits');
+      await ctx.reply(' Failed to retrieve unclaimed deposits');
     }
   });
 
@@ -279,14 +281,14 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
     // Check if admin
     const admin = get<any>('SELECT role FROM users WHERE id = ?', [adminId]);
     if (!admin || (admin.role !== 'owner' && admin.role !== 'admin')) {
-      return ctx.reply('❌ This command requires admin permissions');
+      return ctx.reply(' This command requires admin permissions');
     }
 
     const args = ctx.message?.text?.split(' ').slice(1) || [];
 
     if (args.length < 2) {
       return ctx.reply(
-        '📝 **Usage**: /claimdeposit <transaction_hash> <user_id>\n\n' +
+        ' **Usage**: /claimdeposit <transaction_hash> <user_id>\n\n' +
         'Assign an unclaimed deposit to a user.',
         { parse_mode: 'Markdown' }
       );
@@ -296,7 +298,7 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
     const targetUserId = parseInt(args[1]);
 
     if (isNaN(targetUserId)) {
-      return ctx.reply('❌ Invalid user ID');
+      return ctx.reply(' Invalid user ID');
     }
 
     try {
@@ -312,7 +314,7 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
         });
 
         await ctx.reply(
-          `✅ **Deposit Claimed**\n\n` +
+          ` **Deposit Claimed**\n\n` +
           `Amount: \`${AmountPrecision.format(result.amount!)} JUNO\`\n` +
           `Assigned to user: \`${targetUserId}\`\n` +
           `Transaction: \`${txHash.substring(0, 10)}...\``,
@@ -320,13 +322,157 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
         );
       } else {
         await ctx.reply(
-          `❌ **Failed to claim deposit**\n\n${result.error}`,
+          ` **Failed to claim deposit**\n\n${result.error}`,
           { parse_mode: 'Markdown' }
         );
       }
     } catch (error) {
       logger.error('Failed to claim deposit', { adminId, txHash, targetUserId, error });
-      await ctx.reply('❌ Failed to claim deposit');
+      await ctx.reply(' Failed to claim deposit');
+    }
+  });
+
+  /**
+   * Command: /processdeposit
+   * Manually process a pending deposit transaction (admin only).
+   *
+   * Permission: Admin or owner
+   * Syntax: /processdeposit <transaction_hash>
+   *
+   * @example
+   * User: /processdeposit ABC123...
+   * Bot: Processing deposit...
+   *      Deposit Processed
+   *      Amount: 1.000000 JUNO
+   *      Credited to user: 1705203106
+   */
+  bot.command('processdeposit', async (ctx) => {
+    const adminId = ctx.from?.id;
+    if (!adminId) return;
+
+    // Check if admin
+    const admin = get<any>('SELECT role FROM users WHERE id = ?', [adminId]);
+    if (!admin || (admin.role !== 'owner' && admin.role !== 'admin')) {
+      return ctx.reply('This command requires admin permissions');
+    }
+
+    const args = ctx.message?.text?.split(' ').slice(1) || [];
+
+    if (args.length < 1) {
+      return ctx.reply(
+        'Usage: /processdeposit <transaction_hash>\n\n' +
+        'Manually process a pending deposit. The deposit must have a valid user ID in the memo.',
+        { parse_mode: 'Markdown' }
+      );
+    }
+
+    const txHash = args[0].trim().toUpperCase();
+
+    await ctx.reply('Processing deposit...');
+
+    try {
+      // Fetch transaction from RPC
+      const txResult = await RPCTransactionVerification.fetchTransaction(txHash);
+
+      if (!txResult.success || !txResult.data) {
+        return ctx.reply(
+          `Failed to fetch transaction\n\n${txResult.error || 'Transaction not found'}`,
+          { parse_mode: 'Markdown' }
+        );
+      }
+
+      const tx = txResult.data;
+
+      // Check transaction status
+      if (tx.status !== 0) {
+        return ctx.reply(
+          `Transaction failed on-chain\n\nStatus code: ${tx.status}`,
+          { parse_mode: 'Markdown' }
+        );
+      }
+
+      // Extract deposit information from transfers
+      if (!tx.transfers || tx.transfers.length === 0) {
+        return ctx.reply(
+          `No transfers found in transaction`,
+          { parse_mode: 'Markdown' }
+        );
+      }
+
+      // Find transfer to bot treasury
+      const deposit = tx.transfers.find(t => t.recipient === config.botTreasuryAddress);
+
+      if (!deposit) {
+        return ctx.reply(
+          `No transfer to bot treasury found\n\nExpected recipient: ${config.botTreasuryAddress}`,
+          { parse_mode: 'Markdown' }
+        );
+      }
+
+      // Extract user ID from memo
+      const userId = tx.memo ? parseInt(tx.memo) : null;
+
+      if (!userId || isNaN(userId)) {
+        return ctx.reply(
+          `No valid user ID found in memo\n\n` +
+          `Memo: ${tx.memo || 'none'}\n\n` +
+          `Use /claimdeposit to manually assign this deposit to a user.`,
+          { parse_mode: 'Markdown' }
+        );
+      }
+
+      // Check if already processed
+      const existing = get<any>(
+        'SELECT * FROM processed_deposits WHERE tx_hash = ?',
+        [txHash]
+      );
+
+      if (existing && existing.processed) {
+        return ctx.reply(
+          `Deposit Already Processed\n\n` +
+          `Amount: ${AmountPrecision.format(deposit.amount)} JUNO\n` +
+          `User: ${userId}\n` +
+          `This deposit has already been credited.`,
+          { parse_mode: 'Markdown' }
+        );
+      }
+
+      // Process the deposit
+      const result = await LedgerService.processDeposit(
+        userId,
+        deposit.amount,
+        txHash,
+        deposit.sender,
+        `Manual deposit processing by admin ${adminId}`
+      );
+
+      if (result.success) {
+        StructuredLogger.logUserAction('Deposit manually processed by admin', {
+          userId: adminId,
+          operation: 'process_deposit',
+          targetUserId: userId,
+          txHash,
+          amount: deposit.amount.toString()
+        });
+
+        await ctx.reply(
+          `Deposit Processed\n\n` +
+          `Amount: ${AmountPrecision.format(deposit.amount)} JUNO\n` +
+          `From: ${deposit.sender}\n` +
+          `Credited to user: ${userId}\n` +
+          `New balance: ${AmountPrecision.format(result.newBalance)} JUNO\n` +
+          `Transaction: ${txHash.substring(0, 16)}...`,
+          { parse_mode: 'Markdown' }
+        );
+      } else {
+        await ctx.reply(
+          `Failed to process deposit\n\n${result.error}`,
+          { parse_mode: 'Markdown' }
+        );
+      }
+    } catch (error) {
+      logger.error('Failed to process deposit', { adminId, txHash, error });
+      await ctx.reply('Failed to process deposit. Please check logs for details.');
     }
   });
 

@@ -161,6 +161,7 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
       helpText += '/giveaway \\<@username\\|userId\\> \\<amount\\> \\- Credit JUNO to user balance\n';
       helpText += '/walletstats \\- View detailed wallet statistics\n';
       helpText += '/reconcile \\- Reconcile ledger balances\n';
+      helpText += '/processdeposit \\<tx\\_hash\\> \\- Manually process pending deposit\n';
       helpText += '/claimdeposit \\<tx\\_hash\\> \\<userId\\> \\- Manually assign unclaimed deposit\n';
       helpText += '/stats \\- View comprehensive bot statistics\n\n';
     }

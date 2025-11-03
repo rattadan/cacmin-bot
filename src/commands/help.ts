@@ -89,7 +89,6 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
     helpText += '/transactions \\(or /history\\) \\- View your transaction history\n';
     helpText += '/checkdeposit \\(or /checktx\\) \\<tx\\_hash\\> \\- Check status of a deposit\n';
     helpText += '/verifydeposit \\<tx\\_hash\\> \\- Verify and credit a deposit transaction\n';
-    helpText += '/unclaimeddeposits \\- View deposits without valid memo\n';
     helpText += '/wallethelp \\- Detailed wallet usage information\n\n';
 
     helpText += '* Shared Accounts:*\n';
@@ -174,13 +173,11 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
       helpText += '/makeadmin \\<@username\\|userId\\> \\- Promote user to admin role\n';
       helpText += '/clearviolations \\<userId\\> \\- Clear all violations for a user\n\n';
 
-      helpText += '*Owner Commands \\- Deposit Management:*\n';
-      helpText += '/processdeposit \\<tx\\_hash\\> \\- Process pending deposit with valid memo\n';
-      helpText += '/claimdeposit \\<tx\\_hash\\> \\<userId\\> \\- Assign unclaimed deposit to user\n';
+      helpText += '*Owner Commands \\- Data Access:*\n';
+      helpText += '/transactions \\<userId\\> \\- View any user transaction history\n';
       helpText += '/unclaimeddeposits \\- View all unclaimed deposits\n\n';
 
-      helpText += '*Owner Commands \\- Advanced:*\n';
-      helpText += '/transactions \\<userId\\> \\- View any user transaction history\n';
+      helpText += '*Owner Commands \\- Testing:*\n';
       helpText += '/testbalance \\- Test balance checking functionality\n';
       helpText += '/testdeposit \\- Test deposit instructions\n';
       helpText += '/testtransfer \\- Test internal transfer\n';

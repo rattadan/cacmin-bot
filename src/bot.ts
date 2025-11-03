@@ -71,6 +71,10 @@ async function main() {
       if (!userExists(ownerId)) {
         createUser(ownerId, `owner_${ownerId}`, 'owner', 'config_initialization');
         logger.info(`Created owner from config: ${ownerId}`);
+      } else {
+        // Update existing user to owner role if not already
+        execute('UPDATE users SET role = ? WHERE id = ?', ['owner', ownerId]);
+        logger.info(`Updated existing user to owner role: ${ownerId}`);
       }
     }
     for (const adminId of config.adminIds) {
@@ -79,6 +83,10 @@ async function main() {
         // Set elevated flag for admins
         execute('UPDATE users SET elevated = 1 WHERE id = ?', [adminId]);
         logger.info(`Created admin from config: ${adminId}`);
+      } else {
+        // Update existing user to admin role if not already
+        execute('UPDATE users SET role = ?, elevated = 1 WHERE id = ?', ['admin', adminId]);
+        logger.info(`Updated existing user to admin role: ${adminId}`);
       }
     }
 

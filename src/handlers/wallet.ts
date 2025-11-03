@@ -54,7 +54,7 @@ export async function handleBalance(ctx: Context): Promise<void> {
     });
   } catch (error) {
     StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'check_balance' });
-    await ctx.reply(' Failed to fetch balance. Please try again later.');
+    await ctx.reply('Failed to fetch balance');
   }
 }
 
@@ -122,7 +122,7 @@ export async function handleDeposit(ctx: Context): Promise<void> {
     });
   } catch (error) {
     StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'request_deposit' });
-    await ctx.reply(' Failed to generate deposit information. Please try again later.');
+    await ctx.reply('Failed to generate deposit info');
   }
 }
 
@@ -226,7 +226,7 @@ export async function handleWithdraw(ctx: Context): Promise<void> {
     }
   } catch (error) {
     StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'withdrawal', amount: undefined });
-    await ctx.reply(' Failed to process withdrawal. Please try again later.');
+    await ctx.reply('Withdrawal failed');
   }
 }
 
@@ -429,7 +429,7 @@ export async function handleSend(ctx: Context): Promise<void> {
     }
   } catch (error) {
     StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'send_tokens' });
-    await ctx.reply(' Failed to process transfer. Please try again later.');
+    await ctx.reply('Transfer failed');
   }
 }
 
@@ -556,7 +556,7 @@ export async function handleTransactions(ctx: Context): Promise<void> {
     });
   } catch (error) {
     StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'view_transactions' });
-    await ctx.reply('Failed to fetch transaction history. Please try again later.');
+    await ctx.reply('Failed to fetch history');
   }
 }
 
@@ -621,7 +621,7 @@ export async function handleWalletStats(ctx: Context): Promise<void> {
     });
   } catch (error) {
     StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'view_wallet_stats' });
-    await ctx.reply(' Failed to fetch wallet statistics. Please try again later.');
+    await ctx.reply('Failed to fetch stats');
   }
 }
 
@@ -718,7 +718,7 @@ export async function handleGiveaway(ctx: Context): Promise<void> {
     });
   } catch (error) {
     StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'giveaway' });
-    await ctx.reply(' Failed to process giveaway. Please try again later.');
+    await ctx.reply('Giveaway failed');
   }
 }
 
@@ -805,7 +805,7 @@ export async function handleCheckDeposit(ctx: Context): Promise<void> {
     });
   } catch (error) {
     StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'check_deposit', txHash: undefined });
-    await ctx.reply(' Failed to check deposit. Please try again later.');
+    await ctx.reply('Failed to check deposit');
   }
 }
 

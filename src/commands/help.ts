@@ -142,7 +142,7 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
     }
     } catch (error) {
       logger.error('Error in help command', { userId, error });
-      await ctx.reply('An error occurred while generating the help text. Please try again or contact support.');
+      await ctx.reply('Error loading help');
     }
   });
 }

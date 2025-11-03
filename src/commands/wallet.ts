@@ -11,7 +11,6 @@ import { adminOrHigher, ownerOnly } from '../middleware/index';
 import { financialLockCheck } from '../middleware/lockCheck';
 import {
   handleBalance,
-  handleDeposit,
   handleWithdraw,
   handleSend,
   handleTransactions,
@@ -57,15 +56,6 @@ export function registerWalletCommands(bot: Telegraf<Context>): void {
    */
   bot.command('balance', handleBalance);
   bot.command('bal', handleBalance); // Alias
-
-  /**
-   * Command: /deposit
-   * Get deposit instructions with unique memo for user identification.
-   *
-   * Permission: Any user
-   * Syntax: /deposit
-   */
-  bot.command('deposit', handleDeposit);
 
   /**
    * Command: /withdraw

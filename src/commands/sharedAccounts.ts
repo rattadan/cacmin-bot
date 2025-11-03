@@ -466,7 +466,7 @@ async function handleSharedBalance(ctx: Context): Promise<void> {
     );
   } catch (error) {
     logger.error('Shared balance check failed', { userId: ctx.from?.id, error });
-    await ctx.reply(' Failed to check balance. Please try again later.');
+    await ctx.reply('Failed to check balance');
   }
 }
 
@@ -559,7 +559,7 @@ async function handleSharedSend(ctx: Context): Promise<void> {
     });
   } catch (error) {
     logger.error('Shared send failed', { userId: ctx.from?.id, error });
-    await ctx.reply(' Transaction failed. Please try again later.');
+    await ctx.reply('Transaction failed');
   }
 }
 
@@ -630,7 +630,7 @@ async function handleSharedDeposit(ctx: Context): Promise<void> {
     });
   } catch (error) {
     logger.error('Shared deposit failed', { userId: ctx.from?.id, error });
-    await ctx.reply(' Deposit failed. Please try again later.');
+    await ctx.reply('Deposit failed');
   }
 }
 
@@ -675,7 +675,7 @@ async function handleMyShared(ctx: Context): Promise<void> {
     await ctx.reply(message, { parse_mode: 'Markdown' });
   } catch (error) {
     logger.error('My shared accounts failed', { userId: ctx.from?.id, error });
-    await ctx.reply(' Failed to list shared accounts. Please try again later.');
+    await ctx.reply('Failed to list accounts');
   }
 }
 
@@ -744,7 +744,7 @@ async function handleSharedInfo(ctx: Context): Promise<void> {
     await ctx.reply(message, { parse_mode: 'Markdown' });
   } catch (error) {
     logger.error('Shared info failed', { userId: ctx.from?.id, error });
-    await ctx.reply(' Failed to get account info. Please try again later.');
+    await ctx.reply('Failed to get account info');
   }
 }
 
@@ -815,7 +815,7 @@ async function handleSharedHistory(ctx: Context): Promise<void> {
     await ctx.reply(message, { parse_mode: 'Markdown' });
   } catch (error) {
     logger.error('Shared history failed', { userId: ctx.from?.id, error });
-    await ctx.reply(' Failed to get transaction history. Please try again later.');
+    await ctx.reply('Failed to get history');
   }
 }
 
@@ -852,6 +852,6 @@ async function handleListShared(ctx: Context): Promise<void> {
     await ctx.reply(message, { parse_mode: 'Markdown' });
   } catch (error) {
     logger.error('List shared accounts failed', { userId: ctx.from?.id, error });
-    await ctx.reply(' Failed to list shared accounts. Please try again later.');
+    await ctx.reply('Failed to list accounts');
   }
 }

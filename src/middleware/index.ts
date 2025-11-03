@@ -55,7 +55,7 @@ export const userManagementMiddleware: MiddlewareFn<Context> = async (ctx, next)
     logger.debug('User initialized', { userId, username, restrictionCount: restrictions.length });
   } catch (error) {
     logger.error('Error loading user', { userId, username, error });
-    ctx.reply('An error occurred while processing your request. Please try again later.');
+    ctx.reply('Error processing request');
   }
 
   return next(); // Proceed with the next middleware or handler

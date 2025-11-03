@@ -40,7 +40,7 @@ export async function handleBalance(ctx: Context): Promise<void> {
     const username = ctx.from.username ? `@${ctx.from.username}` : `User ${userId}`;
 
     await ctx.reply(
-      `💰 *Balance for ${username}*\n\n` +
+      ` *Balance for ${username}*\n\n` +
       `Current balance: \`${balance.toFixed(6)} JUNO\``,
       { parse_mode: 'Markdown' }
     );
@@ -53,7 +53,7 @@ export async function handleBalance(ctx: Context): Promise<void> {
     });
   } catch (error) {
     StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'check_balance' });
-    await ctx.reply('❌ Failed to fetch balance. Please try again later.');
+    await ctx.reply(' Failed to fetch balance. Please try again later.');
   }
 }
 
@@ -77,14 +77,14 @@ export async function handleDeposit(ctx: Context): Promise<void> {
     const depositInfo = UnifiedWalletService.getDepositInstructions(userId);
 
     await ctx.reply(
-      `📥 *Deposit Instructions*\n\n` +
+      ` *Deposit Instructions*\n\n` +
       `To deposit JUNO to your account:\n\n` +
-      `1️⃣ Send JUNO to this address:\n` +
+      `1⃣ Send JUNO to this address:\n` +
       `\`${depositInfo.address}\`\n\n` +
-      `2️⃣ **IMPORTANT**: Include this memo:\n` +
+      `2⃣ **IMPORTANT**: Include this memo:\n` +
       `\`${depositInfo.memo}\`\n\n` +
-      `⚠️ *Your memo is unique to you and will never change*\n` +
-      `⚠️ *Deposits without the correct memo cannot be credited*\n\n` +
+      ` *Your memo is unique to you and will never change*\n` +
+      ` *Deposits without the correct memo cannot be credited*\n\n` +
       `Your deposit will be credited automatically once confirmed on-chain.`,
       { parse_mode: 'Markdown' }
     );
@@ -98,7 +98,7 @@ export async function handleDeposit(ctx: Context): Promise<void> {
     });
   } catch (error) {
     StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'request_deposit' });
-    await ctx.reply('❌ Failed to generate deposit information. Please try again later.');
+    await ctx.reply(' Failed to generate deposit information. Please try again later.');
   }
 }
 
@@ -125,7 +125,7 @@ export async function handleWithdraw(ctx: Context): Promise<void> {
 
     if (args.length < 2) {
       await ctx.reply(
-        '❌ *Invalid format*\n\n' +
+        ' *Invalid format*\n\n' +
         'Usage: `/withdraw <amount> <juno_address>`\n' +
         'Example: `/withdraw 10 juno1xxxxx...`',
         { parse_mode: 'Markdown' }
@@ -137,12 +137,12 @@ export async function handleWithdraw(ctx: Context): Promise<void> {
     const address = args[1];
 
     if (isNaN(amount) || amount <= 0) {
-      await ctx.reply('❌ Invalid amount. Please enter a positive number.');
+      await ctx.reply(' Invalid amount. Please enter a positive number.');
       return;
     }
 
     if (!address.startsWith('juno1')) {
-      await ctx.reply('❌ Invalid Juno address. Address must start with "juno1".');
+      await ctx.reply(' Invalid Juno address. Address must start with "juno1".');
       return;
     }
 
@@ -150,7 +150,7 @@ export async function handleWithdraw(ctx: Context): Promise<void> {
     const balance = await UnifiedWalletService.getBalance(userId);
     if (balance < amount) {
       await ctx.reply(
-        `❌ *Insufficient balance*\n\n` +
+        ` *Insufficient balance*\n\n` +
         `Requested: \`${amount} JUNO\`\n` +
         `Available: \`${balance.toFixed(6)} JUNO\``,
         { parse_mode: 'Markdown' }
@@ -159,7 +159,7 @@ export async function handleWithdraw(ctx: Context): Promise<void> {
     }
 
     // Process withdrawal
-    await ctx.reply('⏳ Processing withdrawal...');
+    await ctx.reply(' Processing withdrawal...');
 
     const result = await UnifiedWalletService.processWithdrawal(
       userId,
@@ -178,7 +178,7 @@ export async function handleWithdraw(ctx: Context): Promise<void> {
       });
 
       await ctx.reply(
-        `✅ *Withdrawal Successful*\n\n` +
+        ` *Withdrawal Successful*\n\n` +
         `Amount: \`${amount} JUNO\`\n` +
         `To: \`${address}\`\n` +
         `New Balance: \`${result.newBalance?.toFixed(6)} JUNO\`\n` +
@@ -194,7 +194,7 @@ export async function handleWithdraw(ctx: Context): Promise<void> {
       });
 
       await ctx.reply(
-        `❌ *Withdrawal Failed*\n\n` +
+        ` *Withdrawal Failed*\n\n` +
         `Error: ${result.error}\n` +
         `Balance: \`${result.newBalance?.toFixed(6)} JUNO\``,
         { parse_mode: 'Markdown' }
@@ -202,7 +202,7 @@ export async function handleWithdraw(ctx: Context): Promise<void> {
     }
   } catch (error) {
     StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'withdrawal', amount: undefined });
-    await ctx.reply('❌ Failed to process withdrawal. Please try again later.');
+    await ctx.reply(' Failed to process withdrawal. Please try again later.');
   }
 }
 
@@ -231,7 +231,7 @@ export async function handleSend(ctx: Context): Promise<void> {
 
     if (args.length < 2) {
       await ctx.reply(
-        '❌ *Invalid format*\n\n' +
+        ' *Invalid format*\n\n' +
         'Usage: `/send <amount> <recipient>`\n' +
         'Recipient can be:\n' +
         '• @username (internal transfer)\n' +
@@ -250,7 +250,7 @@ export async function handleSend(ctx: Context): Promise<void> {
     const recipient = args[1];
 
     if (isNaN(amount) || amount <= 0) {
-      await ctx.reply('❌ Invalid amount. Please enter a positive number.');
+      await ctx.reply(' Invalid amount. Please enter a positive number.');
       return;
     }
 
@@ -258,7 +258,7 @@ export async function handleSend(ctx: Context): Promise<void> {
     const balance = await UnifiedWalletService.getBalance(userId);
     if (balance < amount) {
       await ctx.reply(
-        `❌ *Insufficient balance*\n\n` +
+        ` *Insufficient balance*\n\n` +
         `Requested: \`${amount} JUNO\`\n` +
         `Available: \`${balance.toFixed(6)} JUNO\``,
         { parse_mode: 'Markdown' }
@@ -269,7 +269,7 @@ export async function handleSend(ctx: Context): Promise<void> {
     // Determine recipient type and process
     if (recipient.startsWith('juno1')) {
       // External transfer
-      await ctx.reply('⏳ Processing external transfer...');
+      await ctx.reply(' Processing external transfer...');
 
       const result = await UnifiedWalletService.processWithdrawal(
         userId,
@@ -288,7 +288,7 @@ export async function handleSend(ctx: Context): Promise<void> {
         });
 
         await ctx.reply(
-          `✅ *External Transfer Successful*\n\n` +
+          ` *External Transfer Successful*\n\n` +
           `Amount: \`${amount} JUNO\`\n` +
           `To: \`${recipient}\`\n` +
           `New Balance: \`${result.newBalance?.toFixed(6)} JUNO\`\n` +
@@ -304,14 +304,14 @@ export async function handleSend(ctx: Context): Promise<void> {
         });
 
         await ctx.reply(
-          `❌ *Transfer Failed*\n\n` +
+          ` *Transfer Failed*\n\n` +
           `Error: ${result.error}`,
           { parse_mode: 'Markdown' }
         );
       }
     } else if (recipient.startsWith('@')) {
       // Internal transfer by username
-      await ctx.reply('⏳ Processing internal transfer...');
+      await ctx.reply(' Processing internal transfer...');
 
       const result = await UnifiedWalletService.sendToUsername(
         userId,
@@ -331,7 +331,7 @@ export async function handleSend(ctx: Context): Promise<void> {
         });
 
         await ctx.reply(
-          `✅ *Transfer Successful*\n\n` +
+          ` *Transfer Successful*\n\n` +
           `Amount: \`${amount} JUNO\`\n` +
           `To: @${result.recipient}\n` +
           `Your New Balance: \`${result.fromBalance?.toFixed(6)} JUNO\``,
@@ -346,7 +346,7 @@ export async function handleSend(ctx: Context): Promise<void> {
         });
 
         await ctx.reply(
-          `❌ *Transfer Failed*\n\n` +
+          ` *Transfer Failed*\n\n` +
           `Error: ${result.error}`,
           { parse_mode: 'Markdown' }
         );
@@ -356,11 +356,11 @@ export async function handleSend(ctx: Context): Promise<void> {
       const recipientId = parseInt(recipient, 10);
 
       if (recipientId === userId) {
-        await ctx.reply('❌ You cannot send tokens to yourself.');
+        await ctx.reply(' You cannot send tokens to yourself.');
         return;
       }
 
-      await ctx.reply('⏳ Processing internal transfer...');
+      await ctx.reply(' Processing internal transfer...');
 
       const result = await UnifiedWalletService.transferToUser(
         userId,
@@ -378,7 +378,7 @@ export async function handleSend(ctx: Context): Promise<void> {
         });
 
         await ctx.reply(
-          `✅ *Transfer Successful*\n\n` +
+          ` *Transfer Successful*\n\n` +
           `Amount: \`${amount} JUNO\`\n` +
           `To: User ${recipientId}\n` +
           `Your New Balance: \`${result.fromBalance?.toFixed(6)} JUNO\``,
@@ -393,19 +393,19 @@ export async function handleSend(ctx: Context): Promise<void> {
         });
 
         await ctx.reply(
-          `❌ *Transfer Failed*\n\n` +
+          ` *Transfer Failed*\n\n` +
           `Error: ${result.error}`,
           { parse_mode: 'Markdown' }
         );
       }
     } else {
       await ctx.reply(
-        '❌ Invalid recipient format. Use @username, user ID, or juno1xxx... address.'
+        ' Invalid recipient format. Use @username, user ID, or juno1xxx... address.'
       );
     }
   } catch (error) {
     StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'send_tokens' });
-    await ctx.reply('❌ Failed to process transfer. Please try again later.');
+    await ctx.reply(' Failed to process transfer. Please try again later.');
   }
 }
 
@@ -429,11 +429,11 @@ export async function handleTransactions(ctx: Context): Promise<void> {
     const transactions = await UnifiedWalletService.getUserTransactionHistory(userId, 10);
 
     if (transactions.length === 0) {
-      await ctx.reply(' You have no transaction history yet.');
+      await ctx.reply('You have no transaction history yet.');
       return;
     }
 
-    let message = ' *Recent Transactions*\n\n';
+    let message = '*Recent Transactions*\n\n';
 
     for (const tx of transactions) {
       const date = new Date((tx.created_at || 0) * 1000).toLocaleString();
@@ -468,10 +468,26 @@ export async function handleTransactions(ctx: Context): Promise<void> {
           description = `${amount} JUNO (${type})`;
       }
 
-      message += `• ${date}\n  ${description}\n`;
-      if (tx.description) {
-        message += `  _${tx.description}_\n`;
+      message += `[${date}]\n`;
+      message += `Type: ${type}\n`;
+      message += `Amount: ${description}\n`;
+
+      if (tx.status && tx.status !== 'completed') {
+        message += `Status: ${tx.status.toUpperCase()}\n`;
       }
+
+      if (tx.tx_hash) {
+        message += `TX Hash: \`${tx.tx_hash}\`\n`;
+      }
+
+      if (tx.external_address) {
+        message += `Address: \`${tx.external_address}\`\n`;
+      }
+
+      if (tx.description) {
+        message += `Note: ${tx.description}\n`;
+      }
+
       message += '\n';
     }
 
@@ -485,7 +501,7 @@ export async function handleTransactions(ctx: Context): Promise<void> {
     });
   } catch (error) {
     StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'view_transactions' });
-    await ctx.reply('❌ Failed to fetch transaction history. Please try again later.');
+    await ctx.reply('Failed to fetch transaction history. Please try again later.');
   }
 }
 
@@ -507,7 +523,7 @@ export async function handleWalletStats(ctx: Context): Promise<void> {
 
     // Check if user is elevated
     if (!userId || !checkIsElevated(userId)) {
-      await ctx.reply('❌ This command requires elevated permissions.');
+      await ctx.reply(' This command requires elevated permissions.');
       return;
     }
 
@@ -550,7 +566,7 @@ export async function handleWalletStats(ctx: Context): Promise<void> {
     });
   } catch (error) {
     StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'view_wallet_stats' });
-    await ctx.reply('❌ Failed to fetch wallet statistics. Please try again later.');
+    await ctx.reply(' Failed to fetch wallet statistics. Please try again later.');
   }
 }
 
@@ -573,7 +589,7 @@ export async function handleGiveaway(ctx: Context): Promise<void> {
 
     // Check if user is elevated
     if (!userId || !checkIsElevated(userId)) {
-      await ctx.reply('❌ This command requires elevated permissions.');
+      await ctx.reply(' This command requires elevated permissions.');
       return;
     }
 
@@ -582,7 +598,7 @@ export async function handleGiveaway(ctx: Context): Promise<void> {
 
     if (args.length < 2) {
       await ctx.reply(
-        '❌ *Invalid format*\n\n' +
+        ' *Invalid format*\n\n' +
         'Usage: `/giveaway <amount> <@user1> <@user2> ...`\n' +
         'Example: `/giveaway 5 @alice @bob @charlie`',
         { parse_mode: 'Markdown' }
@@ -592,7 +608,7 @@ export async function handleGiveaway(ctx: Context): Promise<void> {
 
     const amount = parseFloat(args[0]);
     if (isNaN(amount) || amount <= 0) {
-      await ctx.reply('❌ Invalid amount. Please enter a positive number.');
+      await ctx.reply(' Invalid amount. Please enter a positive number.');
       return;
     }
 
@@ -614,7 +630,7 @@ export async function handleGiveaway(ctx: Context): Promise<void> {
     }
 
     if (userIds.length === 0) {
-      await ctx.reply('❌ No valid recipients found.');
+      await ctx.reply(' No valid recipients found.');
       return;
     }
 
@@ -647,7 +663,7 @@ export async function handleGiveaway(ctx: Context): Promise<void> {
     });
   } catch (error) {
     StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'giveaway' });
-    await ctx.reply('❌ Failed to process giveaway. Please try again later.');
+    await ctx.reply(' Failed to process giveaway. Please try again later.');
   }
 }
 
@@ -674,7 +690,7 @@ export async function handleCheckDeposit(ctx: Context): Promise<void> {
 
     if (args.length < 1) {
       await ctx.reply(
-        '❌ *Invalid format*\n\n' +
+        ' *Invalid format*\n\n' +
         'Usage: `/checkdeposit <tx_hash>`\n' +
         'Example: `/checkdeposit ABCD1234...`',
         { parse_mode: 'Markdown' }
@@ -690,7 +706,7 @@ export async function handleCheckDeposit(ctx: Context): Promise<void> {
     const result = await UnifiedWalletService.verifyTransaction(txHash);
 
     if (!result.verified) {
-      await ctx.reply('❌ Transaction not found on-chain or invalid.');
+      await ctx.reply(' Transaction not found on-chain or invalid.');
       return;
     }
 
@@ -710,12 +726,12 @@ export async function handleCheckDeposit(ctx: Context): Promise<void> {
         `Amount: \`${result.amount} JUNO\`\n` +
         (recipientUserId ? `User ID: ${recipientUserId}\n` : '') +
         (result.memo ? `Memo: ${result.memo}\n` : '') +
-        `Processed: ✅`,
+        `Processed: `,
         { parse_mode: 'Markdown' }
       );
     } else {
       await ctx.reply(
-        `✅ *Transaction Found*\n\n` +
+        ` *Transaction Found*\n\n` +
         `From: \`${result.from}\`\n` +
         `Amount: \`${result.amount} JUNO\`\n` +
         (recipientUserId ? `Recipient User ID: ${recipientUserId}\n` : 'No valid user ID in memo\n') +
@@ -734,7 +750,7 @@ export async function handleCheckDeposit(ctx: Context): Promise<void> {
     });
   } catch (error) {
     StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'check_deposit', txHash: undefined });
-    await ctx.reply('❌ Failed to check deposit. Please try again later.');
+    await ctx.reply(' Failed to check deposit. Please try again later.');
   }
 }
 
@@ -752,7 +768,7 @@ export async function handleCheckDeposit(ctx: Context): Promise<void> {
  */
 export async function handleReconcile(ctx: Context): Promise<void> {
   try {
-    await ctx.reply('⏳ Running balance reconciliation...');
+    await ctx.reply(' Running balance reconciliation...');
 
     // Import LedgerService here to avoid circular dependencies
     const { LedgerService } = await import('../services/ledgerService');
@@ -763,7 +779,7 @@ export async function handleReconcile(ctx: Context): Promise<void> {
       `Internal Ledger Total: \`${result.internalTotal.toFixed(6)} JUNO\`\n` +
       `User Funds On-Chain: \`${result.onChainTotal.toFixed(6)} JUNO\`\n` +
       `Difference: \`${result.difference.toFixed(6)} JUNO\`\n\n` +
-      `Status: ${result.matched ? '✅ Balanced' : '⚠️ MISMATCH'}`,
+      `Status: ${result.matched ? ' Balanced' : ' MISMATCH'}`,
       { parse_mode: 'Markdown' }
     );
 
@@ -787,6 +803,6 @@ export async function handleReconcile(ctx: Context): Promise<void> {
     }
   } catch (error) {
     StructuredLogger.logError(error as Error, { userId: ctx.from?.id, operation: 'reconcile_balances' });
-    await ctx.reply('❌ Failed to run reconciliation.');
+    await ctx.reply(' Failed to run reconciliation.');
   }
 }

@@ -26,6 +26,8 @@ import { registerDepositCommands } from './commands/deposit';
 import { registerWalletCommands } from './commands/wallet';
 import { registerWalletTestCommands } from './commands/walletTest';
 import { registerSharedAccountCommands } from './commands/sharedAccounts';
+import { registerStickerCommands } from './commands/sticker';
+import { registerCallbackHandlers } from './handlers/callbacks';
 import { RestrictionService } from './services/restrictionService';
 import { JailService } from './services/jailService';
 import { UnifiedWalletService } from './services/unifiedWalletService';
@@ -117,6 +119,8 @@ async function main() {
     registerWalletCommands(bot);
     registerWalletTestCommands(bot); // Owner-only test commands
     registerSharedAccountCommands(bot); // Shared account management
+    registerStickerCommands(bot); // Sticker sending and management
+    registerCallbackHandlers(bot); // Inline keyboard callback handlers
 
     // Error handling
     bot.catch((err, ctx) => {

@@ -11,6 +11,7 @@ import { hasRole } from '../utils/roles';
 import { addUserRestriction, removeUserRestriction, getUserRestrictions } from '../services/userService';
 import { logger, StructuredLogger } from '../utils/logger';
 import { adminOrHigher, elevatedOrHigher } from '../middleware';
+import { restrictionTypeKeyboard, durationKeyboard } from '../utils/keyboards';
 
 /**
  * Registers all restriction management command handlers with the bot.
@@ -46,8 +47,26 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
     const adminId = ctx.from?.id;
     const [userId, restriction, restrictedAction, restrictedUntil] = ctx.message?.text.split(' ').slice(1) || [];
 
+    // If no arguments, show interactive keyboard
     if (!userId || !restriction) {
-      return ctx.reply('Usage: /addrestriction <userId> <restriction> [restrictedAction] [restrictedUntil]');
+      return ctx.reply(
+        '🚫 *Add User Restriction*\n\n' +
+        'Select a restriction type to apply:\n\n' +
+        '**Restriction Types:**\n' +
+        '• **No Stickers** - Block all stickers\n' +
+        '• **No URLs** - Block URL links\n' +
+        '• **No Media** - Block photos/videos\n' +
+        '• **No GIFs** - Block GIF animations\n' +
+        '• **No Voice** - Block voice messages\n' +
+        '• **No Forwarding** - Block forwarded messages\n' +
+        '• **Regex Block** - Block specific text patterns\n\n' +
+        '_Or use command format:_\n' +
+        '`/addrestriction <userId> <restriction> [action] [until]`',
+        {
+          parse_mode: 'Markdown',
+          reply_markup: restrictionTypeKeyboard
+        }
+      );
     }
 
     try {

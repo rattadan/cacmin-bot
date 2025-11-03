@@ -46,14 +46,21 @@ ADMIN_ID=123456789,456789123   # Comma-separated
 **User deposits JUNO:**
 1. User runs `/deposit` - gets treasury address and unique memo (their user ID)
 2. User sends JUNO on-chain with memo
-3. Bot auto-detects and credits (checks every 30 seconds)
+3. Bot auto-detects and credits (checks every 30 seconds via RPC)
 
-**Manual processing (if auto-detection fails):**
+**How memo extraction works:**
+- Bot uses RPC `/tx_search` to monitor incoming transactions
+- Extracts memo from protobuf using structural position (memo comes AFTER amount in Cosmos SDK MsgSend)
+- Deposits with valid user ID memo (5-12 digits) auto-credit to that user
+- Deposits with invalid/missing memo go to UNCLAIMED system account
+
+**Manual processing (if needed):**
 ```
 /checktx <tx_hash>                    # Check deposit status
-/processdeposit <tx_hash>             # Process pending deposit (uses memo)
-/claimdeposit <tx_hash> <userId>      # Assign unclaimed deposit
-/unclaimeddeposits                    # View all unclaimed
+/verifydeposit <tx_hash>              # Verify and credit deposit (uses memo from tx)
+/processdeposit <tx_hash>             # Process pending deposit (admin only)
+/claimdeposit <tx_hash> <userId>      # Assign unclaimed deposit (admin only)
+/unclaimeddeposits                    # View all unclaimed deposits
 ```
 
 ### Treasury Monitoring

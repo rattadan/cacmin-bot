@@ -144,7 +144,7 @@ async function verifyWallet(address: string, name: string) {
       console.log(`  ${colors.green}✓ On-chain account exists${colors.reset}`);
       console.log(`  Account #: ${account.accountNumber}`);
     } else {
-      console.log(`  ${colors.yellow}⚠️  Account not yet initialized (needs first transaction)${colors.reset}`);
+      console.log(`  ${colors.yellow}  Account not yet initialized (needs first transaction)${colors.reset}`);
     }
 
     if (junoBalance) {
@@ -156,7 +156,7 @@ async function verifyWallet(address: string, name: string) {
 
     client.disconnect();
   } catch (error) {
-    console.log(`${colors.yellow}⚠️  Could not verify ${name} wallet on-chain${colors.reset}`);
+    console.log(`${colors.yellow}  Could not verify ${name} wallet on-chain${colors.reset}`);
   }
 }
 
@@ -195,7 +195,7 @@ ${colors.reset}`);
         treasuryWallet = await generateNewWallet('Treasury');
         userFundsWallet = await generateNewWallet('User Funds');
 
-        console.log(`\n${colors.yellow}⚠️  IMPORTANT: Save these mnemonics securely!${colors.reset}`);
+        console.log(`\n${colors.yellow}  IMPORTANT: Save these mnemonics securely!${colors.reset}`);
         console.log(`\n${colors.bright}Treasury Wallet Mnemonic:${colors.reset}`);
         console.log(treasuryWallet.mnemonic);
         console.log(`\n${colors.bright}User Funds Wallet Mnemonic:${colors.reset}`);

@@ -43,7 +43,7 @@ export function setBotInstance(bot: Telegraf): void {
  *
  * @example
  * // Notification appears in admin chat as:
- * // "⚠️ Admin Alert
+ * // " Admin Alert
  * //
  * //  Critical: Withdrawal system offline"
  */
@@ -61,7 +61,7 @@ export async function notifyAdmin(message: string): Promise<void> {
   try {
     await botInstance.telegram.sendMessage(
       config.adminChatId,
-      `⚠️ *Admin Alert*\n\n${message}`,
+      ` *Admin Alert*\n\n${message}`,
       { parse_mode: 'Markdown' }
     );
   } catch (error) {

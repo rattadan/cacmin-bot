@@ -121,6 +121,12 @@ export const adminOrHigher: MiddlewareFn<Context> = (ctx, next) => {
     return ctx.reply('User ID not found.');
   }
 
+  // Check if user is in configured owner IDs
+  if (config.ownerIds.includes(userId)) {
+    return next();
+  }
+
+  // Check database role
   const user = query<User>('SELECT * FROM users WHERE id = ?', [userId])[0];
   if (user?.role === 'owner' || user?.role === 'admin') {
     return next();
@@ -150,6 +156,12 @@ export const elevatedOrHigher: MiddlewareFn<Context> = (ctx, next) => {
     return ctx.reply('User ID not found.');
   }
 
+  // Check if user is in configured owner/admin IDs
+  if (config.ownerIds.includes(userId) || config.adminIds.includes(userId)) {
+    return next();
+  }
+
+  // Check database role
   const user = query<User>('SELECT * FROM users WHERE id = ?', [userId])[0];
   if (user?.role === 'owner' || user?.role === 'admin' || user?.role === 'elevated') {
     return next();

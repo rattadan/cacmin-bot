@@ -62,7 +62,7 @@ async function verifyWallets() {
       // Check if addresses are different (they should be for security)
       if (treasuryAddress && userFundsAddress) {
         if (treasuryAddress === userFundsAddress) {
-          console.log(`\n${colors.yellow}⚠️  Warning: Treasury and User Funds use the same address!${colors.reset}`);
+          console.log(`\n${colors.yellow}  Warning: Treasury and User Funds use the same address!${colors.reset}`);
           console.log(`${colors.yellow}   Consider using separate wallets for better security and accounting.${colors.reset}`);
         } else {
           console.log(`\n${colors.green}✓ Treasury and User Funds use separate addresses (recommended)${colors.reset}`);
@@ -80,7 +80,7 @@ async function verifyWallets() {
           console.log(`${colors.green}✓ REST API is accessible${colors.reset}`);
           console.log(`  Network: ${data.default_node_info?.network || 'unknown'}`);
         } else {
-          console.log(`${colors.yellow}⚠️  REST API returned status ${response.status}${colors.reset}`);
+          console.log(`${colors.yellow}  REST API returned status ${response.status}${colors.reset}`);
         }
       } catch (error: any) {
         console.log(`${colors.red}✗ REST API is not accessible: ${error.message}${colors.reset}`);
@@ -98,7 +98,7 @@ async function verifyWallets() {
       console.log(`${colors.green}✓ All wallet configurations are valid!${colors.reset}`);
       console.log(`${colors.green}  The bot ledger system should work fully.${colors.reset}`);
     } else {
-      console.log(`${colors.yellow}⚠️  Configuration issues found:${colors.reset}`);
+      console.log(`${colors.yellow}  Configuration issues found:${colors.reset}`);
       issues.forEach(issue => console.log(`  - ${issue}`));
       console.log(`\n${colors.yellow}The bot will run with limited functionality.${colors.reset}`);
     }
@@ -127,7 +127,7 @@ async function verifyWallet(client: StargateClient, address: string, label: stri
       console.log(`    Account #: ${account.accountNumber}`);
       console.log(`    Sequence: ${account.sequence}`);
     } else {
-      console.log(`  ${colors.yellow}⚠️  Account not initialized (needs first transaction)${colors.reset}`);
+      console.log(`  ${colors.yellow}  Account not initialized (needs first transaction)${colors.reset}`);
     }
 
     // Get balance

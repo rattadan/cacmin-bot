@@ -394,10 +394,13 @@ Bot includes systemd service file: `cacmin-bot.service`
 
 ## Additional Documentation
 
-For detailed information on specific subsystems:
-- **UNIFIED_WALLET_SYSTEM.md**: Comprehensive wallet system documentation
-- **LEDGER_SYSTEM.md**: Internal accounting details
-- **WALLET_SETUP.md**: Wallet configuration guide
-- **USER_WALLET_GUIDE.md**: User-facing wallet instructions
-- **PERMISSIONS.md**: Role and permission details
-- **DEPLOYMENT.md**: Production deployment guide
+For detailed information:
+- **ADMIN_MANUAL.md**: Comprehensive operational guide for owners/admins
+  - Role management and permissions
+  - Deposit management and troubleshooting
+  - Treasury monitoring and reconciliation
+  - Common workflows and emergency procedures
+- **README.md**: Installation, setup, and basic usage
+  - Quick start guide
+  - Feature overview
+  - Command reference

@@ -30,13 +30,15 @@ Cosmos Airdrops Chat **Improved Admin Bot** built with [Telegraf](https://telegr
 
 - **Unified Wallet System**:
   - Single JUNO wallet with internal ledger for all users
-  - Bot treasury as internal user (ID: -1)
+  - Automatic deposit detection via RPC monitoring with memo-based routing
+  - Structural protobuf parsing for reliable memo extraction
   - Instant, fee-free internal transfers between users
-  - Automatic deposit detection with memo-based routing
   - Secure withdrawal flow with transaction locking
   - Complete audit trail of all financial operations
-  - Balance reconciliation and monitoring
-  - **See [UNIFIED_WALLET_SYSTEM.md](UNIFIED_WALLET_SYSTEM.md) for comprehensive documentation**
+  - Balance reconciliation and treasury monitoring
+  - Shared account support for multi-user wallets
+  - Manual deposit processing and unclaimed deposit management
+  - **See [ADMIN_MANUAL.md](ADMIN_MANUAL.md) for operational documentation**
 
 ## **Installation**
 
@@ -52,9 +54,11 @@ yarn install
 
 # Create minimal .env file
 echo "BOT_TOKEN=your_bot_token_here" > .env
-echo "OWNER_ID=your_telegram_user_id" >> .env
-echo "USER_FUNDS_ADDRESS=juno1..." >> .env
-echo "USER_FUNDS_MNEMONIC=word1 word2 ..." >> .env
+echo "OWNER_ID=your_telegram_user_id_1,your_telegram_user_id_2" >> .env
+echo "ADMIN_ID=admin_user_id_1,admin_user_id_2" >> .env
+echo "BOT_TREASURY_ADDRESS=juno1..." >> .env
+echo "BOT_TREASURY_MNEMONIC=word1 word2 ..." >> .env
+echo "JUNO_RPC_URL=https://rpc.juno.basementnodes.ca" >> .env
 
 # Initialize database and migrate to unified wallet
 yarn setup-db
@@ -113,25 +117,24 @@ yarn rebuild:full  # Full clean rebuild
      cp .env.example .env
      ```
 
-   - Edit `.env` and set your bot token and owner ID:
+   - Edit `.env` and set required configuration:
 
      ```env
      BOT_TOKEN=your_bot_token_here
-     OWNER_ID=your_telegram_user_id
+     OWNER_ID=owner_id_1,owner_id_2
+     ADMIN_ID=admin_id_1,admin_id_2
+     BOT_TREASURY_ADDRESS=juno1...
+     BOT_TREASURY_MNEMONIC=word1 word2 ...
+     JUNO_RPC_URL=https://rpc.juno.basementnodes.ca
      ```
 
-4. Set up wallet:
+4. Set up wallet (if needed):
 
    ```bash
-   # Generate a new wallet
+   # Generate a new wallet (optional)
    npx ts-node scripts/wallet-utils.ts
 
-   # Add to .env:
-   # USER_FUNDS_ADDRESS=juno1...
-   # USER_FUNDS_MNEMONIC=word1 word2 ...
-
-   # Migrate to unified wallet system
-   yarn migrate:wallet
+   # Add the generated address and mnemonic to .env as shown above
    ```
 
 5. Initialize the database:
@@ -291,6 +294,59 @@ The workflow builds on `ubuntu-latest` which is compatible with ARM64 servers li
 
   ```plaintext
   /removeaction <restriction>
+  ```
+
+---
+
+### **Wallet Commands**
+
+- **Check Balance**:
+
+  ```plaintext
+  /balance
+  ```
+
+- **Get Deposit Instructions**:
+
+  ```plaintext
+  /deposit
+  ```
+
+  - Provides unique deposit address and memo for automatic crediting
+
+- **Send Funds**:
+
+  ```plaintext
+  /send <amount> <@user|userId|address>
+  ```
+
+  - Internal transfers (to other users) are instant and fee-free
+  - External transfers (to Juno addresses) go on-chain
+
+- **Withdraw to External Address**:
+
+  ```plaintext
+  /withdraw <amount> <juno_address>
+  ```
+
+- **View Transaction History**:
+
+  ```plaintext
+  /transactions
+  ```
+
+- **Verify Deposit**:
+
+  ```plaintext
+  /verifydeposit <tx_hash>
+  ```
+
+  - Manually verify and credit a deposit transaction
+
+- **Check Deposit Status**:
+
+  ```plaintext
+  /checkdeposit <tx_hash>
   ```
 
 ---

@@ -95,7 +95,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     // Check if user is elevated or higher
     const { checkIsElevated } = await import('../utils/roles');
     if (!checkIsElevated(userId)) {
-      return ctx.reply('⛔ This command requires elevated privileges or higher.');
+      return ctx.reply(' This command requires elevated privileges or higher.');
     }
 
     const { query, get: getRecord } = await import('../database');
@@ -132,7 +132,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
       ['unjailed']
     )?.count || 0;
 
-    let message = `🔒 *Jail System Statistics*\n\n`;
+    let message = ` *Jail System Statistics*\n\n`;
     message += `*Currently Active Jails:* ${activeJails.length}\n\n`;
 
     if (activeJails.length > 0) {

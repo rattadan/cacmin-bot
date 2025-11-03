@@ -26,11 +26,11 @@ const SYSTEM_USER_IDS = {
   UNCLAIMED: -3
 };
 
-console.log('🔄 Starting migration to unified wallet system...\n');
+console.log(' Starting migration to unified wallet system...\n');
 
 try {
   // 1. Create system users if they don't exist
-  console.log('1️⃣ Creating system users...');
+  console.log('1⃣ Creating system users...');
 
   const createSystemUser = (id: number, username: string, description: string) => {
     const existing = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
@@ -45,9 +45,9 @@ try {
         'INSERT INTO user_balances (user_id, balance, created_at) VALUES (?, 0, ?)'
       ).run(id, Math.floor(Date.now() / 1000));
 
-      console.log(`   ✅ Created system user: ${username} (ID: ${id})`);
+      console.log(`    Created system user: ${username} (ID: ${id})`);
     } else {
-      console.log(`   ℹ️ System user already exists: ${username} (ID: ${id})`);
+      console.log(`    System user already exists: ${username} (ID: ${id})`);
     }
   };
 
@@ -56,7 +56,7 @@ try {
   createSystemUser(SYSTEM_USER_IDS.SYSTEM_RESERVE, 'SYSTEM_RESERVE', 'System reserve account');
 
   // 2. Check for any existing treasury balance to migrate
-  console.log('\n2️⃣ Checking for existing treasury balance...');
+  console.log('\n2⃣ Checking for existing treasury balance...');
 
   // If you had a separate bot treasury wallet before, you might need to manually
   // transfer those funds to the unified wallet and then credit the bot's internal account
@@ -68,7 +68,7 @@ try {
   }
 
   // 3. Ensure all required tables exist
-  console.log('\n3️⃣ Verifying database schema...');
+  console.log('\n3⃣ Verifying database schema...');
 
   // Check for processed_deposits table
   const tables = db.prepare(
@@ -88,17 +88,17 @@ try {
     if (!tables.find((t: any) => t.name === table)) {
       missingTables.push(table);
     } else {
-      console.log(`   ✅ Table exists: ${table}`);
+      console.log(`    Table exists: ${table}`);
     }
   }
 
   if (missingTables.length > 0) {
-    console.log('\n   ⚠️ Missing tables detected. Run the bot once to create them:');
+    console.log('\n    Missing tables detected. Run the bot once to create them:');
     missingTables.forEach(table => console.log(`      - ${table}`));
   }
 
   // 4. Display migration summary
-  console.log('\n4️⃣ Migration Summary:');
+  console.log('\n4⃣ Migration Summary:');
 
   // Count users with balances
   const userCount = db.prepare(
@@ -120,21 +120,21 @@ try {
   console.log(`   Bot treasury: ${botTreasuryBalance?.balance || 0} JUNO`);
 
   // 5. Configuration check
-  console.log('\n5️⃣ Configuration Check:');
+  console.log('\n5⃣ Configuration Check:');
 
   if (!process.env.USER_FUNDS_ADDRESS) {
-    console.log('   ⚠️ USER_FUNDS_ADDRESS not set in .env');
+    console.log('    USER_FUNDS_ADDRESS not set in .env');
   } else {
-    console.log(`   ✅ Wallet address: ${process.env.USER_FUNDS_ADDRESS}`);
+    console.log(`    Wallet address: ${process.env.USER_FUNDS_ADDRESS}`);
   }
 
   if (!process.env.USER_FUNDS_MNEMONIC) {
-    console.log('   ⚠️ USER_FUNDS_MNEMONIC not set in .env');
+    console.log('    USER_FUNDS_MNEMONIC not set in .env');
   } else {
-    console.log('   ✅ Wallet mnemonic: [HIDDEN]');
+    console.log('    Wallet mnemonic: [HIDDEN]');
   }
 
-  console.log('\n✅ Migration complete!');
+  console.log('\n Migration complete!');
   console.log('\nNext steps:');
   console.log('1. Ensure USER_FUNDS_ADDRESS is set in .env');
   console.log('2. Ensure USER_FUNDS_MNEMONIC is set in .env');
@@ -142,7 +142,7 @@ try {
   console.log('4. Run /testwalletstats to verify system status');
 
 } catch (error) {
-  console.error('\n❌ Migration failed:', error);
+  console.error('\n Migration failed:', error);
   process.exit(1);
 } finally {
   db.close();

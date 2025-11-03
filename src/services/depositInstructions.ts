@@ -44,14 +44,14 @@ DEPOSIT INSTRUCTIONS
 Send JUNO to this address:
 ${walletAddress}
 
-⚠️ CRITICAL - MEMO REQUIRED ⚠️
+ CRITICAL - MEMO REQUIRED 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ➤ MEMO: ${memo}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⚠️ WARNING: Deposits WITHOUT the correct memo CANNOT be credited to your account!
-⚠️ The memo MUST be EXACTLY: ${memo}
-⚠️ This is YOUR user ID - do not use any other number!
+ WARNING: Deposits WITHOUT the correct memo CANNOT be credited to your account!
+ The memo MUST be EXACTLY: ${memo}
+ This is YOUR user ID - do not use any other number!
 
 DOUBLE CHECK:
 ✓ Address: ${walletAddress}
@@ -63,31 +63,31 @@ Deposits without the correct memo will go to an unclaimed pool and require manua
 
     // Markdown formatted version for Telegram
     const markdown = `
-💰 **DEPOSIT INSTRUCTIONS**
+ **DEPOSIT INSTRUCTIONS**
 ═══════════════════════════
 
-📍 **Send JUNO to:**
+ **Send JUNO to:**
 \`${walletAddress}\`
 
-⚠️ **CRITICAL - MEMO REQUIRED** ⚠️
+ **CRITICAL - MEMO REQUIRED** 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-**➤➤➤ MEMO: \`${memo}\` ⬅️⬅️⬅️**
+**➤➤➤ MEMO: \`${memo}\` **
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🚨 **WARNING** 🚨
+ **WARNING** 
 • Deposits **WITHOUT** the memo **CANNOT** be credited!
 • The memo **MUST** be **EXACTLY**: \`${memo}\`
 • This is **YOUR** user ID - do not change it!
 
-📋 **Before sending, verify:**
-✅ Address: \`${walletAddress}\`
-✅ Memo: \`${memo}\`
-✅ NO extra text in memo field
+ **Before sending, verify:**
+ Address: \`${walletAddress}\`
+ Memo: \`${memo}\`
+ NO extra text in memo field
 
-⚠️ _Deposits without correct memo go to unclaimed pool_
-⚠️ _Manual processing may take days_
+ _Deposits without correct memo go to unclaimed pool_
+ _Manual processing may take days_
 `;
 
     return {
@@ -105,7 +105,7 @@ Deposits without the correct memo will go to an unclaimed pool and require manua
    * @returns Short memo reminder message
    */
   static getMemoReminder(userId: number): string {
-    return `⚠️ **REMEMBER**: Your memo MUST be \`${userId}\` or funds won't be credited!`;
+    return ` **REMEMBER**: Your memo MUST be \`${userId}\` or funds won't be credited!`;
   }
 
   /**
@@ -115,7 +115,7 @@ Deposits without the correct memo will go to an unclaimed pool and require manua
    */
   static getUnclaimedInstructions(): string {
     return `
-📌 **Unclaimed Deposit?**
+ **Unclaimed Deposit?**
 
 If you sent JUNO without a memo or with the wrong memo:
 
@@ -209,7 +209,7 @@ Always use your user ID as memo to avoid this!
     newBalance: number
   ): string {
     return `
-✅ **Deposit Confirmed!**
+ **Deposit Confirmed!**
 
 • Amount: \`${amount.toFixed(6)} JUNO\`
 • From User: \`${userId}\`
@@ -234,7 +234,7 @@ Your funds are now available for use!
     switch (issue) {
       case 'no_memo':
         return `
-❌ **Deposit Failed - No Memo**
+ **Deposit Failed - No Memo**
 
 Your deposit was received but **cannot be credited** because no memo was provided.
 
@@ -245,7 +245,7 @@ Your funds are in the unclaimed pool. Contact an admin with your transaction has
 
       case 'wrong_memo':
         return `
-❌ **Deposit Failed - Wrong Memo**
+ **Deposit Failed - Wrong Memo**
 
 Your deposit was received but the memo \`${details?.memo}\` doesn't match your user ID \`${details?.userId}\`.
 
@@ -254,7 +254,7 @@ Your funds are in the unclaimed pool. Contact an admin to claim them.
 
       case 'wrong_user':
         return `
-❌ **Deposit Failed - User Not Found**
+ **Deposit Failed - User Not Found**
 
 A deposit was received with memo \`${details?.memo}\` but this user ID doesn't exist.
 
@@ -263,7 +263,7 @@ The funds are in the unclaimed pool.
 
       case 'not_found':
         return `
-❌ **Transaction Not Found**
+ **Transaction Not Found**
 
 The transaction hash \`${details?.txHash}\` was not found on the blockchain.
 
@@ -271,7 +271,7 @@ Please verify the transaction hash and try again.
 `;
 
       default:
-        return '❌ **Deposit Error** - Please contact an admin for assistance.';
+        return ' **Deposit Error** - Please contact an admin for assistance.';
     }
   }
 }

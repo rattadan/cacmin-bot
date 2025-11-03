@@ -1113,7 +1113,7 @@ describe('Database Services - Comprehensive Tests', () => {
       ensureUserExists(123456, 'testuser');
       const metadata = {
         special: "Test with 'quotes' and \"double quotes\"",
-        unicode: '测试 🎉 тест',
+        unicode: '测试  тест',
         escape: 'Test\\nWith\\tEscapes'
       };
 

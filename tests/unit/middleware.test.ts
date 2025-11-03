@@ -798,7 +798,7 @@ describe('Middleware and Utilities Test Suite', () => {
         await notifyAdmin('Critical error occurred');
 
         const calls = (mockBot.telegram.sendMessage as jest.Mock).mock.calls;
-        expect(calls[0][1]).toContain('⚠️ *Admin Alert*');
+        expect(calls[0][1]).toContain(' *Admin Alert*');
         expect(calls[0][1]).toContain('Critical error occurred');
         expect(calls[0][2]).toEqual({ parse_mode: 'Markdown' });
       });

@@ -158,7 +158,7 @@ async function verifyWallet(address: string, name: string) {
     if (account) {
       console.log(`  ${colors.green}✓ On-chain${colors.reset} (Account #${account.accountNumber})`);
     } else {
-      console.log(`  ${colors.yellow}⚠️  Not yet on-chain${colors.reset} (needs first transaction)`);
+      console.log(`  ${colors.yellow}  Not yet on-chain${colors.reset} (needs first transaction)`);
     }
 
     if (junoBalance) {
@@ -216,7 +216,7 @@ ${colors.reset}`);
 
         console.log(`\n${colors.bright}Generated Mnemonic:${colors.reset}`);
         console.log(`${colors.yellow}${mnemonic}${colors.reset}`);
-        console.log(`\n${colors.red}⚠️  SAVE THIS MNEMONIC SECURELY!${colors.reset}`);
+        console.log(`\n${colors.red}  SAVE THIS MNEMONIC SECURELY!${colors.reset}`);
         console.log('This single mnemonic controls both wallets.\n');
 
         const confirm = await prompt('Continue with this mnemonic? (y/n): ');

@@ -612,7 +612,7 @@ export class LedgerService {
     matched: boolean;
   }> {
     const internalTotal = await this.getTotalUserBalance();
-    const onChainBalance = await this.getSystemWalletBalance('user_funds');
+    const onChainBalance = await this.getSystemWalletBalance('treasury');
 
     const difference = Math.abs(internalTotal - onChainBalance);
     const matched = difference < 0.000001; // Allow for minor rounding differences
@@ -634,6 +634,8 @@ export class LedgerService {
 
   /**
    * Reconcile balances and alert admins if mismatch detected
+   * Note: Only logs warnings, does not send admin alerts to avoid spam
+   * Admins should use /reconcile or /walletstats commands to manually check
    */
   static async reconcileAndAlert(): Promise<{
     internalTotal: number;
@@ -644,16 +646,12 @@ export class LedgerService {
     const result = await this.reconcileBalances();
 
     if (!result.matched && result.difference > 0.01) {
-      // Import admin notify dynamically to avoid circular dependencies
-      const { notifyAdmin } = await import('../utils/adminNotify');
-
-      await notifyAdmin(
-        `⚠️ *Balance Mismatch Detected*\n\n` +
-        `Internal Ledger: \`${result.internalTotal.toFixed(6)} JUNO\`\n` +
-        `On-Chain Balance: \`${result.onChainTotal.toFixed(6)} JUNO\`\n` +
-        `Difference: \`${result.difference.toFixed(6)} JUNO\`\n\n` +
-        `Please investigate immediately using /walletstats`
-      );
+      logger.warn('Balance mismatch detected during periodic reconciliation', {
+        internalTotal: result.internalTotal,
+        onChainTotal: result.onChainTotal,
+        difference: result.difference,
+        note: 'Admins should manually verify with /reconcile or /walletstats'
+      });
     }
 
     return result;

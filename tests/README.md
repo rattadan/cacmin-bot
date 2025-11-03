@@ -13,7 +13,7 @@ Comprehensive test coverage for the CAC Admin Bot, including unit tests, integra
 
 ### Test Breakdown
 
-#### Passing Test Suites ✅
+#### Passing Test Suites 
 1. **tests/unit/middleware.test.ts** - 74 tests passing
    - Permission middleware (owner/admin/elevated)
    - Message filtering middleware
@@ -57,7 +57,7 @@ Comprehensive test coverage for the CAC Admin Bot, including unit tests, integra
    - Ledger integrity
    - Complex multi-step workflows
 
-#### Test Suites with Known Issues 🔧
+#### Test Suites with Known Issues 
 6. **tests/unit/roles.test.ts** - 36 tests (database permission issues)
 7. **tests/unit/violations.test.ts** - 52 tests (database permission issues)
 8. **tests/unit/moderation.test.ts** - 32 tests (minor FK constraint issues)

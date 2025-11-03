@@ -62,7 +62,7 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
 
     const admin = get<User>('SELECT * FROM users WHERE id = ?', [adminId]);
     if (!admin || (admin.role !== 'admin' && admin.role !== 'owner')) {
-      return ctx.reply('⛔ You do not have permission to use this command.');
+      return ctx.reply(' You do not have permission to use this command.');
     }
 
     // Get user identifier (supports reply-to-message or explicit username/userId)
@@ -76,7 +76,7 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
 
     if (!userIdentifier) {
       return ctx.reply(
-        '💡 *Usage:*\n' +
+        ' *Usage:*\n' +
         '• Reply to a user: `/jail <minutes>`\n' +
         '• Direct: `/jail <@username|userId> <minutes>`\n' +
         '• Alias: `/silence`',
@@ -85,7 +85,7 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
     }
 
     if (args.length < 1) {
-      return ctx.reply('⚠️ Please specify duration in minutes.');
+      return ctx.reply(' Please specify duration in minutes.');
     }
 
     const minutesStr = args[0];
@@ -94,7 +94,7 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
     // Resolve username or userId to numeric ID
     const userId = resolveUserId(userIdentifier);
     if (!userId) {
-      return ctx.reply('❌ User not found. Please use a valid @username or userId.');
+      return ctx.reply(' User not found. Please use a valid @username or userId.');
     }
 
     if (isNaN(minutes) || minutes < 1) {

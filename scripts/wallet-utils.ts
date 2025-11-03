@@ -72,7 +72,7 @@ async function generateWallet() {
   console.log(`\n${colors.bright}Address:${colors.reset} ${account.address}`);
   console.log(`\n${colors.bright}Mnemonic (24 words):${colors.reset}`);
   console.log(`${colors.yellow}${mnemonic}${colors.reset}`);
-  console.log(`\n${colors.red}⚠️  IMPORTANT: Save this mnemonic securely! It's the only way to recover your wallet.${colors.reset}`);
+  console.log(`\n${colors.red}  IMPORTANT: Save this mnemonic securely! It's the only way to recover your wallet.${colors.reset}`);
 
   // Offer to save to file
   const saveToFile = await prompt('\nSave wallet info to file? (y/n): ');
@@ -88,7 +88,7 @@ async function generateWallet() {
 
     fs.writeFileSync(filename, JSON.stringify(walletData, null, 2));
     console.log(`${colors.green}✓ Saved to ${filename}${colors.reset}`);
-    console.log(`${colors.red}⚠️  Remember to move this file to a secure location!${colors.reset}`);
+    console.log(`${colors.red}  Remember to move this file to a secure location!${colors.reset}`);
   }
 
   return account.address;

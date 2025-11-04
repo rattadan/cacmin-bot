@@ -40,11 +40,12 @@ for cmd in curl jq tar; do
     fi
 done
 
-# Get current version if exists
-CURRENT_VERSION=""
+# Get current version timestamp if exists
+CURRENT_TIMESTAMP=""
 if [ -f "$INSTALL_DIR/version.txt" ]; then
-    CURRENT_VERSION=$(cat "$INSTALL_DIR/version.txt")
-    echo -e "Current version: ${YELLOW}${CURRENT_VERSION}${NC}"
+    CURRENT_TIMESTAMP=$(cat "$INSTALL_DIR/version.txt")
+    CURRENT_DATE=$(date -d "@$CURRENT_TIMESTAMP" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || date -r "$CURRENT_TIMESTAMP" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "unknown")
+    echo -e "Current version: ${YELLOW}${CURRENT_DATE}${NC}"
 else
     echo -e "${YELLOW}No version file found (first install or old version)${NC}"
 fi
@@ -67,20 +68,22 @@ if ! echo "$RELEASE_INFO" | jq empty 2>/dev/null; then
     exit 1
 fi
 
-LATEST_VERSION=$(echo "$RELEASE_INFO" | jq -r '.tag_name')
+LATEST_PUBLISHED=$(echo "$RELEASE_INFO" | jq -r '.published_at')
+LATEST_TIMESTAMP=$(date -d "$LATEST_PUBLISHED" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$LATEST_PUBLISHED" +%s 2>/dev/null)
+LATEST_DATE=$(date -d "@$LATEST_TIMESTAMP" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || date -r "$LATEST_TIMESTAMP" "+%Y-%m-%d %H:%M:%S" 2>/dev/null)
 DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name == "cacmin-bot-dist.tar.gz") | .browser_download_url')
 
-if [ "$LATEST_VERSION" == "null" ] || [ -z "$LATEST_VERSION" ]; then
+if [ -z "$LATEST_TIMESTAMP" ] || [ "$LATEST_TIMESTAMP" == "null" ]; then
     echo -e "${RED}Error: No 'latest' release found${NC}"
     echo "The build may still be in progress."
     echo "Check: https://github.com/$REPO/releases"
     exit 1
 fi
 
-echo -e "Latest version: ${GREEN}${LATEST_VERSION}${NC}"
+echo -e "Latest version: ${GREEN}${LATEST_DATE}${NC}"
 
-# Check if update is needed
-if [ "$CURRENT_VERSION" == "$LATEST_VERSION" ] && [ "$FORCE_UPDATE" != true ]; then
+# Check if update is needed (compare timestamps)
+if [ -n "$CURRENT_TIMESTAMP" ] && [ "$CURRENT_TIMESTAMP" -ge "$LATEST_TIMESTAMP" ] && [ "$FORCE_UPDATE" != true ]; then
     echo -e "\n${GREEN}Already up to date!${NC}"
     echo "Use --force to reinstall anyway."
     exit 0
@@ -138,13 +141,14 @@ if [ -d "$INSTALL_DIR" ]; then
     echo -e "${GREEN}✓ Backup created${NC}"
 fi
 
-# Extract new version (preserving .env and data)
+# Extract new version (preserving .env, data, and node_modules)
 echo -e "\n${YELLOW}Installing new version...${NC}"
 
-# Preserve .env and data directory
+# Preserve .env, data directory, and node_modules
 if [ -d "$INSTALL_DIR" ]; then
     mv "$INSTALL_DIR/.env" /tmp/cacmin-bot.env.bak 2>/dev/null || true
     mv "$INSTALL_DIR/data" /tmp/cacmin-bot.data.bak 2>/dev/null || true
+    mv "$INSTALL_DIR/node_modules" /tmp/cacmin-bot.node_modules.bak 2>/dev/null || true
 fi
 
 # Remove old installation (except preserved files)
@@ -154,20 +158,40 @@ mkdir -p "$INSTALL_DIR"
 # Extract new version
 tar -xzf cacmin-bot-dist.tar.gz -C "$INSTALL_DIR/"
 
-# Restore .env and data
+# Restore .env, data, and node_modules
 [ -f /tmp/cacmin-bot.env.bak ] && mv /tmp/cacmin-bot.env.bak "$INSTALL_DIR/.env"
 [ -d /tmp/cacmin-bot.data.bak ] && mv /tmp/cacmin-bot.data.bak "$INSTALL_DIR/data"
+[ -d /tmp/cacmin-bot.node_modules.bak ] && mv /tmp/cacmin-bot.node_modules.bak "$INSTALL_DIR/node_modules"
 
 # Create data directory if it doesn't exist
 mkdir -p "$INSTALL_DIR/data"
 
 echo -e "${GREEN}✓ Files extracted${NC}"
 
-# Install production dependencies
-echo -e "\n${YELLOW}Installing dependencies...${NC}"
+# Install/update dependencies only if needed
+echo -e "\n${YELLOW}Checking dependencies...${NC}"
 cd "$INSTALL_DIR"
-yarn install --production --frozen-lockfile
-echo -e "${GREEN}✓ Dependencies installed${NC}"
+
+# If node_modules exists and package.json hasn't changed, skip install
+if [ -d "node_modules" ] && [ -f ".yarn-installed" ]; then
+    PREV_PACKAGE_HASH=$(cat .yarn-installed 2>/dev/null || echo "")
+    CURR_PACKAGE_HASH=$(md5sum package.json 2>/dev/null | cut -d' ' -f1 || md5 -q package.json 2>/dev/null || echo "")
+
+    if [ "$PREV_PACKAGE_HASH" == "$CURR_PACKAGE_HASH" ]; then
+        echo -e "${GREEN}✓ Dependencies up to date (skipping install)${NC}"
+    else
+        echo -e "${YELLOW}Package.json changed, updating dependencies...${NC}"
+        yarn install --production --frozen-lockfile --prefer-offline
+        echo "$CURR_PACKAGE_HASH" > .yarn-installed
+        echo -e "${GREEN}✓ Dependencies updated${NC}"
+    fi
+else
+    echo -e "${YELLOW}Installing dependencies...${NC}"
+    yarn install --production --frozen-lockfile --prefer-offline
+    CURR_PACKAGE_HASH=$(md5sum package.json 2>/dev/null | cut -d' ' -f1 || md5 -q package.json 2>/dev/null || echo "")
+    echo "$CURR_PACKAGE_HASH" > .yarn-installed
+    echo -e "${GREEN}✓ Dependencies installed${NC}"
+fi
 
 # Set proper permissions
 echo -e "\n${YELLOW}Setting permissions...${NC}"
@@ -187,8 +211,8 @@ if [ -f "$INSTALL_DIR/cacmin-bot.service" ]; then
     echo -e "${GREEN}✓ Service updated${NC}"
 fi
 
-# Save version info
-echo "$LATEST_VERSION" > "$INSTALL_DIR/version.txt"
+# Save version info (timestamp)
+echo "$LATEST_TIMESTAMP" > "$INSTALL_DIR/version.txt"
 chown cacmin-bot:cacmin-bot "$INSTALL_DIR/version.txt"
 
 # Start the service
@@ -208,7 +232,11 @@ fi
 rm -rf "$DOWNLOAD_DIR"
 
 echo -e "\n${GREEN}=== Update Complete ===${NC}"
-echo -e "Updated from ${YELLOW}${CURRENT_VERSION}${NC} to ${GREEN}${LATEST_VERSION}${NC}\n"
+if [ -n "$CURRENT_DATE" ] && [ "$CURRENT_DATE" != "unknown" ]; then
+    echo -e "Updated from ${YELLOW}${CURRENT_DATE}${NC} to ${GREEN}${LATEST_DATE}${NC}\n"
+else
+    echo -e "Installed version: ${GREEN}${LATEST_DATE}${NC}\n"
+fi
 
 echo "To view logs:"
 echo "  sudo journalctl -u $SERVICE_NAME -f"

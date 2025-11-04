@@ -83,7 +83,8 @@ fi
 echo -e "Latest version: ${GREEN}${LATEST_DATE}${NC}"
 
 # Check if update is needed (compare timestamps)
-if [ -n "$CURRENT_TIMESTAMP" ] && [ "$CURRENT_TIMESTAMP" -ge "$LATEST_TIMESTAMP" ] && [ "$FORCE_UPDATE" != true ]; then
+# Only compare if CURRENT_TIMESTAMP is numeric
+if [ -n "$CURRENT_TIMESTAMP" ] && [[ "$CURRENT_TIMESTAMP" =~ ^[0-9]+$ ]] && [ "$CURRENT_TIMESTAMP" -ge "$LATEST_TIMESTAMP" ] && [ "$FORCE_UPDATE" != true ]; then
     echo -e "\n${GREEN}Already up to date!${NC}"
     echo "Use --force to reinstall anyway."
     exit 0

@@ -94,6 +94,9 @@ export class UnifiedWalletService {
       lastCheckedHeight: this.lastCheckedHeight
     });
 
+    // Run startup reconciliation to catch any missed deposits
+    await this.reconcileStartupDeposits();
+
     // Start deposit monitoring
     this.startDepositMonitoring();
   }
@@ -114,6 +117,97 @@ export class UnifiedWalletService {
       createUser(SYSTEM_USER_IDS.UNCLAIMED, 'UNCLAIMED_DEPOSITS', 'system', 'system_initialization');
       await LedgerService.ensureUserBalance(SYSTEM_USER_IDS.UNCLAIMED);
       logger.info('Created unclaimed deposits user in ledger');
+    }
+  }
+
+  /**
+   * Reconcile deposits on startup - catch any that were missed
+   */
+  private static async reconcileStartupDeposits(): Promise<void> {
+    try {
+      logger.info('Running startup deposit reconciliation...');
+
+      // Fetch all deposits from blockchain
+      const query = `transfer.recipient='${this.walletAddress}'`;
+      const url = `${this.rpcEndpoint}/tx_search?query="${encodeURIComponent(query)}"&prove=false&per_page=100`;
+
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`RPC request failed: ${response.status}`);
+      }
+
+      const data = await response.json() as any;
+      const txs = data.result?.txs || [];
+
+      let processedCount = 0;
+      let skippedCount = 0;
+
+      for (const tx of txs) {
+        // Skip failed transactions
+        if (tx.tx_result.code !== 0) continue;
+
+        // Check if already in database
+        const existing = get<any>('SELECT * FROM processed_deposits WHERE tx_hash = ?', [tx.hash]);
+        if (existing) {
+          skippedCount++;
+          continue;
+        }
+
+        // Extract deposit info
+        let amount = 0;
+        let fromAddress = '';
+
+        for (const event of tx.tx_result.events) {
+          if (event.type === 'transfer') {
+            const recipient = event.attributes.find((a: any) => a.key === 'recipient')?.value;
+            const amountStr = event.attributes.find((a: any) => a.key === 'amount')?.value;
+            const sender = event.attributes.find((a: any) => a.key === 'sender')?.value;
+
+            if (recipient === this.walletAddress && amountStr) {
+              const match = amountStr.match(/^(\d+)ujuno$/);
+              if (match) {
+                amount = parseFloat(match[1]) / 1_000_000;
+                fromAddress = sender || '';
+              }
+            }
+          }
+        }
+
+        if (amount === 0) continue;
+
+        // Extract memo
+        const memo = this.parseMemo(tx.tx, amount);
+        const userId = this.parseUserId(memo);
+
+        // Process this missed deposit
+        await this.processDeposit({
+          txHash: tx.hash,
+          userId,
+          amount,
+          fromAddress,
+          memo,
+          height: parseInt(tx.height),
+          timestamp: Math.floor(Date.now() / 1000)
+        });
+
+        processedCount++;
+
+        logger.info('Processed missed deposit during reconciliation', {
+          txHash: tx.hash,
+          amount,
+          userId: userId || 'unclaimed',
+          memo
+        });
+      }
+
+      logger.info('Startup reconciliation complete', {
+        totalScanned: txs.length,
+        alreadyProcessed: skippedCount,
+        newlyProcessed: processedCount
+      });
+
+    } catch (error) {
+      logger.error('Startup deposit reconciliation failed', error);
     }
   }
 

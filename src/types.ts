@@ -64,6 +64,10 @@ export interface UserRestriction {
   restrictedAction?: string;  // Sticker pack ID, domain, or regex pattern
   metadata?: string;          // JSON-encoded
   restrictedUntil?: number;   // Unix timestamp, undefined = permanent
+  severity: 'delete' | 'mute' | 'jail';  // Penalty severity
+  violationThreshold: number;  // Violations before auto-jail
+  autoJailDuration: number;    // Auto-jail duration in minutes (default 2880 = 2 days)
+  autoJailFine: number;        // JUNO fine amount to unjail
   createdAt: number;
 }
 

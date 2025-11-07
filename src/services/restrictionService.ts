@@ -5,6 +5,7 @@ import { query, execute } from '../database';
 import { logger } from '../utils/logger';
 import { createViolation } from './violationService';
 import { createPatternObject, testPatternSafely } from '../utils/safeRegex';
+import { JailService } from './jailService';
 
 export class RestrictionService {
   /**
@@ -198,35 +199,285 @@ export class RestrictionService {
   }
 
   /**
-   * Handle restriction violation
+   * Handle restriction violation with severity-based penalties
    */
   private static async handleViolation(ctx: Context, restriction: UserRestriction | GlobalAction): Promise<void> {
     if (!ctx.from) return;
 
     try {
+      const userId = ctx.from.id;
+      const userRestriction = restriction as UserRestriction;
+
       // Delete the message
       await ctx.deleteMessage();
 
       // Create violation record
       const msg = ctx.message as any;
       await createViolation(
-        ctx.from.id,
+        userId,
         restriction.restriction,
         msg?.text || '[non-text message]'
       );
 
-      // Send warning to user
-      await ctx.reply(
-        ` Your message was deleted for violating restriction: ${restriction.restriction}\n` +
-        `A violation has been recorded. Use /violations to check your status.`
+      // Check for spam (recent violations)
+      const recentViolations = await this.getRecentViolations(
+        userId,
+        restriction.restriction,
+        60 // Last 60 minutes
       );
 
       logger.info('Restriction violation handled', {
-        userId: ctx.from.id,
-        restriction: restriction.restriction
+        userId,
+        restriction: restriction.restriction,
+        recentViolations: recentViolations.length,
+        severity: userRestriction.severity || 'delete'
       });
+
+      // Check if auto-jail threshold reached
+      const threshold = userRestriction.violationThreshold || 5;
+      if (recentViolations.length >= threshold) {
+        await this.applyAutoJail(ctx, userRestriction);
+        return;
+      }
+
+      // Apply severity-based penalty
+      const severity = userRestriction.severity || 'delete';
+
+      switch (severity) {
+        case 'jail':
+          // Immediate jail on any violation
+          await this.applyImmediateJail(ctx, userRestriction);
+          break;
+
+        case 'mute':
+          // Temporary mute (30 minutes)
+          await this.applyTemporaryMute(ctx, userId);
+          break;
+
+        case 'delete':
+        default:
+          // Just delete + warn (already done above)
+          await ctx.reply(
+            `⚠️ Your message was deleted for violating restriction: ${restriction.restriction}\n\n` +
+            `Violations in last hour: ${recentViolations.length}/${threshold}\n` +
+            `${recentViolations.length >= threshold - 1 ? '🚨 Warning: One more violation will result in automatic 2-day jail with a 10 JUNO fine!\n' : ''}` +
+            `\nUse /violations to check your status.\n` +
+            `If you get jailed, use /paybail to pay your fine and get unjailed immediately.`
+          );
+          break;
+      }
     } catch (error) {
       logger.error('Failed to handle violation', error);
+    }
+  }
+
+  /**
+   * Get recent violations for a user and restriction type
+   */
+  private static async getRecentViolations(
+    userId: number,
+    restriction: string,
+    minutesAgo: number
+  ): Promise<any[]> {
+    const sinceTimestamp = Math.floor(Date.now() / 1000) - (minutesAgo * 60);
+
+    return query(
+      `SELECT * FROM violations
+       WHERE user_id = ?
+       AND restriction = ?
+       AND timestamp > ?
+       ORDER BY timestamp DESC`,
+      [userId, restriction, sinceTimestamp]
+    );
+  }
+
+  /**
+   * Apply automatic jail for spam violations
+   */
+  private static async applyAutoJail(ctx: Context, restriction: UserRestriction): Promise<void> {
+    if (!ctx.from) return;
+
+    const userId = ctx.from.id;
+    const duration = restriction.autoJailDuration || 2880; // Default 2 days
+    const fine = restriction.autoJailFine || 10.0; // Default 10 JUNO
+
+    try {
+      const mutedUntil = Math.floor(Date.now() / 1000) + (duration * 60);
+
+      // Update database
+      execute(
+        'UPDATE users SET muted_until = ?, updated_at = ? WHERE id = ?',
+        [mutedUntil, Math.floor(Date.now() / 1000), userId]
+      );
+
+      // Log the jail event
+      JailService.logJailEvent(userId, 'jailed', undefined, duration, fine, undefined, undefined, {
+        reason: 'auto_spam_detection',
+        restriction: restriction.restriction
+      });
+
+      // Actually restrict the user in Telegram (if in a group)
+      if (ctx.chat?.type === 'group' || ctx.chat?.type === 'supergroup') {
+        await ctx.telegram.restrictChatMember(ctx.chat.id, userId, {
+          permissions: {
+            can_send_messages: false,
+            can_send_audios: false,
+            can_send_documents: false,
+            can_send_photos: false,
+            can_send_videos: false,
+            can_send_video_notes: false,
+            can_send_voice_notes: false,
+            can_send_polls: false,
+            can_send_other_messages: false,
+            can_add_web_page_previews: false,
+            can_change_info: false,
+            can_invite_users: false,
+            can_pin_messages: false,
+            can_manage_topics: false
+          },
+          until_date: mutedUntil
+        });
+      }
+
+      // Notify user with payment guidance
+      await ctx.reply(
+        `🚨 *AUTOMATIC JAIL - Spam Detection*\n\n` +
+        `You have been automatically jailed for ${duration} minutes (${Math.round(duration / 1440)} days) due to repeated violations of: ${restriction.restriction}\n\n` +
+        `**Fine Amount:** ${fine} JUNO\n\n` +
+        `💰 **To get unjailed immediately:**\n` +
+        `1. Check your balance: \`/balance\`\n` +
+        `2. Deposit JUNO if needed: \`/deposit\`\n` +
+        `3. Pay your bail: \`/paybail\`\n\n` +
+        `Otherwise, you will be automatically released after ${Math.round(duration / 1440)} days.\n\n` +
+        `View your violations: \`/violations\``,
+        { parse_mode: 'Markdown' }
+      );
+
+      logger.warn('Auto-jail applied for spam', {
+        userId,
+        restriction: restriction.restriction,
+        duration,
+        fine
+      });
+    } catch (error) {
+      logger.error('Failed to apply auto-jail', { userId, error });
+    }
+  }
+
+  /**
+   * Apply immediate jail for high-severity restrictions
+   */
+  private static async applyImmediateJail(ctx: Context, restriction: UserRestriction): Promise<void> {
+    if (!ctx.from) return;
+
+    const userId = ctx.from.id;
+    const duration = 60; // 1 hour for immediate jail
+    const fine = 5.0; // 5 JUNO fine
+
+    try {
+      const mutedUntil = Math.floor(Date.now() / 1000) + (duration * 60);
+
+      // Update database
+      execute(
+        'UPDATE users SET muted_until = ?, updated_at = ? WHERE id = ?',
+        [mutedUntil, Math.floor(Date.now() / 1000), userId]
+      );
+
+      // Log the jail event
+      JailService.logJailEvent(userId, 'jailed', undefined, duration, fine, undefined, undefined, {
+        reason: 'restriction_violation',
+        restriction: restriction.restriction
+      });
+
+      // Actually restrict the user in Telegram (if in a group)
+      if (ctx.chat?.type === 'group' || ctx.chat?.type === 'supergroup') {
+        await ctx.telegram.restrictChatMember(ctx.chat.id, userId, {
+          permissions: {
+            can_send_messages: false,
+            can_send_audios: false,
+            can_send_documents: false,
+            can_send_photos: false,
+            can_send_videos: false,
+            can_send_video_notes: false,
+            can_send_voice_notes: false,
+            can_send_polls: false,
+            can_send_other_messages: false,
+            can_add_web_page_previews: false,
+            can_change_info: false,
+            can_invite_users: false,
+            can_pin_messages: false,
+            can_manage_topics: false
+          },
+          until_date: mutedUntil
+        });
+      }
+
+      await ctx.reply(
+        `🔒 *JAILED - Restriction Violation*\n\n` +
+        `You have been jailed for ${duration} minutes for violating: ${restriction.restriction}\n\n` +
+        `**Fine: ${fine} JUNO**\n\n` +
+        `💰 **To get unjailed immediately:**\n` +
+        `1. Check your balance: \`/balance\`\n` +
+        `2. Deposit JUNO if needed: \`/deposit\`\n` +
+        `3. Pay your bail: \`/paybail\`\n\n` +
+        `View your violations: \`/violations\``,
+        { parse_mode: 'Markdown' }
+      );
+
+      logger.info('Immediate jail applied', { userId, restriction: restriction.restriction });
+    } catch (error) {
+      logger.error('Failed to apply immediate jail', { userId, error });
+    }
+  }
+
+  /**
+   * Apply temporary mute for medium-severity restrictions
+   * Uses Telegram's restrictChatMember API to actually mute the user
+   */
+  private static async applyTemporaryMute(ctx: Context, userId: number): Promise<void> {
+    const duration = 30; // 30 minutes
+
+    try {
+      const mutedUntil = Math.floor(Date.now() / 1000) + (duration * 60);
+
+      // Actually mute the user in Telegram (remove send message permissions)
+      if (ctx.chat?.type === 'group' || ctx.chat?.type === 'supergroup') {
+        await ctx.telegram.restrictChatMember(ctx.chat.id, userId, {
+          permissions: {
+            can_send_messages: false,
+            can_send_audios: false,
+            can_send_documents: false,
+            can_send_photos: false,
+            can_send_videos: false,
+            can_send_video_notes: false,
+            can_send_voice_notes: false,
+            can_send_polls: false,
+            can_send_other_messages: false,
+            can_add_web_page_previews: false,
+            can_change_info: false,
+            can_invite_users: false,
+            can_pin_messages: false,
+            can_manage_topics: false
+          },
+          until_date: mutedUntil
+        });
+      }
+
+      // Update user's muted_until timestamp in database
+      execute('UPDATE users SET muted_until = ? WHERE id = ?', [mutedUntil, userId]);
+
+      await ctx.reply(
+        `🔇 *MUTED - Restriction Violation*\n\n` +
+        `You have been temporarily muted for ${duration} minutes.\n\n` +
+        `You will not be able to send messages until the mute expires.\n\n` +
+        `⚠️ **Warning:** Continued violations will result in automatic jail with a fine that can only be removed by paying in JUNO.\n\n` +
+        `View your violations: \`/violations\``,
+        { parse_mode: 'Markdown' }
+      );
+
+      logger.info('Temporary mute applied', { userId, duration });
+    } catch (error) {
+      logger.error('Failed to apply temporary mute', { userId, error });
     }
   }
 

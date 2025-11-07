@@ -237,7 +237,7 @@ export const initDb = (): void => {
     );
   `);
 
-  // Enhanced user_restrictions table
+  // Enhanced user_restrictions table with severity levels
   db.exec(`
     CREATE TABLE IF NOT EXISTS user_restrictions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -246,10 +246,36 @@ export const initDb = (): void => {
       restricted_action TEXT,
       metadata TEXT,
       restricted_until INTEGER,
+      severity TEXT DEFAULT 'delete',
+      violation_threshold INTEGER DEFAULT 5,
+      auto_jail_duration INTEGER DEFAULT 2880,
+      auto_jail_fine REAL DEFAULT 10.0,
       created_at INTEGER DEFAULT (strftime('%s', 'now')),
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
   `);
+
+  // Add new columns to existing user_restrictions table if they don't exist
+  try {
+    db.exec(`ALTER TABLE user_restrictions ADD COLUMN severity TEXT DEFAULT 'delete'`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  try {
+    db.exec(`ALTER TABLE user_restrictions ADD COLUMN violation_threshold INTEGER DEFAULT 5`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  try {
+    db.exec(`ALTER TABLE user_restrictions ADD COLUMN auto_jail_duration INTEGER DEFAULT 2880`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  try {
+    db.exec(`ALTER TABLE user_restrictions ADD COLUMN auto_jail_fine REAL DEFAULT 10.0`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
 
   // Enhanced global_restrictions table
   db.exec(`

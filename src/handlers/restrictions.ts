@@ -63,12 +63,14 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
         '• **No Voice** - Block voice messages and video notes\n' +
         '• **No Forwarding** - Block forwarded messages\n' +
         '• **Regex Block** - Block messages matching text patterns\n\n' +
-        '_Or use command format:_\n' +
-        '`/addrestriction <userId> <restriction> [action] [until]`\n\n' +
-        '_Examples:_\n' +
-        '`/addrestriction 123456 no_photos` - Block photos permanently\n' +
-        '`/addrestriction 123456 no_urls google.com` - Block specific domain\n' +
-        '`/addrestriction 123456 regex_block spam.*pattern` - Block text pattern',
+        '_Command format:_\n' +
+        '`/addrestriction <userId> <type> [action] [until]`\n\n' +
+        '**Examples:**\n' +
+        '`/addrestriction 123456 no_photos`\n' +
+        '`/addrestriction 123456 no_urls google.com`\n' +
+        '`/addrestriction 123456 regex_block "spam phrase"`\n\n' +
+        '_For regex pattern examples, use:_\n' +
+        '`/regexhelp`',
         {
           parse_mode: 'Markdown',
           reply_markup: restrictionTypeKeyboard
@@ -187,5 +189,71 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
       StructuredLogger.logError(error as Error, { adminId, userId: parseInt(userId, 10), operation: 'list_restrictions' });
       await ctx.reply('An error occurred while fetching restrictions.');
     }
+  });
+
+  /**
+   * Command handler for /regexhelp.
+   * Displays comprehensive examples for using regex patterns.
+   *
+   * Permission: Admin or higher
+   *
+   * @param ctx - Telegraf context
+   */
+  bot.command('regexhelp', adminOrHigher, async (ctx) => {
+    const helpMessage = `📝 *Regex Pattern Guide*
+
+*Pattern Types:*
+
+1️⃣ *Simple Text* (exact phrase, case-insensitive)
+\`/addrestriction 123456 regex_block "buy now"\`
+Blocks: "buy now", "BUY NOW", "Buy Now"
+
+2️⃣ *Wildcards* (* = any chars, ? = one char)
+\`/addrestriction 123456 regex_block "*crypto scam*"\`
+\`/addrestriction 123456 regex_block "test?pattern"\`
+
+3️⃣ *Full Regex* (/pattern/flags format)
+\`/addrestriction 123456 regex_block "/spam.*here/i"\`
+
+━━━━━━━━━━━━━━━━━━
+
+*Common Examples:*
+
+*Block spam phrases:*
+\`/addrestriction 123456 regex_block "/buy.*now|click.*here|limited.*offer/i"\`
+
+*Block phone numbers:*
+\`/addrestriction 123456 regex_block "/\\\\+?[0-9]{10,15}/i"\`
+
+*Block crypto addresses:*
+\`/addrestriction 123456 regex_block "/0x[a-fA-F0-9]{40}/"\`
+\`/addrestriction 123456 regex_block "/(cosmos|juno)[a-z0-9]{39}/"\`
+
+*Block excessive caps:*
+\`/addrestriction 123456 regex_block "/^[A-Z\\\\s!?.,]{20,}$/"\`
+
+*Block repeated chars:*
+\`/addrestriction 123456 regex_block "/(.)\\\\1{4,}/"\`
+Blocks: "aaaaa", "!!!!!", "😂😂😂😂😂"
+
+*Block profanity:*
+\`/addrestriction 123456 regex_block "/\\\\b(word1|word2|word3)\\\\b/i"\`
+
+*Block social handles:*
+\`/addrestriction 123456 regex_block "/follow.*instagram|check.*my.*ig/i"\`
+
+━━━━━━━━━━━━━━━━━━
+
+*Testing Tips:*
+• Test in a test group first
+• Use temporary restrictions (add seconds at end)
+• Start with simple patterns, then expand
+
+*Example with 1 hour timeout:*
+\`/addrestriction 123456 regex_block "test" 3600\`
+
+Full documentation: See REGEX\\_PATTERNS.md`;
+
+    await ctx.reply(helpMessage, { parse_mode: 'Markdown' });
   });
 };

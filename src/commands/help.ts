@@ -276,6 +276,8 @@ function getHelpTextForCategory(category: string, role: string): string | null {
         `  Demote an elevated user back to 'pleb' role, removing their elevated permissions\\.\n\n` +
         `/addrestriction \\<user\\> \\<type\\>\n` +
         `  Add a content restriction to a specific user\\. Types: no\\_stickers, no\\_urls, no\\_media, no\\_photos, no\\_videos, no\\_documents, no\\_gifs, no\\_voice, no\\_forwarding, regex\\_block\\. Can set expiration time\\.\n\n` +
+        `/regexhelp\n` +
+        `  Display comprehensive examples for regex pattern restrictions\\. Shows common use cases like blocking spam, phone numbers, crypto addresses, and more\\.\n\n` +
         `/removerestriction \\<user\\> \\<type\\>\n` +
         `  Remove a specific content restriction from a user, restoring their ability to post that content type\\.\n\n` +
         `/addblacklist \\<user\\>\n` +

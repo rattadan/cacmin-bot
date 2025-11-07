@@ -3,7 +3,16 @@
  * Runs once before all tests
  */
 
+import { vi } from 'vitest';
+import * as fs from 'fs';
+import * as path from 'path';
 import { config } from '../src/config';
+
+// Create test data directory if it doesn't exist
+const testDataDir = path.join(__dirname, '../data');
+if (!fs.existsSync(testDataDir)) {
+	fs.mkdirSync(testDataDir, { recursive: true });
+}
 
 // Mock environment variables for testing
 process.env.BOT_TOKEN = 'test-bot-token';
@@ -16,12 +25,9 @@ process.env.ADMIN_CHAT_ID = '123456789';
 // Suppress console output during tests
 global.console = {
   ...console,
-  log: jest.fn(),
-  debug: jest.fn(),
-  info: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
+  log: vi.fn(),
+  debug: vi.fn(),
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
 };
-
-// Set test timeout
-jest.setTimeout(10000);

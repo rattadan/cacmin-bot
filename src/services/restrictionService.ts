@@ -113,6 +113,20 @@ export class RestrictionService {
     return urls.some((url: string) => url.includes(restrictedDomain));
   }
 
+  /**
+   * Check if message text matches a regex pattern restriction.
+   * Uses safe regex implementation with timeout protection to prevent ReDoS attacks.
+   * Supports simple text, wildcard patterns, and full regex syntax.
+   *
+   * @param message - Telegram message object
+   * @param pattern - Pattern to match (simple text, wildcard, or /regex/flags format)
+   * @returns True if message violates the regex restriction
+   *
+   * @example
+   * checkRegex(message, 'spam.*word') // Matches "spam word", "spam123word", etc.
+   * checkRegex(message, '/buy.*now/gi') // Case-insensitive regex
+   * checkRegex(message, 'test*pattern') // Wildcard pattern
+   */
   private static async checkRegex(message: any, pattern?: string): Promise<boolean> {
     if (!pattern || (!message.text && !message.caption)) return false;
 
@@ -138,14 +152,35 @@ export class RestrictionService {
     return !!(message.photo || message.video || message.document || message.audio);
   }
 
+  /**
+   * Check if message contains photo attachments.
+   * More granular than checkMedia(), allows restricting photos specifically.
+   *
+   * @param message - Telegram message object
+   * @returns True if message contains photos
+   */
   private static checkPhotos(message: any): boolean {
     return !!message.photo;
   }
 
+  /**
+   * Check if message contains video attachments.
+   * More granular than checkMedia(), allows restricting videos specifically.
+   *
+   * @param message - Telegram message object
+   * @returns True if message contains videos
+   */
   private static checkVideos(message: any): boolean {
     return !!message.video;
   }
 
+  /**
+   * Check if message contains document attachments.
+   * More granular than checkMedia(), allows restricting documents specifically.
+   *
+   * @param message - Telegram message object
+   * @returns True if message contains documents
+   */
   private static checkDocuments(message: any): boolean {
     return !!message.document;
   }

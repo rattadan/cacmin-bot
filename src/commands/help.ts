@@ -100,8 +100,33 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
     }
   });
 
-  // Handle help menu callbacks
-  bot.action(/^help_(.+)$/, async (ctx) => {
+  // Handle back to menu - Register BEFORE regex to prevent matching
+  bot.action('help_menu', async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId) return;
+
+    try {
+      const user = get<User>('SELECT * FROM users WHERE id = ?', [userId]);
+      const role = user?.role || 'pleb';
+
+      const keyboard: InlineKeyboardMarkup = buildHelpMenu(role);
+
+      await ctx.editMessageText(
+        `*CAC Admin Bot*\n\nRole: \`${role}\`\n\nSelect a category to view commands:`,
+        {
+          parse_mode: 'MarkdownV2',
+          reply_markup: keyboard
+        }
+      );
+      await ctx.answerCbQuery();
+    } catch (error) {
+      logger.error('Error returning to help menu', { userId, error });
+      await ctx.answerCbQuery('Error loading menu');
+    }
+  });
+
+  // Handle help category callbacks - specific categories only, exclude 'menu'
+  bot.action(/^help_(wallet|shared|user|payments|elevated|admin|owner)$/, async (ctx) => {
     const category = ctx.match[1];
     const userId = ctx.from?.id;
     if (!userId) return;
@@ -128,31 +153,6 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
     } catch (error) {
       logger.error('Error in help callback', { userId, category, error });
       await ctx.answerCbQuery('Error loading help category');
-    }
-  });
-
-  // Handle back to menu
-  bot.action('help_menu', async (ctx) => {
-    const userId = ctx.from?.id;
-    if (!userId) return;
-
-    try {
-      const user = get<User>('SELECT * FROM users WHERE id = ?', [userId]);
-      const role = user?.role || 'pleb';
-
-      const keyboard: InlineKeyboardMarkup = buildHelpMenu(role);
-
-      await ctx.editMessageText(
-        `*CAC Admin Bot*\n\nRole: \`${role}\`\n\nSelect a category to view commands:`,
-        {
-          parse_mode: 'MarkdownV2',
-          reply_markup: keyboard
-        }
-      );
-      await ctx.answerCbQuery();
-    } catch (error) {
-      logger.error('Error returning to help menu', { userId, error });
-      await ctx.answerCbQuery('Error loading menu');
     }
   });
 }

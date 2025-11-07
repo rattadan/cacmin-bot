@@ -68,7 +68,7 @@ if ! echo "$RELEASE_INFO" | jq empty 2>/dev/null; then
     exit 1
 fi
 
-LATEST_PUBLISHED=$(echo "$RELEASE_INFO" | jq -r '.published_at')
+LATEST_PUBLISHED=$(echo "$RELEASE_INFO" | jq -r '.updated_at')
 LATEST_TIMESTAMP=$(date -d "$LATEST_PUBLISHED" +%s 2>/dev/null || date -j -f "%Y-%m-%dT%H:%M:%SZ" "$LATEST_PUBLISHED" +%s 2>/dev/null)
 LATEST_DATE=$(date -d "@$LATEST_TIMESTAMP" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || date -r "$LATEST_TIMESTAMP" "+%Y-%m-%d %H:%M:%S" 2>/dev/null)
 DOWNLOAD_URL=$(echo "$RELEASE_INFO" | jq -r '.assets[] | select(.name == "cacmin-bot-dist.tar.gz") | .browser_download_url')

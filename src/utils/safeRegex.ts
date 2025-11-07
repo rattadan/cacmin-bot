@@ -111,7 +111,7 @@ export function compileSafeRegex(pattern: string): CompiledPattern {
 	if (pattern.startsWith('/')) {
 		const lastSlash = pattern.lastIndexOf('/');
 		const regexPart = pattern.substring(1, lastSlash);
-		const flags = pattern.substring(lastSlash + 1) || 'gi';
+		const flags = pattern.substring(lastSlash + 1) || 'i';
 
 		return {
 			raw: pattern,
@@ -130,7 +130,7 @@ export function compileSafeRegex(pattern: string): CompiledPattern {
 
 		return {
 			raw: pattern,
-			regex: new RegExp(escaped, 'gi'),
+			regex: new RegExp(escaped, 'i'),
 			type: 'wildcard'
 		};
 	}
@@ -139,7 +139,7 @@ export function compileSafeRegex(pattern: string): CompiledPattern {
 	const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	return {
 		raw: pattern,
-		regex: new RegExp(escaped, 'gi'),
+		regex: new RegExp(escaped, 'i'),
 		type: 'simple'
 	};
 }
@@ -175,6 +175,8 @@ export function testPatternSafely(
 		}, timeoutMs);
 
 		try {
+			// Reset lastIndex to avoid issues with global flag
+			regex.lastIndex = 0;
 			const result = regex.test(text);
 			clearTimeout(timeoutId);
 			resolve(result);
@@ -199,6 +201,8 @@ export function testPatternSafely(
  */
 export function matchesPattern(regex: RegExp, text: string): boolean {
 	try {
+		// Reset lastIndex to avoid issues with global flag
+		regex.lastIndex = 0;
 		return regex.test(text);
 	} catch (error) {
 		logger.error('Pattern matching error', {

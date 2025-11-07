@@ -53,15 +53,22 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
         '🚫 *Add User Restriction*\n\n' +
         'Select a restriction type to apply:\n\n' +
         '**Restriction Types:**\n' +
-        '• **No Stickers** - Block all stickers\n' +
-        '• **No URLs** - Block URL links\n' +
-        '• **No Media** - Block photos/videos\n' +
+        '• **No Stickers** - Block all stickers or specific packs\n' +
+        '• **No URLs** - Block URL links or specific domains\n' +
+        '• **No Media (All)** - Block photos, videos, documents, audio\n' +
+        '• **No Photos** - Block only photo messages\n' +
+        '• **No Videos** - Block only video messages\n' +
+        '• **No Documents** - Block only document files\n' +
         '• **No GIFs** - Block GIF animations\n' +
-        '• **No Voice** - Block voice messages\n' +
+        '• **No Voice** - Block voice messages and video notes\n' +
         '• **No Forwarding** - Block forwarded messages\n' +
-        '• **Regex Block** - Block specific text patterns\n\n' +
+        '• **Regex Block** - Block messages matching text patterns\n\n' +
         '_Or use command format:_\n' +
-        '`/addrestriction <userId> <restriction> [action] [until]`',
+        '`/addrestriction <userId> <restriction> [action] [until]`\n\n' +
+        '_Examples:_\n' +
+        '`/addrestriction 123456 no_photos` - Block photos permanently\n' +
+        '`/addrestriction 123456 no_urls google.com` - Block specific domain\n' +
+        '`/addrestriction 123456 regex_block spam.*pattern` - Block text pattern',
         {
           parse_mode: 'Markdown',
           reply_markup: restrictionTypeKeyboard

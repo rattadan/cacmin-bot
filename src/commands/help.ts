@@ -275,7 +275,7 @@ function getHelpTextForCategory(category: string, role: string): string | null {
         `/revoke \\<user\\>\n` +
         `  Demote an elevated user back to 'pleb' role, removing their elevated permissions\\.\n\n` +
         `/addrestriction \\<user\\> \\<type\\>\n` +
-        `  Add a content restriction to a specific user \\(no\\_stickers, no\\_urls, no\\_media, etc\\)\\.  User can set duration\\.\n\n` +
+        `  Add a content restriction to a specific user\\. Types: no\\_stickers, no\\_urls, no\\_media, no\\_photos, no\\_videos, no\\_documents, no\\_gifs, no\\_voice, no\\_forwarding, regex\\_block\\. Can set expiration time\\.\n\n` +
         `/removerestriction \\<user\\> \\<type\\>\n` +
         `  Remove a specific content restriction from a user, restoring their ability to post that content type\\.\n\n` +
         `/addblacklist \\<user\\>\n` +

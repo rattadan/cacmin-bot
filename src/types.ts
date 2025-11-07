@@ -60,7 +60,7 @@ export interface JailEvent {
 export interface UserRestriction {
   id: number;
   userId: number;
-  restriction: 'no_stickers' | 'no_urls' | 'regex_block' | 'no_media' | 'muted' | 'no_gifs' | 'no_voice' | 'no_forwarding';
+  restriction: 'no_stickers' | 'no_urls' | 'regex_block' | 'no_media' | 'no_photos' | 'no_videos' | 'no_documents' | 'muted' | 'no_gifs' | 'no_voice' | 'no_forwarding';
   restrictedAction?: string;  // Sticker pack ID, domain, or regex pattern
   metadata?: string;          // JSON-encoded
   restrictedUntil?: number;   // Unix timestamp, undefined = permanent
@@ -72,6 +72,9 @@ export type RestrictionType =
   | 'no_urls'
   | 'regex_block'
   | 'no_media'
+  | 'no_photos'
+  | 'no_videos'
+  | 'no_documents'
   | 'no_gifs'
   | 'no_voice'
   | 'no_forwarding'

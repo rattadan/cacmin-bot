@@ -4,6 +4,7 @@ import { UserRestriction, GlobalAction, User } from '../types';
 import { query, execute } from '../database';
 import { logger } from '../utils/logger';
 import { createViolation } from './violationService';
+import { createPatternObject, testPatternSafely } from '../utils/safeRegex';
 
 export class RestrictionService {
   /**
@@ -60,10 +61,19 @@ export class RestrictionService {
         return this.checkUrls(message, restriction.restrictedAction);
 
       case 'regex_block':
-        return this.checkRegex(message, restriction.restrictedAction);
+        return await this.checkRegex(message, restriction.restrictedAction);
 
       case 'no_media':
         return this.checkMedia(message);
+
+      case 'no_photos':
+        return this.checkPhotos(message);
+
+      case 'no_videos':
+        return this.checkVideos(message);
+
+      case 'no_documents':
+        return this.checkDocuments(message);
 
       case 'no_gifs':
         return this.checkGifs(message);
@@ -103,21 +113,41 @@ export class RestrictionService {
     return urls.some((url: string) => url.includes(restrictedDomain));
   }
 
-  private static checkRegex(message: any, pattern?: string): boolean {
+  private static async checkRegex(message: any, pattern?: string): Promise<boolean> {
     if (!pattern || (!message.text && !message.caption)) return false;
 
     const text = message.text || message.caption || '';
+
+    // Use safe regex with timeout protection
+    const compiledPattern = createPatternObject(pattern);
+    if (!compiledPattern) {
+      logger.error('Failed to compile regex pattern', { pattern });
+      return false;
+    }
+
     try {
-      const regex = new RegExp(pattern, 'gi');
-      return regex.test(text);
+      // Use timeout-protected matching to prevent ReDoS attacks
+      return await testPatternSafely(compiledPattern.regex, text, 100);
     } catch (error) {
-      logger.error('Invalid regex pattern', { pattern, error });
+      logger.error('Regex matching error', { pattern, error });
       return false;
     }
   }
 
   private static checkMedia(message: any): boolean {
     return !!(message.photo || message.video || message.document || message.audio);
+  }
+
+  private static checkPhotos(message: any): boolean {
+    return !!message.photo;
+  }
+
+  private static checkVideos(message: any): boolean {
+    return !!message.video;
+  }
+
+  private static checkDocuments(message: any): boolean {
+    return !!message.document;
   }
 
   private static checkGifs(message: any): boolean {

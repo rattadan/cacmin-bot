@@ -85,31 +85,47 @@ export const userExists = (userId: number): boolean => {
 
 /**
  * Add restriction for user
- * Can be time-limited or permanent with optional metadata
+ * Can be time-limited or permanent with optional metadata and severity levels
  * restrictedUntil: Unix timestamp (null for permanent)
+ * severity: 'delete' (default), 'mute' (30 min), or 'jail' (1 hour immediate)
+ * violationThreshold: Number of violations before auto-jail (default: 5)
+ * autoJailDuration: Auto-jail duration in minutes (default: 2880 = 2 days)
+ * autoJailFine: JUNO fine amount for auto-jail (default: 10.0)
  */
 export const addUserRestriction = (
   userId: number,
   restriction: string,
   restrictedAction?: string,
   metadata?: Record<string, any>,
-  restrictedUntil?: number
+  restrictedUntil?: number,
+  severity: 'delete' | 'mute' | 'jail' = 'delete',
+  violationThreshold: number = 5,
+  autoJailDuration: number = 2880,
+  autoJailFine: number = 10.0
 ): void => {
   execute(
-    'INSERT INTO user_restrictions (user_id, restriction, restricted_action, metadata, restricted_until) VALUES (?, ?, ?, ?, ?)',
+    'INSERT INTO user_restrictions (user_id, restriction, restricted_action, metadata, restricted_until, severity, violation_threshold, auto_jail_duration, auto_jail_fine) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       userId,
       restriction,
-      restrictedAction || null, // Handle undefined by converting to null for database
-      metadata ? JSON.stringify(metadata) : null, // Store metadata as JSON or null
-      restrictedUntil || null // Convert undefined expiration to null
+      restrictedAction || null,
+      metadata ? JSON.stringify(metadata) : null,
+      restrictedUntil || null,
+      severity,
+      violationThreshold,
+      autoJailDuration,
+      autoJailFine
     ]
   );
 
   StructuredLogger.logSecurityEvent('User restriction added', {
     userId,
     operation: 'add_restriction',
-    restrictedAction: restriction
+    restrictedAction: restriction,
+    severity,
+    violationThreshold,
+    autoJailDuration,
+    autoJailFine
   });
 };
 

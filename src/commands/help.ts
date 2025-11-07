@@ -274,8 +274,12 @@ function getHelpTextForCategory(category: string, role: string): string | null {
         `  Promote a user from 'pleb' to 'elevated' role, granting access to view commands and shared account creation\\.\n\n` +
         `/revoke \\<user\\>\n` +
         `  Demote an elevated user back to 'pleb' role, removing their elevated permissions\\.\n\n` +
-        `/addrestriction \\<user\\> \\<type\\>\n` +
-        `  Add a content restriction to a specific user \\(no\\_stickers, no\\_urls, no\\_media, etc\\)\\.  User can set duration\\.\n\n` +
+        `/addrestriction \\<user\\> \\<type\\> \\[severity\\]\n` +
+        `  Add a content restriction to a specific user\\. Types: no\\_stickers, no\\_urls, no\\_media, no\\_photos, no\\_videos, no\\_documents, no\\_gifs, no\\_voice, no\\_forwarding, regex\\_block\\. Severity levels: delete \\(default, just delete message\\), mute \\(30\\-min mute\\), jail \\(1\\-hour jail with fine\\)\\. Auto\\-escalation: After threshold violations \\(default 5\\), user gets auto\\-jailed for 2 days with 10 JUNO fine\\.\n\n` +
+        `/regexhelp\n` +
+        `  Display comprehensive examples for regex pattern restrictions\\. Shows common use cases like blocking spam, phone numbers, crypto addresses, and more\\.\n\n` +
+        `/listrestrictions \\<user\\>\n` +
+        `  View all active restrictions for a user including severity levels, violation thresholds, and auto\\-jail settings\\.\n\n` +
         `/removerestriction \\<user\\> \\<type\\>\n` +
         `  Remove a specific content restriction from a user, restoring their ability to post that content type\\.\n\n` +
         `/addblacklist \\<user\\>\n` +

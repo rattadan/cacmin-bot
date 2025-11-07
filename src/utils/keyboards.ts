@@ -17,14 +17,19 @@ export const restrictionTypeKeyboard: InlineKeyboardMarkup = {
       { text: '🔗 No URLs', callback_data: 'restrict_no_urls' }
     ],
     [
-      { text: '🎬 No Media', callback_data: 'restrict_no_media' },
+      { text: '🎬 No Media (All)', callback_data: 'restrict_no_media' },
       { text: '🎞️ No GIFs', callback_data: 'restrict_no_gifs' }
     ],
     [
-      { text: '🎤 No Voice', callback_data: 'restrict_no_voice' },
-      { text: '↗️ No Forwarding', callback_data: 'restrict_no_forwarding' }
+      { text: '📷 No Photos', callback_data: 'restrict_no_photos' },
+      { text: '🎥 No Videos', callback_data: 'restrict_no_videos' }
     ],
     [
+      { text: '📄 No Documents', callback_data: 'restrict_no_documents' },
+      { text: '🎤 No Voice', callback_data: 'restrict_no_voice' }
+    ],
+    [
+      { text: '↗️ No Forwarding', callback_data: 'restrict_no_forwarding' },
       { text: '📝 Regex Block', callback_data: 'restrict_regex_block' }
     ],
     [
@@ -92,11 +97,18 @@ export const globalActionKeyboard: InlineKeyboardMarkup = {
       { text: '🔗 No URLs', callback_data: 'action_no_urls' }
     ],
     [
-      { text: '🎬 No Media', callback_data: 'action_no_media' },
+      { text: '🎬 No Media (All)', callback_data: 'action_no_media' },
       { text: '🎞️ No GIFs', callback_data: 'action_no_gifs' }
     ],
     [
-      { text: '🎤 No Voice', callback_data: 'action_no_voice' },
+      { text: '📷 No Photos', callback_data: 'action_no_photos' },
+      { text: '🎥 No Videos', callback_data: 'action_no_videos' }
+    ],
+    [
+      { text: '📄 No Documents', callback_data: 'action_no_documents' },
+      { text: '🎤 No Voice', callback_data: 'action_no_voice' }
+    ],
+    [
       { text: '↗️ No Forwarding', callback_data: 'action_no_forwarding' }
     ],
     [

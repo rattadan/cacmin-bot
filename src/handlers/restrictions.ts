@@ -45,7 +45,8 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
    */
   bot.command('addrestriction', adminOrHigher, async (ctx) => {
     const adminId = ctx.from?.id;
-    const [userId, restriction, restrictedAction, restrictedUntil] = ctx.message?.text.split(' ').slice(1) || [];
+    const args = ctx.message?.text.split(' ').slice(1) || [];
+    const [userId, restriction, restrictedAction, restrictedUntil, severity, violationThreshold, autoJailDuration, autoJailFine] = args;
 
     // If no arguments, show interactive keyboard
     if (!userId || !restriction) {
@@ -53,15 +54,29 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
         '🚫 *Add User Restriction*\n\n' +
         'Select a restriction type to apply:\n\n' +
         '**Restriction Types:**\n' +
-        '• **No Stickers** - Block all stickers\n' +
-        '• **No URLs** - Block URL links\n' +
-        '• **No Media** - Block photos/videos\n' +
+        '• **No Stickers** - Block all stickers or specific packs\n' +
+        '• **No URLs** - Block URL links or specific domains\n' +
+        '• **No Media (All)** - Block photos, videos, documents, audio\n' +
+        '• **No Photos** - Block only photo messages\n' +
+        '• **No Videos** - Block only video messages\n' +
+        '• **No Documents** - Block only document files\n' +
         '• **No GIFs** - Block GIF animations\n' +
-        '• **No Voice** - Block voice messages\n' +
+        '• **No Voice** - Block voice messages and video notes\n' +
         '• **No Forwarding** - Block forwarded messages\n' +
-        '• **Regex Block** - Block specific text patterns\n\n' +
-        '_Or use command format:_\n' +
-        '`/addrestriction <userId> <restriction> [action] [until]`',
+        '• **Regex Block** - Block messages matching text patterns\n\n' +
+        '**Severity Levels:**\n' +
+        '• **delete** (default) - Just delete the violating message\n' +
+        '• **mute** - 30-minute mute on each violation\n' +
+        '• **jail** - Immediate 1-hour jail with 5 JUNO fine\n\n' +
+        '_Command format:_\n' +
+        '`/addrestriction <userId> <type> [action] [until] [severity] [threshold] [jailDuration] [jailFine]`\n\n' +
+        '**Examples:**\n' +
+        '`/addrestriction 123456 no_photos` (delete only)\n' +
+        '`/addrestriction 123456 no_photos - - mute` (mute 30min)\n' +
+        '`/addrestriction 123456 no_stickers - - delete 3` (auto-jail after 3 violations)\n' +
+        '`/addrestriction 123456 regex_block "spam" - jail` (instant jail)\n\n' +
+        '_Auto-escalation:_ After threshold violations (default 5) within 60 minutes, user gets auto-jailed for jailDuration (default 2880 min = 2 days) with jailFine (default 10 JUNO).\n\n' +
+        '_For regex pattern examples:_ `/regexhelp`',
         {
           parse_mode: 'Markdown',
           reply_markup: restrictionTypeKeyboard
@@ -77,16 +92,28 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
         return ctx.reply(` Cannot restrict user ${targetUserId} - admins and owners are immune to moderation actions.`);
       }
 
-      const untilTimestamp = restrictedUntil ? parseInt(restrictedUntil, 10) : undefined;
-      const action = restrictedAction || undefined;
+      const untilTimestamp = restrictedUntil && restrictedUntil !== '-' ? parseInt(restrictedUntil, 10) : undefined;
+      const action = restrictedAction && restrictedAction !== '-' ? restrictedAction : undefined;
       const metadata: Record<string, any> | undefined = undefined;
+
+      // Parse severity parameters with defaults
+      const severityLevel = (severity && severity !== '-' && ['delete', 'mute', 'jail'].includes(severity))
+        ? severity as 'delete' | 'mute' | 'jail'
+        : 'delete';
+      const threshold = violationThreshold && violationThreshold !== '-' ? parseInt(violationThreshold, 10) : 5;
+      const jailDuration = autoJailDuration && autoJailDuration !== '-' ? parseInt(autoJailDuration, 10) : 2880;
+      const jailFine = autoJailFine && autoJailFine !== '-' ? parseFloat(autoJailFine) : 10.0;
 
       addUserRestriction(
         targetUserId,
         restriction,
         action,
         metadata,
-        untilTimestamp
+        untilTimestamp,
+        severityLevel,
+        threshold,
+        jailDuration,
+        jailFine
       );
 
       StructuredLogger.logSecurityEvent('Restriction added to user', {
@@ -95,9 +122,18 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
         operation: 'add_restriction',
         restriction,
         restrictedAction: action,
-        restrictedUntil: untilTimestamp
+        restrictedUntil: untilTimestamp,
+        severity: severityLevel,
+        violationThreshold: threshold,
+        autoJailDuration: jailDuration,
+        autoJailFine: jailFine
       });
-      await ctx.reply(`Restriction '${restriction}' added for user ${userId}.`);
+
+      let reply = `Restriction '${restriction}' added for user ${userId}.\n`;
+      reply += `Severity: ${severityLevel}\n`;
+      reply += `Auto-jail after ${threshold} violations in 60 minutes (${jailDuration} min jail, ${jailFine} JUNO fine)`;
+
+      await ctx.reply(reply);
     } catch (error) {
       StructuredLogger.logError(error as Error, { adminId, userId: parseInt(userId, 10), operation: 'add_restriction', restriction });
       await ctx.reply('An error occurred while adding the restriction.');
@@ -166,9 +202,20 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
       }
 
       const message = restrictions
-        .map((r) => `Type: ${r.restriction}, Action: ${r.restrictedAction || 'N/A'}, Until: ${r.restrictedUntil || 'Permanent'}`)
-        .join('\n');
-      await ctx.reply(`Restrictions for user ${userId}:\n${message}`);
+        .map((r) => {
+          const lines = [
+            `**Type:** ${r.restriction}`,
+            `**Action:** ${r.restrictedAction || 'N/A'}`,
+            `**Severity:** ${r.severity || 'delete'}`,
+            `**Threshold:** ${r.violationThreshold || 5} violations in 60 min`,
+            `**Auto-jail:** ${r.autoJailDuration || 2880} min (${Math.round((r.autoJailDuration || 2880) / 1440)} days)`,
+            `**Fine:** ${r.autoJailFine || 10.0} JUNO`,
+            `**Expires:** ${r.restrictedUntil ? new Date(r.restrictedUntil * 1000).toLocaleString() : 'Never (Permanent)'}`
+          ];
+          return lines.join('\n');
+        })
+        .join('\n\n━━━━━━━━━━━━━━\n\n');
+      await ctx.reply(`*Restrictions for user ${userId}:*\n\n${message}`, { parse_mode: 'Markdown' });
 
       StructuredLogger.logUserAction('Restrictions queried', {
         adminId,
@@ -180,5 +227,71 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
       StructuredLogger.logError(error as Error, { adminId, userId: parseInt(userId, 10), operation: 'list_restrictions' });
       await ctx.reply('An error occurred while fetching restrictions.');
     }
+  });
+
+  /**
+   * Command handler for /regexhelp.
+   * Displays comprehensive examples for using regex patterns.
+   *
+   * Permission: Admin or higher
+   *
+   * @param ctx - Telegraf context
+   */
+  bot.command('regexhelp', adminOrHigher, async (ctx) => {
+    const helpMessage = `📝 *Regex Pattern Guide*
+
+*Pattern Types:*
+
+1️⃣ *Simple Text* (exact phrase, case-insensitive)
+\`/addrestriction 123456 regex_block "buy now"\`
+Blocks: "buy now", "BUY NOW", "Buy Now"
+
+2️⃣ *Wildcards* (* = any chars, ? = one char)
+\`/addrestriction 123456 regex_block "*crypto scam*"\`
+\`/addrestriction 123456 regex_block "test?pattern"\`
+
+3️⃣ *Full Regex* (/pattern/flags format)
+\`/addrestriction 123456 regex_block "/spam.*here/i"\`
+
+━━━━━━━━━━━━━━━━━━
+
+*Common Examples:*
+
+*Block spam phrases:*
+\`/addrestriction 123456 regex_block "/buy.*now|click.*here|limited.*offer/i"\`
+
+*Block phone numbers:*
+\`/addrestriction 123456 regex_block "/\\\\+?[0-9]{10,15}/i"\`
+
+*Block crypto addresses:*
+\`/addrestriction 123456 regex_block "/0x[a-fA-F0-9]{40}/"\`
+\`/addrestriction 123456 regex_block "/(cosmos|juno)[a-z0-9]{39}/"\`
+
+*Block excessive caps:*
+\`/addrestriction 123456 regex_block "/^[A-Z\\\\s!?.,]{20,}$/"\`
+
+*Block repeated chars:*
+\`/addrestriction 123456 regex_block "/(.)\\\\1{4,}/"\`
+Blocks: "aaaaa", "!!!!!", "😂😂😂😂😂"
+
+*Block profanity:*
+\`/addrestriction 123456 regex_block "/\\\\b(word1|word2|word3)\\\\b/i"\`
+
+*Block social handles:*
+\`/addrestriction 123456 regex_block "/follow.*instagram|check.*my.*ig/i"\`
+
+━━━━━━━━━━━━━━━━━━
+
+*Testing Tips:*
+• Test in a test group first
+• Use temporary restrictions (add seconds at end)
+• Start with simple patterns, then expand
+
+*Example with 1 hour timeout:*
+\`/addrestriction 123456 regex_block "test" 3600\`
+
+Full documentation: See REGEX\\_PATTERNS.md`;
+
+    await ctx.reply(helpMessage, { parse_mode: 'Markdown' });
   });
 };

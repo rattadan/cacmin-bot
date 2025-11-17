@@ -50,7 +50,7 @@ export const registerViolationHandlers = (bot: Telegraf<Context>) => {
       const violations = query<Violation>('SELECT * FROM violations WHERE user_id = ?', [userId]);
 
       if (violations.length === 0) {
-        return ctx.reply(' You have no violations\\!', { parse_mode: 'MarkdownV2' });
+        return ctx.reply('✅ You have no violations\\!', { parse_mode: 'MarkdownV2' });
       }
 
       let message = '*Your Violations*\n\n';
@@ -58,11 +58,13 @@ export const registerViolationHandlers = (bot: Telegraf<Context>) => {
       let unpaidCount = 0;
 
       violations.forEach((v) => {
-        const paidStatus = v.paid ? ' Paid' : ` Unpaid \\(${v.bailAmount.toFixed(2)} JUNO\\)`;
+        const paidStatus = v.paid ? '✅ Paid' : `❌ Unpaid \\(${v.bailAmount.toFixed(2)} JUNO\\)`;
         message += `\\#${v.id} \\- ${v.restriction}\n`;
         message += `Status: ${paidStatus}\n`;
         if (v.message) {
-          message += `Message: \`${v.message.substring(0, 50)}\`\n`;
+          // Escape special MarkdownV2 characters in user-provided message
+          const escapedMsg = v.message.substring(0, 50).replace(/([_*\[\]()~`>#+\-=|{}.!\\])/g, '\\$1');
+          message += `Message: \`${escapedMsg}\`\n`;
         }
         message += '\n';
 

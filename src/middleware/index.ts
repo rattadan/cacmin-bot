@@ -164,5 +164,11 @@ export const elevatedOrHigher: MiddlewareFn<Context> = (ctx, next) => {
   return ctx.reply('You do not have permission to use this command.');
 };
 
-// Alias for clarity in command context
-export const elevatedAdminOnly = adminOrHigher;
+/**
+ * Alias for elevatedOrHigher middleware.
+ * Used for commands that should be accessible to elevated users and above.
+ * Note: Despite the name suggesting "admin only", this actually includes elevated users.
+ *
+ * @deprecated Consider using explicit `elevatedOrHigher` middleware instead for clarity.
+ */
+export const elevatedAdminOnly = elevatedOrHigher;

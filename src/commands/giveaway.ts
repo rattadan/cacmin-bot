@@ -11,6 +11,7 @@ import { UnifiedWalletService } from '../services/unifiedWalletService';
 import { config } from '../config';
 import { adminOrHigher, ownerOnly } from '../middleware/index';
 import { logger, StructuredLogger } from '../utils/logger';
+import { resolveUserFromContext } from '../utils/userResolver';
 
 /**
  * Registers all giveaway-related commands with the bot.
@@ -101,7 +102,6 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
       );
     }
 
-    const identifier = args[0];
     const amount = parseFloat(args[1]);
 
     if (isNaN(amount) || amount <= 0) {
@@ -109,23 +109,11 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
     }
 
     try {
-      // Resolve userId from identifier
-      let targetUserId: number;
-      if (/^\d+$/.test(identifier)) {
-        // Direct userId
-        targetUserId = parseInt(identifier);
-      } else {
-        // Username lookup
-        const username = identifier.startsWith('@') ? identifier.substring(1) : identifier;
-        const { query } = await import('../database');
-        type UserRecord = { id: number };
-        const user = query<UserRecord>('SELECT id FROM users WHERE username = ?', [username])[0];
+      // Resolve target user using centralized utility
+      const target = await resolveUserFromContext(ctx);
+      if (!target) return; // Error message already sent
 
-        if (!user) {
-          return ctx.reply(` User ${identifier} not found. They must have interacted with the bot first.`);
-        }
-        targetUserId = user.id;
-      }
+      const targetUserId = target.userId;
 
       // NOTE: This credits the user's internal balance in the ledger system.
       // The bot treasury (on-chain balance) is separate and used for backing withdrawals.
@@ -141,7 +129,7 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
       if (result.succeeded.length > 0) {
         await ctx.reply(
           ` *Giveaway Sent!*\n\n` +
-          `Recipient: ${identifier} (${targetUserId})\n` +
+          `Recipient: ${target.username ? '@' + target.username : targetUserId} (${targetUserId})\n` +
           `Amount: ${amount.toFixed(6)} JUNO\n\n` +
           ` Tokens have been credited to the user's internal balance.\n` +
           `They can check their balance with /mybalance`,
@@ -154,12 +142,12 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
           operation: 'giveaway',
           targetUserId: targetUserId,
           amount: amount.toString(),
-          recipient: identifier
+          recipient: target.username ? '@' + target.username : targetUserId.toString()
         });
       } else {
         await ctx.reply(
           ` *Giveaway Failed*\n\n` +
-          `Unable to credit user ${identifier} (${targetUserId})\n\n` +
+          `Unable to credit user ${target.username ? '@' + target.username : targetUserId} (${targetUserId})\n\n` +
           `Please check logs or try again later.`,
           { parse_mode: 'Markdown' }
         );

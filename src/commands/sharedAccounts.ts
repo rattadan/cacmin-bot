@@ -13,6 +13,7 @@ import { UnifiedWalletService } from '../services/unifiedWalletService';
 import { elevatedAdminOnly, ownerOnly } from '../middleware';
 import { logger, StructuredLogger } from '../utils/logger';
 import { checkIsElevated } from '../utils/roles';
+import { resolveUserFromContext } from '../utils/userResolver';
 
 /**
  * Registers all shared account commands
@@ -191,7 +192,6 @@ async function handleGrantAccess(ctx: Context): Promise<void> {
     }
 
     const accountName = args[0];
-    const targetUser = args[1];
     const level = args[2].toLowerCase();
     const spendLimit = args[3] ? parseFloat(args[3]) : undefined;
 
@@ -206,22 +206,11 @@ async function handleGrantAccess(ctx: Context): Promise<void> {
       return;
     }
 
-    // Resolve target user
-    let targetUserId: number;
-    if (targetUser.startsWith('@')) {
-      const user = await UnifiedWalletService.findUserByUsername(targetUser);
-      if (!user) {
-        await ctx.reply(` User ${targetUser} not found. They need to interact with the bot first.`);
-        return;
-      }
-      targetUserId = user.id;
-    } else {
-      targetUserId = parseInt(targetUser);
-      if (isNaN(targetUserId)) {
-        await ctx.reply(` Invalid user ID: ${targetUser}`);
-        return;
-      }
-    }
+    // Resolve target user using centralized utility (arg index 1 since account_name is arg 0)
+    const targetResolved = await resolveUserFromContext(ctx, 1);
+    if (!targetResolved) return; // Error message already sent
+
+    const targetUserId = targetResolved.userId;
 
     await SharedAccountService.grantPermission(
       account.id,
@@ -234,7 +223,7 @@ async function handleGrantAccess(ctx: Context): Promise<void> {
     await ctx.reply(
       ` *Permission Granted*\n\n` +
       `Account: ${account.displayName || accountName}\n` +
-      `User: ${targetUser}\n` +
+      `User: ${targetResolved.username ? '@' + targetResolved.username : targetUserId}\n` +
       `Level: ${level}\n` +
       (spendLimit ? `Spend Limit: ${spendLimit} JUNO\n` : ''),
       { parse_mode: 'Markdown' }
@@ -279,7 +268,6 @@ async function handleRevokeAccess(ctx: Context): Promise<void> {
     }
 
     const accountName = args[0];
-    const targetUser = args[1];
 
     const account = await SharedAccountService.getSharedAccountByName(accountName);
     if (!account) {
@@ -287,29 +275,18 @@ async function handleRevokeAccess(ctx: Context): Promise<void> {
       return;
     }
 
-    // Resolve target user
-    let targetUserId: number;
-    if (targetUser.startsWith('@')) {
-      const user = await UnifiedWalletService.findUserByUsername(targetUser);
-      if (!user) {
-        await ctx.reply(` User ${targetUser} not found.`);
-        return;
-      }
-      targetUserId = user.id;
-    } else {
-      targetUserId = parseInt(targetUser);
-      if (isNaN(targetUserId)) {
-        await ctx.reply(` Invalid user ID: ${targetUser}`);
-        return;
-      }
-    }
+    // Resolve target user using centralized utility (arg index 1 since account_name is arg 0)
+    const targetResolved = await resolveUserFromContext(ctx, 1);
+    if (!targetResolved) return; // Error message already sent
+
+    const targetUserId = targetResolved.userId;
 
     await SharedAccountService.revokePermission(account.id, targetUserId, userId);
 
     await ctx.reply(
       ` *Permission Revoked*\n\n` +
       `Account: ${account.displayName || accountName}\n` +
-      `User: ${targetUser}\n\n` +
+      `User: ${targetResolved.username ? '@' + targetResolved.username : targetUserId}\n\n` +
       `Access has been revoked.`,
       { parse_mode: 'Markdown' }
     );
@@ -352,7 +329,6 @@ async function handleUpdateAccess(ctx: Context): Promise<void> {
     }
 
     const accountName = args[0];
-    const targetUser = args[1];
     const level = args[2].toLowerCase();
     const spendLimit = args[3] ? parseFloat(args[3]) : undefined;
 
@@ -367,22 +343,11 @@ async function handleUpdateAccess(ctx: Context): Promise<void> {
       return;
     }
 
-    // Resolve target user
-    let targetUserId: number;
-    if (targetUser.startsWith('@')) {
-      const user = await UnifiedWalletService.findUserByUsername(targetUser);
-      if (!user) {
-        await ctx.reply(` User ${targetUser} not found.`);
-        return;
-      }
-      targetUserId = user.id;
-    } else {
-      targetUserId = parseInt(targetUser);
-      if (isNaN(targetUserId)) {
-        await ctx.reply(` Invalid user ID: ${targetUser}`);
-        return;
-      }
-    }
+    // Resolve target user using centralized utility (arg index 1 since account_name is arg 0)
+    const targetResolved = await resolveUserFromContext(ctx, 1);
+    if (!targetResolved) return; // Error message already sent
+
+    const targetUserId = targetResolved.userId;
 
     await SharedAccountService.updatePermission(
       account.id,
@@ -395,7 +360,7 @@ async function handleUpdateAccess(ctx: Context): Promise<void> {
     await ctx.reply(
       ` *Permission Updated*\n\n` +
       `Account: ${account.displayName || accountName}\n` +
-      `User: ${targetUser}\n` +
+      `User: ${targetResolved.username ? '@' + targetResolved.username : targetUserId}\n` +
       `New Level: ${level}\n` +
       (spendLimit ? `New Spend Limit: ${spendLimit} JUNO\n` : ''),
       { parse_mode: 'Markdown' }
@@ -494,7 +459,6 @@ async function handleSharedSend(ctx: Context): Promise<void> {
     }
 
     const accountName = args[0];
-    const recipient = args[1];
     const amount = parseFloat(args[2]);
     const description = args.slice(3).join(' ').replace(/^["']|["']$/g, '');
 
@@ -509,22 +473,11 @@ async function handleSharedSend(ctx: Context): Promise<void> {
       return;
     }
 
-    // Resolve recipient
-    let recipientId: number;
-    if (recipient.startsWith('@')) {
-      const user = await UnifiedWalletService.findUserByUsername(recipient);
-      if (!user) {
-        await ctx.reply(` User ${recipient} not found. They need to interact with the bot first.`);
-        return;
-      }
-      recipientId = user.id;
-    } else {
-      recipientId = parseInt(recipient);
-      if (isNaN(recipientId)) {
-        await ctx.reply(` Invalid user ID: ${recipient}`);
-        return;
-      }
-    }
+    // Resolve recipient using centralized utility (arg index 1 since account_name is arg 0)
+    const recipientResolved = await resolveUserFromContext(ctx, 1);
+    if (!recipientResolved) return; // Error message already sent
+
+    const recipientId = recipientResolved.userId;
 
     await ctx.reply(' Processing transaction...');
 
@@ -544,7 +497,7 @@ async function handleSharedSend(ctx: Context): Promise<void> {
     await ctx.reply(
       ` *Transaction Successful*\n\n` +
       `From: ${account.displayName || accountName}\n` +
-      `To: ${recipient}\n` +
+      `To: ${recipientResolved.username ? '@' + recipientResolved.username : recipientId}\n` +
       `Amount: \`${amount.toFixed(6)} JUNO\`\n` +
       `New Account Balance: \`${result.sharedBalance?.toFixed(6)} JUNO\``,
       { parse_mode: 'Markdown' }

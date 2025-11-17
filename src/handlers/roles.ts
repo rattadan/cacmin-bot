@@ -18,6 +18,7 @@ import { query, execute } from '../database';
 import { ownerOnly, elevatedAdminOnly, adminOrHigher } from '../middleware/index';
 import { logger, StructuredLogger } from '../utils/logger';
 import { config } from '../config';
+import { resolveUserFromContext } from '../utils/userResolver';
 
 /**
  * Registers all role management command handlers with the bot.
@@ -96,33 +97,12 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
       return ctx.reply('Usage: /grantowner <username> or /grantowner <userId>');
     }
 
-    const identifier = args[0];
-
     try {
-      let targetUserId: number;
-      let targetUsername: string | undefined;
+      // Use centralized user resolution utility
+      const target = await resolveUserFromContext(ctx);
+      if (!target) return; // Error message already sent to user
 
-      // Check if it's a numeric user ID or username
-      if (/^\d+$/.test(identifier)) {
-        targetUserId = parseInt(identifier);
-        // Try to find existing user
-        const existingUser = query<User>('SELECT username FROM users WHERE id = ?', [targetUserId])[0];
-        targetUsername = existingUser?.username;
-      } else {
-        // Remove @ if present
-        targetUsername = identifier.startsWith('@') ? identifier.substring(1) : identifier;
-        // Try to find existing user
-        const existingUser = query<User>('SELECT id FROM users WHERE username = ?', [targetUsername])[0];
-
-        if (!existingUser) {
-          return ctx.reply(
-            ` User @${targetUsername} not found in database yet.\n\n` +
-            `To grant by username, they must have interacted with the bot first.\n` +
-            `Use /grantowner <userId> if you know their Telegram user ID.`
-          );
-        }
-        targetUserId = existingUser.id;
-      }
+      const { userId: targetUserId, username: targetUsername } = target;
 
       // Insert or update user with owner role
       execute(
@@ -145,7 +125,7 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
         `The role will be applied when they next interact with the bot.`
       );
     } catch (error) {
-      StructuredLogger.logError(error as Error, { ownerId, identifier, operation: 'grant_owner' });
+      StructuredLogger.logError(error as Error, { ownerId, operation: 'grant_owner' });
       await ctx.reply('An error occurred while processing the request.');
     }
   });
@@ -174,30 +154,12 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
       return ctx.reply('Usage: /elevate <username> or /elevate <userId>');
     }
 
-    const identifier = args[0];
-
     try {
-      let targetUserId: number;
-      let targetUsername: string | undefined;
+      // Use centralized user resolution utility
+      const target = await resolveUserFromContext(ctx);
+      if (!target) return; // Error message already sent to user
 
-      // Check if it's a numeric user ID or username
-      if (/^\d+$/.test(identifier)) {
-        targetUserId = parseInt(identifier);
-        const existingUser = query<User>('SELECT username FROM users WHERE id = ?', [targetUserId])[0];
-        targetUsername = existingUser?.username;
-      } else {
-        targetUsername = identifier.startsWith('@') ? identifier.substring(1) : identifier;
-        const existingUser = query<User>('SELECT id FROM users WHERE username = ?', [targetUsername])[0];
-
-        if (!existingUser) {
-          return ctx.reply(
-            ` User @${targetUsername} not found in database yet.\n\n` +
-            `To grant by username, they must have interacted with the bot first.\n` +
-            `Use /elevate <userId> if you know their Telegram user ID.`
-          );
-        }
-        targetUserId = existingUser.id;
-      }
+      const { userId: targetUserId, username: targetUsername } = target;
 
       // Insert or update user with elevated role
       execute(
@@ -218,7 +180,7 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
         `Username: ${targetUsername ? '@' + targetUsername : 'unknown'}`
       );
     } catch (error) {
-      StructuredLogger.logError(error as Error, { userId, identifier, operation: 'elevate_user' });
+      StructuredLogger.logError(error as Error, { userId, operation: 'elevate_user' });
       await ctx.reply('An error occurred while processing the request.');
     }
   });
@@ -246,30 +208,12 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
       return ctx.reply('Usage: /makeadmin <username> or /makeadmin <userId>');
     }
 
-    const identifier = args[0];
-
     try {
-      let targetUserId: number;
-      let targetUsername: string | undefined;
+      // Use centralized user resolution utility
+      const target = await resolveUserFromContext(ctx);
+      if (!target) return; // Error message already sent to user
 
-      // Check if it's a numeric user ID or username
-      if (/^\d+$/.test(identifier)) {
-        targetUserId = parseInt(identifier);
-        const existingUser = query<User>('SELECT username FROM users WHERE id = ?', [targetUserId])[0];
-        targetUsername = existingUser?.username;
-      } else {
-        targetUsername = identifier.startsWith('@') ? identifier.substring(1) : identifier;
-        const existingUser = query<User>('SELECT id FROM users WHERE username = ?', [targetUsername])[0];
-
-        if (!existingUser) {
-          return ctx.reply(
-            ` User @${targetUsername} not found in database yet.\n\n` +
-            `To grant by username, they must have interacted with the bot first.\n` +
-            `Use /makeadmin <userId> if you know their Telegram user ID.`
-          );
-        }
-        targetUserId = existingUser.id;
-      }
+      const { userId: targetUserId, username: targetUsername } = target;
 
       // Insert or update user with admin role
       execute(
@@ -290,7 +234,7 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
         `Username: ${targetUsername ? '@' + targetUsername : 'unknown'}`
       );
     } catch (error) {
-      StructuredLogger.logError(error as Error, { ownerId, identifier, operation: 'make_admin' });
+      StructuredLogger.logError(error as Error, { ownerId, operation: 'make_admin' });
       await ctx.reply('An error occurred while processing the request.');
     }
   });
@@ -322,22 +266,14 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
       return ctx.reply('Usage: /revoke <username> or /revoke <userId>');
     }
 
-    const identifier = args[0];
-
     try {
-      let targetUser: User | undefined;
+      // Use centralized user resolution utility
+      const target = await resolveUserFromContext(ctx);
+      if (!target) return; // Error message already sent to user
 
-      // Check if it's a numeric user ID or username
-      if (/^\d+$/.test(identifier)) {
-        targetUser = query<User>('SELECT * FROM users WHERE id = ?', [parseInt(identifier)])[0];
-      } else {
-        // Remove @ if present
-        const username = identifier.startsWith('@') ? identifier.substring(1) : identifier;
-        targetUser = query<User>('SELECT * FROM users WHERE username = ?', [username])[0];
-      }
-
+      const targetUser = target.user;
       if (!targetUser) {
-        logger.warn('Revoke command failed: User not found', { userId, identifier });
+        logger.warn('Revoke command failed: User not found', { userId });
         return ctx.reply('User not found.');
       }
 
@@ -355,7 +291,7 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
       });
       await ctx.reply(`${targetUser.username || targetUser.id}'s privileges have been revoked.`);
     } catch (error) {
-      StructuredLogger.logError(error as Error, { userId, identifier, operation: 'revoke_privileges' });
+      StructuredLogger.logError(error as Error, { userId, operation: 'revoke_privileges' });
       await ctx.reply('An error occurred while processing the request.');
     }
   });

@@ -22,6 +22,9 @@ interface Config {
   /** Telegram bot API token from BotFather */
   botToken: string;
 
+  /** Telegram bot username (without @) from BotFather */
+  botUsername: string;
+
   /** Juno blockchain RPC endpoint URL */
   junoRpcUrl: string;
 
@@ -87,6 +90,7 @@ interface Config {
  */
 export const config: Config = {
   botToken: process.env.BOT_TOKEN || '',
+  botUsername: process.env.BOT_USERNAME || '',
   junoRpcUrl: process.env.JUNO_RPC_URL || 'https://rpc.juno.basementnodes.ca',
   junoApiUrl: process.env.JUNO_API_URL || 'https://api.juno.basementnodes.ca',
   adminChatId: parseInt(process.env.ADMIN_CHAT_ID || '0'),
@@ -134,6 +138,9 @@ export const config: Config = {
 export function validateConfig(): void {
   if (!config.botToken) {
     throw new Error('BOT_TOKEN is required in environment variables');
+  }
+  if (!config.botUsername) {
+    throw new Error('BOT_USERNAME is required in environment variables');
   }
   if (!config.ownerIds || config.ownerIds.length === 0) {
     throw new Error('OWNER_ID is required in environment variables (comma-separated for multiple owners)');

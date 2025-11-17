@@ -32,7 +32,19 @@ const sessions = new Map<number, SessionData>();
 const SESSION_TIMEOUT = 5 * 60 * 1000;
 
 /**
- * Get or create a session for a user
+ * Retrieves an active session for a user if it exists and hasn't expired.
+ * Sessions automatically expire after 5 minutes of inactivity.
+ *
+ * @param userId - Telegram user ID
+ * @returns Session data if active and valid, null if expired or doesn't exist
+ *
+ * @example
+ * ```typescript
+ * const session = getSession(123456);
+ * if (session) {
+ *   console.log(`User is in step ${session.step} of ${session.action}`);
+ * }
+ * ```
  */
 function getSession(userId: number): SessionData | null {
   const session = sessions.get(userId);
@@ -48,7 +60,20 @@ function getSession(userId: number): SessionData | null {
 }
 
 /**
- * Set session data for a user
+ * Creates or updates a session for a user, storing their current interaction state.
+ * Used for multi-step workflows like adding restrictions, jailing users, or giveaways.
+ * Sessions automatically timestamp and expire after 5 minutes.
+ *
+ * @param userId - Telegram user ID
+ * @param action - Action identifier (e.g., 'add_restriction', 'jail', 'giveaway')
+ * @param step - Current step number in the workflow
+ * @param data - Arbitrary data to store for this session (e.g., selected options, amounts)
+ *
+ * @example
+ * ```typescript
+ * // Store that user selected "sticker" restriction in step 1
+ * setSession(userId, 'add_restriction', 1, { restrictionType: 'sticker' });
+ * ```
  */
 function setSession(userId: number, action: string, step: number, data: Record<string, any>): void {
   sessions.set(userId, {
@@ -60,19 +85,53 @@ function setSession(userId: number, action: string, step: number, data: Record<s
 }
 
 /**
- * Clear session for a user
+ * Clears an active session for a user, removing all stored interaction state.
+ * Should be called when a workflow completes, is cancelled, or errors occur.
+ *
+ * @param userId - Telegram user ID
+ *
+ * @example
+ * ```typescript
+ * // User completed the workflow or cancelled
+ * clearSession(userId);
+ * await ctx.reply('Action completed/cancelled');
+ * ```
  */
 function clearSession(userId: number): void {
   sessions.delete(userId);
 }
 
 /**
- * Registers all callback query handlers with the bot
+ * Registers all callback query handlers with the bot.
+ * Sets up routing for inline keyboard button presses throughout the application.
+ *
+ * Callback data prefixes and their handlers:
+ * - `restrict_*` - Restriction type selection
+ * - `jail_*` - Jail duration selection
+ * - `duration_*` - Duration selection for restrictions
+ * - `give_*` - Giveaway amount selection
+ * - `action_*` - Global action management
+ * - `role_*` - Role assignment
+ * - `list_*` - List viewing and pagination
+ * - `perm_*` - Permission management
+ * - `confirm_*` - Confirmation dialogues
+ * - `menu_*` - Menu navigation
+ * - `select_user_*` - User selection
+ * - `cancel` - Cancel current operation
+ *
+ * @param bot - Telegraf bot instance to register handlers on
+ *
+ * @example
+ * ```typescript
+ * const bot = new Telegraf(token);
+ * registerCallbackHandlers(bot);
+ * ```
  */
 export function registerCallbackHandlers(bot: Telegraf<Context>): void {
 
   /**
-   * Handle all callback queries
+   * Main callback query handler that routes button presses to appropriate handlers.
+   * Automatically answers callback queries to remove loading state and handles errors.
    */
   bot.on('callback_query', async (ctx) => {
     const callbackQuery = ctx.callbackQuery as CallbackQuery.DataQuery;
@@ -125,7 +184,17 @@ export function registerCallbackHandlers(bot: Telegraf<Context>): void {
 }
 
 /**
- * Handle restriction type selection
+ * Handles restriction type selection from inline keyboard.
+ * Initiates a multi-step workflow for adding user restrictions.
+ * Stores the selected restriction type and prompts for target user.
+ *
+ * @param ctx - Telegraf context
+ * @param data - Callback data in format `restrict_{type}` (e.g., 'restrict_sticker')
+ * @param userId - ID of the admin initiating the restriction
+ *
+ * @example
+ * Callback data: 'restrict_sticker'
+ * Result: Stores session and asks admin to specify target user
  */
 async function handleRestrictionCallback(ctx: Context, data: string, userId: number): Promise<void> {
   const restrictionType = data.replace('restrict_', '');
@@ -142,7 +211,17 @@ async function handleRestrictionCallback(ctx: Context, data: string, userId: num
 }
 
 /**
- * Handle jail duration selection
+ * Handles jail duration selection from inline keyboard.
+ * Supports both preset durations (15, 30, 60 minutes) and custom duration input.
+ * Initiates workflow for jailing a user and prompts for target user ID.
+ *
+ * @param ctx - Telegraf context
+ * @param data - Callback data in format `jail_{minutes}` or 'jail_custom'
+ * @param userId - ID of the admin initiating the jail action
+ *
+ * @example
+ * Callback data: 'jail_30' - Jail for 30 minutes
+ * Callback data: 'jail_custom' - Prompt for custom duration
  */
 async function handleJailCallback(ctx: Context, data: string, userId: number): Promise<void> {
   if (data === 'jail_custom') {

@@ -137,7 +137,7 @@ async function handleRestrictionCallback(ctx: Context, data: string, userId: num
     `🎯 *Add Restriction: ${restrictionType}*\n\n` +
     `Please reply with the user ID or @username to restrict.\n\n` +
     `Format: \`userId\` or \`@username\``,
-    { parse_mode: 'Markdown' }
+    { parse_mode: 'MarkdownV2' }
   );
 }
 
@@ -153,7 +153,7 @@ async function handleJailCallback(ctx: Context, data: string, userId: number): P
       '1. User ID or @username\n' +
       '2. Duration in minutes\n\n' +
       'Format: `@username 45` or `123456 30`',
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'MarkdownV2' }
     );
     return;
   }
@@ -165,7 +165,7 @@ async function handleJailCallback(ctx: Context, data: string, userId: number): P
     `⏱️ *Jail User for ${minutes} minutes*\n\n` +
     `Please reply with the user ID or @username to jail.\n\n` +
     `Format: \`userId\` or \`@username\``,
-    { parse_mode: 'Markdown' }
+    { parse_mode: 'MarkdownV2' }
   );
 }
 
@@ -193,7 +193,7 @@ async function handleDurationCallback(ctx: Context, data: string, userId: number
   await ctx.editMessageText(
     `✅ Duration set to: ${durationText}\n\n` +
     `Restriction will be applied. Use /listrestrictions <userId> to verify.`,
-    { parse_mode: 'Markdown' }
+    { parse_mode: 'MarkdownV2' }
   );
 
   // Clear session after completion
@@ -212,7 +212,7 @@ async function handleGiveawayCallback(ctx: Context, data: string, userId: number
       '1. User ID or @username\n' +
       '2. Amount in JUNO\n\n' +
       'Format: `@username 15.5` or `123456 20`',
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'MarkdownV2' }
     );
     return;
   }
@@ -224,7 +224,7 @@ async function handleGiveawayCallback(ctx: Context, data: string, userId: number
     `💰 *Giveaway: ${amount} JUNO*\n\n` +
     `Please reply with the user ID or @username to receive the giveaway.\n\n` +
     `Format: \`userId\` or \`@username\``,
-    { parse_mode: 'Markdown' }
+    { parse_mode: 'MarkdownV2' }
   );
 }
 
@@ -241,7 +241,7 @@ async function handleGlobalActionCallback(ctx: Context, data: string, userId: nu
     `This will restrict ALL users from: ${actionType}\n\n` +
     `Optionally, reply with a specific action to restrict (e.g., specific sticker pack name, domain, etc.)\n` +
     `Or type "apply" to apply globally.`,
-    { parse_mode: 'Markdown' }
+    { parse_mode: 'MarkdownV2' }
   );
 }
 
@@ -262,7 +262,7 @@ async function handleRoleCallback(ctx: Context, data: string, userId: number): P
     message = '🔽 *Revoke Role*\n\nPlease reply with the user ID or @username to demote.';
   }
 
-  await ctx.editMessageText(message + '\n\nFormat: `@username` or `userId`', { parse_mode: 'Markdown' });
+  await ctx.editMessageText(message + '\n\nFormat: `@username` or `userId`', { parse_mode: 'MarkdownV2' });
 }
 
 /**
@@ -286,7 +286,7 @@ async function handleListCallback(ctx: Context, data: string, userId: number): P
     }
 
     const message = users.map(u => `• ${u.username ? '@' + u.username : 'User ' + u.id} (${u.id})`).join('\n');
-    await ctx.editMessageText(`*${listType.charAt(0).toUpperCase() + listType.slice(1)}:*\n\n${message}`, { parse_mode: 'Markdown' });
+    await ctx.editMessageText(`*${listType.charAt(0).toUpperCase() + listType.slice(1)}:*\n\n${message}`, { parse_mode: 'MarkdownV2' });
     return;
   }
 
@@ -297,7 +297,7 @@ async function handleListCallback(ctx: Context, data: string, userId: number): P
     `Action: ${action}\n\n` +
     `Please reply with the user ID or @username.\n\n` +
     `Format: \`@username\` or \`userId\``,
-    { parse_mode: 'Markdown' }
+    { parse_mode: 'MarkdownV2' }
   );
 }
 
@@ -370,7 +370,7 @@ async function handleMenuCallback(ctx: Context, data: string, userId: number): P
       break;
   }
 
-  await ctx.editMessageText(message, { parse_mode: 'Markdown', reply_markup: mainMenuKeyboard });
+  await ctx.editMessageText(message, { parse_mode: 'MarkdownV2', reply_markup: mainMenuKeyboard });
 }
 
 /**

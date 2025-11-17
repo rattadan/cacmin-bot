@@ -44,7 +44,7 @@ export function registerStickerCommands(bot: Telegraf<Context>): void {
           '• `first` - 🛰 Satellite sticker\n\n' +
           'Usage: `/sendsticker first`\n\n' +
           'Pack: https://t.me/addstickers/CACGifs',
-          { parse_mode: 'Markdown' }
+          { parse_mode: 'MarkdownV2' }
         );
       }
 
@@ -56,7 +56,7 @@ export function registerStickerCommands(bot: Telegraf<Context>): void {
           'The sticker file_id needs to be set up.\n' +
           'Use `/getsticker` (reply to a sticker) to get file_ids.\n\n' +
           'Pack: https://t.me/addstickers/CACGifs',
-          { parse_mode: 'Markdown' }
+          { parse_mode: 'MarkdownV2' }
         );
       }
 
@@ -77,7 +77,7 @@ export function registerStickerCommands(bot: Telegraf<Context>): void {
         'The sticker file_id may be invalid or expired.\n' +
         'Use `/getsticker` to get a fresh file_id from the pack:\n' +
         'https://t.me/addstickers/CACGifs',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
     }
   });
@@ -112,7 +112,7 @@ export function registerStickerCommands(bot: Telegraf<Context>): void {
         `Set Name: ${stickerSetName || 'N/A'}\n` +
         `Emoji: ${emoji || 'N/A'}\n\n` +
         `Use this file_id to send this sticker programmatically.`,
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
 
       logger.info('Sticker file_id retrieved', {
@@ -154,7 +154,7 @@ export function registerStickerCommands(bot: Telegraf<Context>): void {
             `✅ CACGifs sticker logged!\n\n` +
             `File ID: \`${fileId}\`\n` +
             `Emoji: ${emoji || 'N/A'}`,
-            { parse_mode: 'Markdown' }
+            { parse_mode: 'MarkdownV2' }
           );
         }
       }
@@ -181,7 +181,7 @@ export function registerStickerCommands(bot: Telegraf<Context>): void {
           'The CAC sticker file_id needs to be set up.\n' +
           'Use `/getsticker` (reply to a sticker) to get the file_id.\n\n' +
           'Pack: https://t.me/addstickers/CACGifs',
-          { parse_mode: 'Markdown' }
+          { parse_mode: 'MarkdownV2' }
         );
       }
 
@@ -201,7 +201,7 @@ export function registerStickerCommands(bot: Telegraf<Context>): void {
         'The sticker file_id may be invalid or expired.\n' +
         'Use `/getsticker` to get a fresh file_id from the pack:\n' +
         'https://t.me/addstickers/CACGifs',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
     }
   });

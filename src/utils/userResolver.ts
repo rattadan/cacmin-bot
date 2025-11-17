@@ -143,10 +143,10 @@ export async function resolveUserFromContext(
         '❌ *No user specified*\n\n' +
         'Usage: Reply to a user\'s message, or provide @username or user ID\n\n' +
         'Examples:\n' +
-        '• Reply to message + command\n' +
+        '• Reply to message \\+ command\n' +
         '• `/command @username`\n' +
         '• `/command 123456`',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
     }
     return null;

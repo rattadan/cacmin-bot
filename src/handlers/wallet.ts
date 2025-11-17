@@ -43,7 +43,7 @@ export async function handleBalance(ctx: Context): Promise<void> {
     await ctx.reply(
       ` *Balance for ${username}*\n\n` +
       `Current balance: \`${balance.toFixed(6)} JUNO\``,
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'MarkdownV2' }
     );
 
     StructuredLogger.logUserAction('Balance queried', {
@@ -97,7 +97,7 @@ export async function handleDeposit(ctx: Context): Promise<void> {
       `• No guarantees or warranties are provided\n` +
       `• You use this service entirely at your own risk\n\n` +
       `If you understand and accept these risks, proceed with deposit instructions below.`,
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'MarkdownV2' }
     );
 
     await ctx.reply(
@@ -110,7 +110,7 @@ export async function handleDeposit(ctx: Context): Promise<void> {
       ` *Your memo is unique to you and will never change*\n` +
       ` *Deposits without the correct memo cannot be credited*\n\n` +
       `Your deposit will be credited automatically once confirmed on-chain.`,
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'MarkdownV2' }
     );
 
     StructuredLogger.logUserAction('Deposit instructions requested', {
@@ -152,7 +152,7 @@ export async function handleWithdraw(ctx: Context): Promise<void> {
         ' *Invalid format*\n\n' +
         'Usage: `/withdraw <amount> <juno_address>`\n' +
         'Example: `/withdraw 10 juno1xxxxx...`',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
       return;
     }
@@ -177,7 +177,7 @@ export async function handleWithdraw(ctx: Context): Promise<void> {
         ` *Insufficient balance*\n\n` +
         `Requested: \`${amount} JUNO\`\n` +
         `Available: \`${balance.toFixed(6)} JUNO\``,
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
       return;
     }
@@ -207,7 +207,7 @@ export async function handleWithdraw(ctx: Context): Promise<void> {
         `To: \`${address}\`\n` +
         `New Balance: \`${result.newBalance?.toFixed(6)} JUNO\`\n` +
         (result.txHash ? `\nTransaction: \`${result.txHash}\`` : ''),
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
     } else {
       StructuredLogger.logError(`Withdrawal failed: ${result.error}`, {
@@ -221,7 +221,7 @@ export async function handleWithdraw(ctx: Context): Promise<void> {
         ` *Withdrawal Failed*\n\n` +
         `Error: ${result.error}\n` +
         `Balance: \`${result.newBalance?.toFixed(6)} JUNO\``,
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
     }
   } catch (error) {
@@ -265,7 +265,7 @@ export async function handleSend(ctx: Context): Promise<void> {
         '`/send 5 @alice`\n' +
         '`/send 10 123456789`\n' +
         '`/send 2.5 juno1xxxxx...`',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
       return;
     }
@@ -285,7 +285,7 @@ export async function handleSend(ctx: Context): Promise<void> {
         ` *Insufficient balance*\n\n` +
         `Requested: \`${amount} JUNO\`\n` +
         `Available: \`${balance.toFixed(6)} JUNO\``,
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
       return;
     }
@@ -317,7 +317,7 @@ export async function handleSend(ctx: Context): Promise<void> {
           `To: \`${recipient}\`\n` +
           `New Balance: \`${result.newBalance?.toFixed(6)} JUNO\`\n` +
           (result.txHash ? `\nTransaction: \`${result.txHash}\`` : ''),
-          { parse_mode: 'Markdown' }
+          { parse_mode: 'MarkdownV2' }
         );
       } else {
         StructuredLogger.logError(`External transfer failed: ${result.error}`, {
@@ -330,7 +330,7 @@ export async function handleSend(ctx: Context): Promise<void> {
         await ctx.reply(
           ` *Transfer Failed*\n\n` +
           `Error: ${result.error}`,
-          { parse_mode: 'Markdown' }
+          { parse_mode: 'MarkdownV2' }
         );
       }
     } else if (recipient.startsWith('@')) {
@@ -359,7 +359,7 @@ export async function handleSend(ctx: Context): Promise<void> {
           `Amount: \`${amount} JUNO\`\n` +
           `To: @${result.recipient}\n` +
           `Your New Balance: \`${result.fromBalance?.toFixed(6)} JUNO\``,
-          { parse_mode: 'Markdown' }
+          { parse_mode: 'MarkdownV2' }
         );
       } else {
         StructuredLogger.logError(`Internal transfer failed: ${result.error}`, {
@@ -372,7 +372,7 @@ export async function handleSend(ctx: Context): Promise<void> {
         await ctx.reply(
           ` *Transfer Failed*\n\n` +
           `Error: ${result.error}`,
-          { parse_mode: 'Markdown' }
+          { parse_mode: 'MarkdownV2' }
         );
       }
     } else if (/^\d+$/.test(recipient)) {
@@ -406,7 +406,7 @@ export async function handleSend(ctx: Context): Promise<void> {
           `Amount: \`${amount} JUNO\`\n` +
           `To: User ${recipientId}\n` +
           `Your New Balance: \`${result.fromBalance?.toFixed(6)} JUNO\``,
-          { parse_mode: 'Markdown' }
+          { parse_mode: 'MarkdownV2' }
         );
       } else {
         StructuredLogger.logError(`Internal transfer failed: ${result.error}`, {
@@ -419,7 +419,7 @@ export async function handleSend(ctx: Context): Promise<void> {
         await ctx.reply(
           ` *Transfer Failed*\n\n` +
           `Error: ${result.error}`,
-          { parse_mode: 'Markdown' }
+          { parse_mode: 'MarkdownV2' }
         );
       }
     } else {
@@ -545,7 +545,7 @@ export async function handleTransactions(ctx: Context): Promise<void> {
       message += '\n';
     }
 
-    await ctx.reply(message, { parse_mode: 'Markdown' });
+    await ctx.reply(message, { parse_mode: 'MarkdownV2' });
 
     StructuredLogger.logUserAction('Transaction history queried', {
       userId: requesterId,
@@ -608,7 +608,7 @@ export async function handleWalletStats(ctx: Context): Promise<void> {
     message += `Difference: \`${reconciliation.difference.toFixed(6)} JUNO\`\n`;
     message += `Status: ${reconciliation.matched ? ' Balanced' : ' Mismatch'}\n`;
 
-    await ctx.reply(message, { parse_mode: 'Markdown' });
+    await ctx.reply(message, { parse_mode: 'MarkdownV2' });
 
     StructuredLogger.logUserAction('Wallet statistics viewed', {
       userId,
@@ -656,7 +656,7 @@ export async function handleGiveaway(ctx: Context): Promise<void> {
         ' *Invalid format*\n\n' +
         'Usage: `/giveaway <amount> <@user1> <@user2> ...`\n' +
         'Example: `/giveaway 5 @alice @bob @charlie`',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
       return;
     }
@@ -703,7 +703,7 @@ export async function handleGiveaway(ctx: Context): Promise<void> {
       `Successful: ${result.succeeded.length}\n` +
       `Failed: ${result.failed.length}\n` +
       `Total distributed: \`${result.totalDistributed.toFixed(6)} JUNO\``,
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'MarkdownV2' }
     );
 
     StructuredLogger.logTransaction('Giveaway distributed', {
@@ -748,7 +748,7 @@ export async function handleCheckDeposit(ctx: Context): Promise<void> {
         ' *Invalid format*\n\n' +
         'Usage: `/checkdeposit <tx_hash>`\n' +
         'Example: `/checkdeposit ABCD1234...`',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
       return;
     }
@@ -782,7 +782,7 @@ export async function handleCheckDeposit(ctx: Context): Promise<void> {
         (recipientUserId ? `User ID: ${recipientUserId}\n` : '') +
         (result.memo ? `Memo: ${result.memo}\n` : '') +
         `Processed: `,
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
     } else {
       await ctx.reply(
@@ -792,7 +792,7 @@ export async function handleCheckDeposit(ctx: Context): Promise<void> {
         (recipientUserId ? `Recipient User ID: ${recipientUserId}\n` : 'No valid user ID in memo\n') +
         (result.memo ? `Memo: ${result.memo}\n` : 'No memo\n') +
         `Status: Pending processing`,
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
     }
 
@@ -835,7 +835,7 @@ export async function handleReconcile(ctx: Context): Promise<void> {
       `User Funds On-Chain: \`${result.onChainTotal.toFixed(6)} JUNO\`\n` +
       `Difference: \`${result.difference.toFixed(6)} JUNO\`\n\n` +
       `Status: ${result.matched ? ' Balanced' : ' MISMATCH'}`,
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'MarkdownV2' }
     );
 
     StructuredLogger.logUserAction('Balance reconciliation triggered', {

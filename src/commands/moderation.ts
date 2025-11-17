@@ -77,7 +77,7 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
         '• Reply to a user: `/jail <minutes>`\n' +
         '• Direct: `/jail <@username|userId> <minutes>`\n' +
         '• Alias: `/silence`',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
     }
 
@@ -296,7 +296,7 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
         'Usage:\n' +
         '• Reply to message: `/warn <reason>`\n' +
         '• Direct: `/warn <@username|userId> <reason>`',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
     }
 
@@ -431,6 +431,6 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
       `Total Bail Revenue: ${stats.totalBailAmount.toFixed(2)} JUNO\n\n` +
       `Active Restrictions: ${stats.activeRestrictions}`;
 
-    await ctx.reply(message, { parse_mode: 'Markdown' });
+    await ctx.reply(message, { parse_mode: 'MarkdownV2' });
   });
 }

@@ -58,7 +58,7 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
         ` *Bot Wallet Balance*\n\n` +
         `Address: \`${config.botTreasuryAddress}\`\n` +
         `Balance: *${balance.toFixed(6)} JUNO*`,
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
     } catch (error) {
       logger.error('Error fetching balance', error);
@@ -98,7 +98,7 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
         'Usage: `/giveaway <@username|userId> <amount>`\n\n' +
         'Example: `/giveaway @alice 10.5`\n' +
         'Example: `/giveaway 123456789 5`',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
     }
 
@@ -133,7 +133,7 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
           `Amount: ${amount.toFixed(6)} JUNO\n\n` +
           ` Tokens have been credited to the user's internal balance.\n` +
           `They can check their balance with /mybalance`,
-          { parse_mode: 'Markdown' }
+          { parse_mode: 'MarkdownV2' }
         );
 
         StructuredLogger.logUserAction('Giveaway completed', {
@@ -149,7 +149,7 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
           ` *Giveaway Failed*\n\n` +
           `Unable to credit user ${target.username ? '@' + target.username : targetUserId} (${targetUserId})\n\n` +
           `Please check logs or try again later.`,
-          { parse_mode: 'Markdown' }
+          { parse_mode: 'MarkdownV2' }
         );
       }
     } catch (error) {
@@ -227,7 +227,7 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
         `• Ledger: Internal accounting for user balances\n\n` +
         `Use /giveaway to distribute funds\n` +
         `Use /walletstats for detailed reconciliation`,
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
     } catch (error) {
       logger.error('Error fetching treasury info', error);

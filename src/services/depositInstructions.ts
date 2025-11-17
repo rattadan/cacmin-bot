@@ -24,7 +24,7 @@ export class DepositInstructionService {
    * @example
    * ```typescript
    * const instructions = DepositInstructionService.generateInstructions(123456);
-   * await ctx.reply(instructions.markdown, { parse_mode: 'Markdown' });
+   * await ctx.reply(instructions.markdown, { parse_mode: 'MarkdownV2' });
    * ```
    */
   static generateInstructions(userId: number): {

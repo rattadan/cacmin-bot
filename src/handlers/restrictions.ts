@@ -78,7 +78,7 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
         '_Auto-escalation:_ After threshold violations (default 5) within 60 minutes, user gets auto-jailed for jailDuration (default 2880 min = 2 days) with jailFine (default 10 JUNO).\n\n' +
         '_For regex pattern examples:_ `/regexhelp`',
         {
-          parse_mode: 'Markdown',
+          parse_mode: 'MarkdownV2',
           reply_markup: restrictionTypeKeyboard
         }
       );
@@ -215,7 +215,7 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
           return lines.join('\n');
         })
         .join('\n\n━━━━━━━━━━━━━━\n\n');
-      await ctx.reply(`*Restrictions for user ${userId}:*\n\n${message}`, { parse_mode: 'Markdown' });
+      await ctx.reply(`*Restrictions for user ${userId}:*\n\n${message}`, { parse_mode: 'MarkdownV2' });
 
       StructuredLogger.logUserAction('Restrictions queried', {
         adminId,
@@ -292,6 +292,6 @@ Blocks: "aaaaa", "!!!!!", "😂😂😂😂😂"
 
 Full documentation: See REGEX\\_PATTERNS.md`;
 
-    await ctx.reply(helpMessage, { parse_mode: 'Markdown' });
+    await ctx.reply(helpMessage, { parse_mode: 'MarkdownV2' });
   });
 };

@@ -62,7 +62,7 @@ export async function notifyAdmin(message: string): Promise<void> {
     await botInstance.telegram.sendMessage(
       config.adminChatId,
       ` *Admin Alert*\n\n${message}`,
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'MarkdownV2' }
     );
   } catch (error) {
     logger.error('Failed to send admin notification', { error, message });

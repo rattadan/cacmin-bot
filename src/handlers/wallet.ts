@@ -345,7 +345,7 @@ export async function handleSend(ctx: Context): Promise<void> {
 					recipient,
 				});
 
-				await ctx.reply(` *Transfer Failed*\n\n` + `Error: ${result.error}`, {
+				await ctx.reply(` *Transfer Failed*\n\nError: ${result.error}`, {
 					parse_mode: "Markdown",
 				});
 			}
@@ -388,7 +388,7 @@ export async function handleSend(ctx: Context): Promise<void> {
 					recipient,
 				});
 
-				await ctx.reply(` *Transfer Failed*\n\n` + `Error: ${result.error}`, {
+				await ctx.reply(` *Transfer Failed*\n\nError: ${result.error}`, {
 					parse_mode: "Markdown",
 				});
 			}
@@ -436,7 +436,7 @@ export async function handleSend(ctx: Context): Promise<void> {
 					recipientId: recipientId.toString(),
 				});
 
-				await ctx.reply(` *Transfer Failed*\n\n` + `Error: ${result.error}`, {
+				await ctx.reply(` *Transfer Failed*\n\nError: ${result.error}`, {
 					parse_mode: "Markdown",
 				});
 			}

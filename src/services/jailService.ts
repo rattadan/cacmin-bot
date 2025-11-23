@@ -108,7 +108,7 @@ export class JailService {
 
 		return jailedUsers.map((user) => ({
 			...user,
-			timeRemaining: user.muted_until! - now,
+			timeRemaining: (user.muted_until ?? now) - now,
 		}));
 	}
 

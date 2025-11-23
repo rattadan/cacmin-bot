@@ -9,12 +9,6 @@
 import { execute, get, query } from "../database";
 import { StructuredLogger } from "../utils/logger";
 
-interface PriceHistory {
-	id: number;
-	price_usd: number;
-	timestamp: number;
-}
-
 interface FineConfig {
 	fine_type: string;
 	amount_usd: number;

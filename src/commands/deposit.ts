@@ -18,6 +18,19 @@ import {
 import { logger, StructuredLogger } from "../utils/logger";
 import { AmountPrecision } from "../utils/precision";
 
+interface ProcessedDeposit {
+	tx_hash: string;
+	user_id: number;
+	amount: number;
+	from_address: string;
+	memo: string | null;
+	height: number;
+	processed: number;
+	processed_at: number | null;
+	error: string | null;
+	created_at: number;
+}
+
 /**
  * Registers all deposit-related commands with the bot.
  *
@@ -138,8 +151,12 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
 				);
 			}
 
+			// Extract verified values (guaranteed to exist after valid check)
+			const verifiedAmount = verification.amount ?? 0;
+			const verifiedSender = verification.sender ?? "";
+
 			// Check if already processed
-			const existing = get<any>(
+			const existing = get<ProcessedDeposit>(
 				"SELECT * FROM processed_deposits WHERE tx_hash = ?",
 				[txHash],
 			);
@@ -148,8 +165,8 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
 				return ctx.reply(
 					` **Already Processed**\n\n` +
 						`This deposit has already been credited.\n` +
-						`Amount: \`${AmountPrecision.format(verification.amount!)} JUNO\`\n` +
-						`From: \`${verification.sender}\``,
+						`Amount: \`${AmountPrecision.format(verifiedAmount)} JUNO\`\n` +
+						`From: \`${verifiedSender}\``,
 					{ parse_mode: "Markdown" },
 				);
 			}
@@ -157,10 +174,10 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
 			// Process the deposit
 			const result = await LedgerService.processDeposit(
 				userId,
-				verification.amount!,
+				verifiedAmount,
 				txHash,
-				verification.sender!,
-				`Manual deposit verification from ${verification.sender}`,
+				verifiedSender,
+				`Manual deposit verification from ${verifiedSender}`,
 			);
 
 			if (result.success) {
@@ -174,8 +191,8 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
 						[
 							txHash,
 							userId,
-							verification.amount!,
-							verification.sender!,
+							verifiedAmount,
+							verifiedSender,
 							verification.memo || null,
 							0, // height unknown for manual verification
 							Math.floor(Date.now() / 1000),
@@ -193,14 +210,14 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
 				StructuredLogger.logTransaction("Deposit verified and credited", {
 					userId,
 					txHash,
-					amount: verification.amount?.toString(),
+					amount: verifiedAmount.toString(),
 					operation: "deposit_verification",
 				});
 
 				await ctx.reply(
 					DepositInstructionService.formatDepositConfirmation(
 						userId,
-						verification.amount!,
+						verifiedAmount,
 						txHash,
 						result.newBalance,
 					),
@@ -216,8 +233,8 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
 						[
 							txHash,
 							userId,
-							verification.amount!,
-							verification.sender!,
+							verifiedAmount,
+							verifiedSender,
 							verification.memo || null,
 							0,
 							result.error || "Unknown error",
@@ -373,7 +390,7 @@ export const registerDepositCommands = (bot: Telegraf<Context>) => {
 
 				await ctx.reply(
 					` **Deposit Claimed**\n\n` +
-						`Amount: \`${AmountPrecision.format(result.amount!)} JUNO\`\n` +
+						`Amount: \`${AmountPrecision.format(result.amount ?? 0)} JUNO\`\n` +
 						`Assigned to user: \`${targetUserId}\`\n` +
 						`Transaction: \`${txHash.substring(0, 10)}...\``,
 					{ parse_mode: "Markdown" },

@@ -62,7 +62,7 @@ export const registerViolationHandlers = (bot: Telegraf<Context>) => {
 			let totalUnpaid = 0;
 			let unpaidCount = 0;
 
-			violations.forEach((v) => {
+			for (const v of violations) {
 				const paidStatus = v.paid
 					? " Paid"
 					: ` Unpaid \\(${v.bailAmount.toFixed(2)} JUNO\\)`;
@@ -77,7 +77,7 @@ export const registerViolationHandlers = (bot: Telegraf<Context>) => {
 					totalUnpaid += v.bailAmount;
 					unpaidCount++;
 				}
-			});
+			}
 
 			message += "Use /payfine to see payment instructions\\.";
 			await ctx.reply(message, { parse_mode: "MarkdownV2" });

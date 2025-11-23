@@ -83,9 +83,9 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
 			const balance = await UnifiedWalletService.getBalance(userId);
 
 			let message = `*Your Unpaid Fines*\n\n`;
-			violations.forEach((v) => {
+			for (const v of violations) {
 				message += `• ID ${v.id}: ${v.restriction} - ${v.bailAmount.toFixed(2)} JUNO\n`;
-			});
+			}
 
 			message += `\n*Total: ${totalFines.toFixed(2)} JUNO*\n`;
 			message += `Your wallet balance: ${balance.toFixed(6)} JUNO\n\n`;
@@ -160,9 +160,9 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
 
 			if (result.success) {
 				// Mark all violations as paid (internal ledger transaction)
-				violations.forEach((v) => {
+				for (const v of violations) {
 					markViolationPaid(v.id, "internal_ledger", userId);
-				});
+				}
 
 				// Release from jail if jailed
 				const user = get<User>("SELECT * FROM users WHERE id = ?", [userId]);
@@ -189,7 +189,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
 					},
 				);
 			} else {
-				await ctx.reply(`*Payment Failed*\n\n` + `Error: ${result.error}`, {
+				await ctx.reply(`*Payment Failed*\n\nError: ${result.error}`, {
 					parse_mode: "Markdown",
 				});
 			}
@@ -249,9 +249,9 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
 			const totalFines = getTotalFines(userId);
 			let message = `*Your Unpaid Fines*\n\n`;
 
-			violations.forEach((v) => {
+			for (const v of violations) {
 				message += `ID: ${v.id} \\- ${v.restriction} \\- ${v.bailAmount.toFixed(2)} JUNO\n`;
-			});
+			}
 
 			message += `\n*Total: ${totalFines.toFixed(2)} JUNO*\n\n`;
 			message += `To pay a specific fine:\n/payfine \\<violationId\\>\n\n`;

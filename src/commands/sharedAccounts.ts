@@ -150,7 +150,7 @@ async function handleDeleteShared(ctx: Context): Promise<void> {
 		await SharedAccountService.deleteSharedAccount(account.id, userId);
 
 		await ctx.reply(
-			` *Shared Account Deleted*\n\n` + `Account '${name}' has been deleted.`,
+			` *Shared Account Deleted*\n\nAccount '${name}' has been deleted.`,
 			{ parse_mode: "Markdown" },
 		);
 

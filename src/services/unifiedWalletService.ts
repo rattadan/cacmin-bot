@@ -769,7 +769,7 @@ export class UnifiedWalletService {
 			const [account] = await UnifiedWalletService.wallet.getAccounts();
 			const amountInUjuno = AmountPrecision.toMicroJuno(validatedAmount);
 
-			let result;
+			let result: Awaited<ReturnType<typeof client.sendTokens>>;
 			try {
 				result = await client.sendTokens(
 					account.address,

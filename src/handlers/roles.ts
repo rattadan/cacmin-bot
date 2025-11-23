@@ -58,9 +58,10 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
 	 */
 	bot.command("setowner", async (ctx) => {
 		const userId = ctx.from?.id;
+		if (!userId) return;
 
 		// Only allow if user is a configured owner from .env
-		if (!config.ownerIds.includes(userId!)) {
+		if (!config.ownerIds.includes(userId)) {
 			return ctx.reply(
 				"Only configured owners (from .env OWNER_ID) can use this command.",
 			);
@@ -457,25 +458,25 @@ export const registerRoleHandlers = (bot: Telegraf<Context>) => {
 
 			if (owners.length > 0) {
 				message += " Owners:\n";
-				owners.forEach(
-					(u) => (message += `  • @${u.username || u.id} (${u.id})\n`),
-				);
+				for (const u of owners) {
+					message += `  • @${u.username || u.id} (${u.id})\n`;
+				}
 				message += "\n";
 			}
 
 			if (admins.length > 0) {
 				message += " Admins:\n";
-				admins.forEach(
-					(u) => (message += `  • @${u.username || u.id} (${u.id})\n`),
-				);
+				for (const u of admins) {
+					message += `  • @${u.username || u.id} (${u.id})\n`;
+				}
 				message += "\n";
 			}
 
 			if (elevated.length > 0) {
 				message += " Elevated:\n";
-				elevated.forEach(
-					(u) => (message += `  • @${u.username || u.id} (${u.id})\n`),
-				);
+				for (const u of elevated) {
+					message += `  • @${u.username || u.id} (${u.id})\n`;
+				}
 			}
 
 			await ctx.reply(message);

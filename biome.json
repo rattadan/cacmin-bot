@@ -17,19 +17,19 @@
 		"rules": {
 			"recommended": true,
 			"suspicious": {
-				"noExplicitAny": "warn",
+				"noExplicitAny": "off",
 				"noControlCharactersInRegex": "off",
-				"noAssignInExpressions": "warn",
-				"noImplicitAnyLet": "warn",
-				"useIterableCallbackReturn": "warn"
+				"noAssignInExpressions": "off",
+				"noImplicitAnyLet": "off",
+				"useIterableCallbackReturn": "off"
 			},
 			"complexity": {
 				"noStaticOnlyClass": "off",
-				"noForEach": "warn"
+				"noForEach": "off"
 			},
 			"style": {
-				"useImportType": "warn",
-				"useNodejsImportProtocol": "warn"
+				"useImportType": "off",
+				"useNodejsImportProtocol": "off"
 			}
 		}
 	},

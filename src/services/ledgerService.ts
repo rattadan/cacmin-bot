@@ -42,15 +42,10 @@ interface Transaction {
 	metadata?: string;
 }
 
-interface SystemWallet {
-	id: string;
-	address: string;
-	description: string;
-}
-
 export class LedgerService {
 	private static botTreasuryAddress: string;
 	private static userFundsAddress: string;
+	private static rpcEndpoint: string;
 	private static apiEndpoint: string;
 
 	/**

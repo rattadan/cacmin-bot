@@ -27,12 +27,14 @@ import { registerWalletCommands } from './commands/wallet';
 import { registerWalletTestCommands } from './commands/walletTest';
 import { registerSharedAccountCommands } from './commands/sharedAccounts';
 import { registerStickerCommands } from './commands/sticker';
+import { registerFineConfigCommands } from './commands/fineConfig';
 import { registerCallbackHandlers } from './handlers/callbacks';
 import { RestrictionService } from './services/restrictionService';
 import { JailService } from './services/jailService';
 import { UnifiedWalletService } from './services/unifiedWalletService';
 import { LedgerService } from './services/ledgerService';
 import { TransactionLockService } from './services/transactionLock';
+import { PriceService } from './services/priceService';
 
 /**
  * Main initialization and startup function for the CAC Admin Bot.
@@ -128,6 +130,7 @@ async function main() {
     registerWalletTestCommands(bot); // Owner-only test commands
     registerSharedAccountCommands(bot); // Shared account management
     registerStickerCommands(bot); // Sticker sending and management
+    registerFineConfigCommands(bot); // Fine configuration and custom jail commands
     registerCallbackHandlers(bot); // Inline keyboard callback handlers
 
     // Error handling
@@ -161,6 +164,20 @@ async function main() {
         logger.error('Error during periodic reconciliation', { error });
       }
     }, 60 * 60 * 1000);
+
+    // Periodic JUNO price update (every 15 minutes)
+    setInterval(async () => {
+      try {
+        await PriceService.updatePriceHistory();
+      } catch (error) {
+        logger.error('Error updating price history', { error });
+      }
+    }, 15 * 60 * 1000);
+
+    // Initial price fetch on startup
+    PriceService.updatePriceHistory().catch(error => {
+      logger.warn('Initial price fetch failed', { error });
+    });
 
     // Graceful shutdown
     process.once('SIGINT', () => bot.stop('SIGINT'));

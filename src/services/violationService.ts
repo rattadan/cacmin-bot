@@ -4,18 +4,19 @@ import { execute, query, get } from '../database';
 import { Violation } from '../types';
 import { config } from '../config';
 import { StructuredLogger } from '../utils/logger';
+import { PriceService } from './priceService';
 
 /**
  * Create violation record for user
- * Calculates fine based on restriction type, increments warning count
+ * Calculates fine based on restriction type using USD pricing, increments warning count
  */
 export async function createViolation(
   userId: number,
   restriction: string,
   message?: string
 ): Promise<number> {
-  // Calculate fine based on restriction type
-  const fineAmount = calculateFine(restriction);
+  // Calculate fine based on restriction type (USD converted to JUNO)
+  const fineAmount = await PriceService.calculateViolationFine(restriction);
 
   const result = execute(
     `INSERT INTO violations (user_id, restriction, message, bail_amount)
@@ -38,7 +39,10 @@ export async function createViolation(
   return result.lastInsertRowid as number;
 }
 
-/** Calculate fine amount based on restriction type using config */
+/**
+ * Calculate fine amount based on restriction type using config (synchronous fallback).
+ * @deprecated Use PriceService.calculateViolationFine for USD-based pricing
+ */
 function calculateFine(restriction: string): number {
   switch (restriction) {
     case 'no_stickers': return config.fineAmounts.sticker;

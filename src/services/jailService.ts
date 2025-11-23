@@ -17,6 +17,7 @@ import { query, execute, get } from '../database';
 import { User, JailEvent } from '../types';
 import { StructuredLogger } from '../utils/logger';
 import { config } from '../config';
+import { PriceService } from './priceService';
 
 /**
  * Service class for managing user jails (temporary mutes).
@@ -139,22 +140,37 @@ export class JailService {
   }
 
   /**
-   * Calculates bail amount based on jail duration.
-   * Uses a base rate of 0.1 JUNO per minute with a minimum of 1.0 JUNO.
+   * Calculates bail amount based on jail duration using USD-based pricing.
+   * Converts USD to JUNO using rolling average price from CoinGecko.
    *
    * @param durationMinutes - Duration of jail in minutes
-   * @returns Bail amount in JUNO tokens
+   * @returns Promise resolving to bail amount in JUNO tokens
    *
    * @example
    * ```typescript
-   * const bail = JailService.calculateBailAmount(60); // 6.0 JUNO for 1 hour
-   * const shortBail = JailService.calculateBailAmount(5); // 1.0 JUNO (minimum)
+   * const bail = await JailService.calculateBailAmount(60); // ~1.0 JUNO for 1 hour at $0.10/min
    * ```
    */
-  static calculateBailAmount(durationMinutes: number): number {
-    // Base rate: 0.1 JUNO per minute
-    const baseRate = 0.1;
-    return Math.max(1.0, durationMinutes * baseRate);
+  static async calculateBailAmount(durationMinutes: number): Promise<number> {
+    return PriceService.calculateBailAmount(durationMinutes);
+  }
+
+  /**
+   * Synchronous fallback for bail calculation (uses cached/default values).
+   * Use this only when async is not possible.
+   *
+   * @param durationMinutes - Duration of jail in minutes
+   * @returns Bail amount in JUNO tokens
+   */
+  static calculateBailAmountSync(durationMinutes: number): number {
+    const perMinuteUsd = PriceService.getFineConfigUsd('jail_per_minute');
+    const minimumUsd = PriceService.getFineConfigUsd('jail_minimum');
+    const totalUsd = Math.max(minimumUsd, durationMinutes * perMinuteUsd);
+
+    // Use a default price if we can't get the rolling average synchronously
+    // This will be updated on next async call
+    const defaultPrice = 0.10; // $0.10 per JUNO as fallback
+    return Math.round((totalUsd / defaultPrice) * 100) / 100;
   }
 
   /**

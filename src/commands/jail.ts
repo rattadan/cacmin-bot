@@ -132,12 +132,13 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 
     if (activeJails.length > 0) {
       message += `*Active Prisoners:*\n`;
-      activeJails.forEach((jail, index) => {
+      for (let index = 0; index < activeJails.length; index++) {
+        const jail = activeJails[index];
         const timeRemaining = formatTimeRemaining(jail.timeRemaining);
         const userDisplay = formatUserIdDisplay(jail.id);
-        const bailAmount = JailService.calculateBailAmount(Math.ceil(jail.timeRemaining / 60));
+        const bailAmount = await JailService.calculateBailAmount(Math.ceil(jail.timeRemaining / 60));
         message += `${index + 1}. ${userDisplay} - ${timeRemaining} (${bailAmount.toFixed(2)} JUNO)\n`;
-      });
+      }
       message += `\n`;
     }
 
@@ -194,7 +195,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     // Check if jailed
     if (user.muted_until && user.muted_until > now) {
       const timeRemaining = user.muted_until - now;
-      const bailAmount = JailService.calculateBailAmount(Math.ceil(timeRemaining / 60));
+      const bailAmount = await JailService.calculateBailAmount(Math.ceil(timeRemaining / 60));
 
       message += `*Currently Jailed*\n`;
       message += `Time remaining: ${formatTimeRemaining(timeRemaining)}\n`;
@@ -247,8 +248,9 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 
     let message = `*Active Jails* (${activeJails.length})\n\n`;
 
-    activeJails.forEach((jail, index) => {
-      const bailAmount = JailService.calculateBailAmount(Math.ceil(jail.timeRemaining / 60));
+    for (let index = 0; index < activeJails.length; index++) {
+      const jail = activeJails[index];
+      const bailAmount = await JailService.calculateBailAmount(Math.ceil(jail.timeRemaining / 60));
       const timeRemaining = formatTimeRemaining(jail.timeRemaining);
       const userDisplay = formatUserIdDisplay(jail.id);
 
@@ -256,7 +258,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
       message += `   Time: ${timeRemaining}\n`;
       message += `   Bail: ${bailAmount.toFixed(2)} JUNO\n`;
       message += `   Pay: /paybailfor ${jail.id}\n\n`;
-    });
+    }
 
     message += `Anyone can pay bail for any user using /paybailfor <userId>`;
 
@@ -299,7 +301,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     }
 
     const timeRemaining = user.muted_until - now;
-    const bailAmount = JailService.calculateBailAmount(Math.ceil(timeRemaining / 60));
+    const bailAmount = await JailService.calculateBailAmount(Math.ceil(timeRemaining / 60));
 
     const message = `*Pay Your Bail*\n\n` +
       `Current jail time remaining: ${formatTimeRemaining(timeRemaining)}\n` +
@@ -359,7 +361,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     }
 
     const timeRemaining = user.muted_until - now;
-    const bailAmount = JailService.calculateBailAmount(Math.ceil(timeRemaining / 60));
+    const bailAmount = await JailService.calculateBailAmount(Math.ceil(timeRemaining / 60));
 
     const message = `*Pay Bail For ${formatUserIdDisplay(targetUserId)}*\n\n` +
       `Current jail time remaining: ${formatTimeRemaining(timeRemaining)}\n` +
@@ -408,7 +410,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     }
 
     const timeRemaining = user.muted_until - now;
-    const bailAmount = JailService.calculateBailAmount(Math.ceil(timeRemaining / 60));
+    const bailAmount = await JailService.calculateBailAmount(Math.ceil(timeRemaining / 60));
 
     // Verify payment on blockchain
     const verified = await JunoService.verifyPayment(txHash, bailAmount);
@@ -516,7 +518,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     }
 
     const timeRemaining = user.muted_until - now;
-    const bailAmount = JailService.calculateBailAmount(Math.ceil(timeRemaining / 60));
+    const bailAmount = await JailService.calculateBailAmount(Math.ceil(timeRemaining / 60));
 
     // Verify payment on blockchain
     const verified = await JunoService.verifyPayment(txHash, bailAmount);

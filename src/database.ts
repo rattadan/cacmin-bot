@@ -318,6 +318,27 @@ export const initDb = (): void => {
     );
   `);
 
+  // Price history table for JUNO price tracking
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS price_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      price_usd REAL NOT NULL,
+      timestamp INTEGER DEFAULT (strftime('%s', 'now'))
+    );
+  `);
+
+  // Fine configuration table for USD-based fine amounts
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS fine_config (
+      fine_type TEXT PRIMARY KEY,
+      amount_usd REAL NOT NULL,
+      description TEXT,
+      updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+      updated_by INTEGER,
+      FOREIGN KEY (updated_by) REFERENCES users(id)
+    );
+  `);
+
   // Shared accounts table
   db.exec(`
     CREATE TABLE IF NOT EXISTS shared_accounts (
@@ -385,6 +406,9 @@ export const initDb = (): void => {
     CREATE INDEX IF NOT EXISTS idx_shared_permissions_account ON shared_account_permissions(shared_account_id);
     CREATE INDEX IF NOT EXISTS idx_shared_permissions_user ON shared_account_permissions(user_id);
     CREATE INDEX IF NOT EXISTS idx_shared_permissions_revoked ON shared_account_permissions(revoked);
+
+    -- Price tracking indexes
+    CREATE INDEX IF NOT EXISTS idx_price_history_timestamp ON price_history(timestamp);
   `);
 
   logger.info('Database initialized successfully');

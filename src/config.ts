@@ -55,7 +55,12 @@ interface Config {
   /** Logging level (error, warn, info, debug) */
   logLevel: string;
 
-  /** Fine amounts in JUNO tokens for different violation types */
+  /**
+   * Legacy fine amounts in JUNO tokens (fallback values).
+   * Actual fines are now calculated using USD amounts from the database
+   * converted to JUNO via the PriceService using CoinGecko rolling averages.
+   * Use /setfine to configure USD-based fine amounts.
+   */
   fineAmounts: {
     /** Fine for sending restricted stickers */
     sticker: number;

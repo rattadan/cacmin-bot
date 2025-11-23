@@ -126,7 +126,7 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
     }
 
     const mutedUntil = Math.floor(Date.now() / 1000) + (minutes * 60);
-    const bailAmount = JailService.calculateBailAmount(minutes);
+    const bailAmount = await JailService.calculateBailAmount(minutes);
 
     // Update database
     execute(

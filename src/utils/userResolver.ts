@@ -1,7 +1,7 @@
 /** User resolution utilities for converting usernames/IDs to User objects */
 
-import { get } from '../database';
-import { User } from '../types';
+import { get } from "../database";
+import type { User } from "../types";
 
 /**
  * Resolve username or ID string to numeric userId
@@ -9,26 +9,26 @@ import { User } from '../types';
  * Returns null if not found in database
  */
 export function resolveUserId(userIdentifier: string): number | null {
-  // Remove @ prefix if present
-  const cleanIdentifier = userIdentifier.startsWith('@')
-    ? userIdentifier.substring(1)
-    : userIdentifier;
+	// Remove @ prefix if present
+	const cleanIdentifier = userIdentifier.startsWith("@")
+		? userIdentifier.substring(1)
+		: userIdentifier;
 
-  // Check if it's a numeric ID
-  const numericId = parseInt(cleanIdentifier);
-  if (!isNaN(numericId)) {
-    // Verify the user exists
-    const user = get<User>('SELECT id FROM users WHERE id = ?', [numericId]);
-    return user ? numericId : null;
-  }
+	// Check if it's a numeric ID
+	const numericId = parseInt(cleanIdentifier, 10);
+	if (!Number.isNaN(numericId)) {
+		// Verify the user exists
+		const user = get<User>("SELECT id FROM users WHERE id = ?", [numericId]);
+		return user ? numericId : null;
+	}
 
-  // Try to find by username (case-insensitive)
-  const user = get<User>(
-    'SELECT id FROM users WHERE LOWER(username) = LOWER(?)',
-    [cleanIdentifier]
-  );
+	// Try to find by username (case-insensitive)
+	const user = get<User>(
+		"SELECT id FROM users WHERE LOWER(username) = LOWER(?)",
+		[cleanIdentifier],
+	);
 
-  return user ? user.id : null;
+	return user ? user.id : null;
 }
 
 /**
@@ -37,30 +37,30 @@ export function resolveUserId(userIdentifier: string): number | null {
  * Case-insensitive for username lookups
  */
 export function resolveUser(userIdentifier: string): User | null {
-  // Remove @ prefix if present
-  const cleanIdentifier = userIdentifier.startsWith('@')
-    ? userIdentifier.substring(1)
-    : userIdentifier;
+	// Remove @ prefix if present
+	const cleanIdentifier = userIdentifier.startsWith("@")
+		? userIdentifier.substring(1)
+		: userIdentifier;
 
-  // Check if it's a numeric ID
-  const numericId = parseInt(cleanIdentifier);
-  if (!isNaN(numericId)) {
-    const user = get<User>('SELECT * FROM users WHERE id = ?', [numericId]);
-    return user || null;
-  }
+	// Check if it's a numeric ID
+	const numericId = parseInt(cleanIdentifier, 10);
+	if (!Number.isNaN(numericId)) {
+		const user = get<User>("SELECT * FROM users WHERE id = ?", [numericId]);
+		return user || null;
+	}
 
-  // Try to find by username (case-insensitive)
-  const user = get<User>(
-    'SELECT * FROM users WHERE LOWER(username) = LOWER(?)',
-    [cleanIdentifier]
-  );
+	// Try to find by username (case-insensitive)
+	const user = get<User>(
+		"SELECT * FROM users WHERE LOWER(username) = LOWER(?)",
+		[cleanIdentifier],
+	);
 
-  return user || null;
+	return user || null;
 }
 
 /** Format User object for display: @username (123456) */
 export function formatUserDisplay(user: User): string {
-  return `@${user.username} (${user.id})`;
+	return `@${user.username} (${user.id})`;
 }
 
 /**
@@ -68,6 +68,6 @@ export function formatUserDisplay(user: User): string {
  * Falls back to (123456) if username not found
  */
 export function formatUserIdDisplay(userId: number): string {
-  const user = get<User>('SELECT * FROM users WHERE id = ?', [userId]);
-  return user ? formatUserDisplay(user) : `(${userId})`;
+	const user = get<User>("SELECT * FROM users WHERE id = ?", [userId]);
+	return user ? formatUserDisplay(user) : `(${userId})`;
 }

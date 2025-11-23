@@ -5,11 +5,11 @@
  * @module utils/safeRegex
  */
 
-import { logger } from './logger';
+import { logger } from "./logger";
 
 const MAX_PATTERN_LENGTH = 500;
 const DEFAULT_TIMEOUT_MS = 100;
-const SAFE_FLAGS = 'gimsu';
+const SAFE_FLAGS = "gimsu";
 
 /**
  * Pattern validation result
@@ -26,7 +26,7 @@ export interface PatternValidation {
 export interface CompiledPattern {
 	raw: string;
 	regex: RegExp;
-	type: 'simple' | 'wildcard' | 'regex';
+	type: "simple" | "wildcard" | "regex";
 }
 
 /**
@@ -46,24 +46,27 @@ export interface CompiledPattern {
  */
 export function validatePattern(pattern: string): PatternValidation {
 	if (!pattern || pattern.trim().length === 0) {
-		return { isValid: false, error: 'Pattern cannot be empty' };
+		return { isValid: false, error: "Pattern cannot be empty" };
 	}
 
 	if (pattern.length > MAX_PATTERN_LENGTH) {
 		return {
 			isValid: false,
-			error: `Pattern exceeds maximum length of ${MAX_PATTERN_LENGTH} characters`
+			error: `Pattern exceeds maximum length of ${MAX_PATTERN_LENGTH} characters`,
 		};
 	}
 
 	// Remove control characters except newline and tab
-	const sanitized = pattern.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, '');
+	const sanitized = pattern.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, "");
 
 	// Check if pattern is a regex (starts and ends with /)
-	if (sanitized.startsWith('/')) {
-		const lastSlash = sanitized.lastIndexOf('/');
+	if (sanitized.startsWith("/")) {
+		const lastSlash = sanitized.lastIndexOf("/");
 		if (lastSlash <= 0) {
-			return { isValid: false, error: 'Invalid regex format: missing closing /' };
+			return {
+				isValid: false,
+				error: "Invalid regex format: missing closing /",
+			};
 		}
 
 		const flags = sanitized.substring(lastSlash + 1);
@@ -80,7 +83,7 @@ export function validatePattern(pattern: string): PatternValidation {
 		} catch (error) {
 			return {
 				isValid: false,
-				error: `Invalid regex syntax: ${error instanceof Error ? error.message : 'unknown'}`
+				error: `Invalid regex syntax: ${error instanceof Error ? error.message : "unknown"}`,
 			};
 		}
 	}
@@ -108,39 +111,39 @@ export function validatePattern(pattern: string): PatternValidation {
  */
 export function compileSafeRegex(pattern: string): CompiledPattern {
 	// Regex format: /pattern/flags
-	if (pattern.startsWith('/')) {
-		const lastSlash = pattern.lastIndexOf('/');
+	if (pattern.startsWith("/")) {
+		const lastSlash = pattern.lastIndexOf("/");
 		const regexPart = pattern.substring(1, lastSlash);
-		const flags = pattern.substring(lastSlash + 1) || 'i';
+		const flags = pattern.substring(lastSlash + 1) || "i";
 
 		return {
 			raw: pattern,
 			regex: new RegExp(regexPart, flags),
-			type: 'regex'
+			type: "regex",
 		};
 	}
 
 	// Wildcard format: contains * or ?
-	if (pattern.includes('*') || pattern.includes('?')) {
+	if (pattern.includes("*") || pattern.includes("?")) {
 		// Escape special regex chars except * and ?
 		const escaped = pattern
-			.replace(/[.+^${}()|[\]\\]/g, '\\$&')
-			.replace(/\*/g, '.*')
-			.replace(/\?/g, '.');
+			.replace(/[.+^${}()|[\]\\]/g, "\\$&")
+			.replace(/\*/g, ".*")
+			.replace(/\?/g, ".");
 
 		return {
 			raw: pattern,
-			regex: new RegExp(escaped, 'i'),
-			type: 'wildcard'
+			regex: new RegExp(escaped, "i"),
+			type: "wildcard",
 		};
 	}
 
 	// Simple text: case-insensitive substring match
-	const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 	return {
 		raw: pattern,
-		regex: new RegExp(escaped, 'i'),
-		type: 'simple'
+		regex: new RegExp(escaped, "i"),
+		type: "simple",
 	};
 }
 
@@ -162,14 +165,14 @@ export function compileSafeRegex(pattern: string): CompiledPattern {
 export function testPatternSafely(
 	regex: RegExp,
 	text: string,
-	timeoutMs: number = DEFAULT_TIMEOUT_MS
+	timeoutMs: number = DEFAULT_TIMEOUT_MS,
 ): Promise<boolean> {
 	return new Promise((resolve) => {
 		const timeoutId = setTimeout(() => {
-			logger.warn('Regex execution timeout', {
+			logger.warn("Regex execution timeout", {
 				pattern: regex.source,
 				flags: regex.flags,
-				timeoutMs
+				timeoutMs,
 			});
 			resolve(false);
 		}, timeoutMs);
@@ -182,9 +185,9 @@ export function testPatternSafely(
 			resolve(result);
 		} catch (error) {
 			clearTimeout(timeoutId);
-			logger.error('Regex execution error', {
+			logger.error("Regex execution error", {
 				pattern: regex.source,
-				error
+				error,
 			});
 			resolve(false);
 		}
@@ -205,9 +208,9 @@ export function matchesPattern(regex: RegExp, text: string): boolean {
 		regex.lastIndex = 0;
 		return regex.test(text);
 	} catch (error) {
-		logger.error('Pattern matching error', {
+		logger.error("Pattern matching error", {
 			pattern: regex.source,
-			error
+			error,
 		});
 		return false;
 	}
@@ -228,13 +231,15 @@ export function matchesPattern(regex: RegExp, text: string): boolean {
  * }
  * ```
  */
-export function createPatternObject(rawPattern: string): CompiledPattern | null {
+export function createPatternObject(
+	rawPattern: string,
+): CompiledPattern | null {
 	const validation = validatePattern(rawPattern);
 
 	if (!validation.isValid || !validation.sanitized) {
-		logger.error('Invalid pattern', {
+		logger.error("Invalid pattern", {
 			pattern: rawPattern,
-			error: validation.error
+			error: validation.error,
 		});
 		return null;
 	}
@@ -242,9 +247,9 @@ export function createPatternObject(rawPattern: string): CompiledPattern | null 
 	try {
 		return compileSafeRegex(validation.sanitized);
 	} catch (error) {
-		logger.error('Pattern compilation error', {
+		logger.error("Pattern compilation error", {
 			pattern: rawPattern,
-			error
+			error,
 		});
 		return null;
 	}

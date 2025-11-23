@@ -71,7 +71,6 @@ jobs:
 
     - name: Run Biome
       run: npm run lint
-      continue-on-error: true  # Non-blocking until existing lint issues are fixed
 
   test-coverage:
     runs-on: ubuntu-latest

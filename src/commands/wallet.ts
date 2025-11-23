@@ -6,19 +6,19 @@
  * @module commands/wallet
  */
 
-import { Telegraf, Context } from 'telegraf';
-import { adminOrHigher, ownerOnly } from '../middleware/index';
-import { financialLockCheck } from '../middleware/lockCheck';
+import type { Context, Telegraf } from "telegraf";
 import {
-  handleBalance,
-  handleWithdraw,
-  handleSend,
-  handleTransactions,
-  handleWalletStats,
-  handleGiveaway,
-  handleCheckDeposit,
-  handleReconcile
-} from '../handlers/wallet';
+	handleBalance,
+	handleCheckDeposit,
+	handleGiveaway,
+	handleReconcile,
+	handleSend,
+	handleTransactions,
+	handleWalletStats,
+	handleWithdraw,
+} from "../handlers/wallet";
+import { ownerOnly } from "../middleware/index";
+import { financialLockCheck } from "../middleware/lockCheck";
 
 /**
  * Registers all wallet-related commands with the bot.
@@ -47,117 +47,117 @@ import {
  * ```
  */
 export function registerWalletCommands(bot: Telegraf<Context>): void {
-  /**
-   * Command: /balance (alias: /bal)
-   * Check user's internal ledger balance.
-   *
-   * Permission: Any user
-   * Syntax: /balance
-   */
-  bot.command('balance', handleBalance);
-  bot.command('bal', handleBalance); // Alias
+	/**
+	 * Command: /balance (alias: /bal)
+	 * Check user's internal ledger balance.
+	 *
+	 * Permission: Any user
+	 * Syntax: /balance
+	 */
+	bot.command("balance", handleBalance);
+	bot.command("bal", handleBalance); // Alias
 
-  /**
-   * Command: /withdraw
-   * Withdraw funds to an external Juno address (with financial locking).
-   *
-   * Permission: Any user
-   * Syntax: /withdraw <amount> <address>
-   */
-  bot.command('withdraw', financialLockCheck, handleWithdraw);
+	/**
+	 * Command: /withdraw
+	 * Withdraw funds to an external Juno address (with financial locking).
+	 *
+	 * Permission: Any user
+	 * Syntax: /withdraw <amount> <address>
+	 */
+	bot.command("withdraw", financialLockCheck, handleWithdraw);
 
-  /**
-   * Command: /send (alias: /transfer)
-   * Send funds to another user or external wallet (with locking for external transfers).
-   *
-   * Permission: Any user
-   * Syntax: /send <amount> <recipient>
-   * - recipient can be @username, userId, or juno1... address
-   */
-  bot.command('send', financialLockCheck, handleSend);
-  bot.command('transfer', financialLockCheck, handleSend); // Alias
+	/**
+	 * Command: /send (alias: /transfer)
+	 * Send funds to another user or external wallet (with locking for external transfers).
+	 *
+	 * Permission: Any user
+	 * Syntax: /send <amount> <recipient>
+	 * - recipient can be @username, userId, or juno1... address
+	 */
+	bot.command("send", financialLockCheck, handleSend);
+	bot.command("transfer", financialLockCheck, handleSend); // Alias
 
-  /**
-   * Command: /transactions (alias: /history)
-   * View transaction history.
-   *
-   * Permission: Any user (own transactions only)
-   *             Owners (can specify userId to view any user's transactions)
-   * Syntax: /transactions
-   *         /transactions <userId> (owners only)
-   */
-  bot.command('transactions', handleTransactions);
-  bot.command('history', handleTransactions); // Alias
+	/**
+	 * Command: /transactions (alias: /history)
+	 * View transaction history.
+	 *
+	 * Permission: Any user (own transactions only)
+	 *             Owners (can specify userId to view any user's transactions)
+	 * Syntax: /transactions
+	 *         /transactions <userId> (owners only)
+	 */
+	bot.command("transactions", handleTransactions);
+	bot.command("history", handleTransactions); // Alias
 
-  /**
-   * Command: /walletstats
-   * View system wallet statistics and ledger reconciliation (owner only).
-   *
-   * Permission: Owner only
-   * Syntax: /walletstats
-   */
-  bot.command('walletstats', ownerOnly, handleWalletStats);
+	/**
+	 * Command: /walletstats
+	 * View system wallet statistics and ledger reconciliation (owner only).
+	 *
+	 * Permission: Owner only
+	 * Syntax: /walletstats
+	 */
+	bot.command("walletstats", ownerOnly, handleWalletStats);
 
-  /**
-   * Command: /giveaway
-   * Distribute tokens to users (owner only).
-   *
-   * Permission: Owner only
-   * Syntax: /giveaway <amount> <@user1> <@user2> ...
-   */
-  bot.command('giveaway', ownerOnly, handleGiveaway);
+	/**
+	 * Command: /giveaway
+	 * Distribute tokens to users (owner only).
+	 *
+	 * Permission: Owner only
+	 * Syntax: /giveaway <amount> <@user1> <@user2> ...
+	 */
+	bot.command("giveaway", ownerOnly, handleGiveaway);
 
-  /**
-   * Command: /reconcile
-   * Check internal ledger balance against on-chain balance (owner only).
-   *
-   * Permission: Owner only
-   * Syntax: /reconcile
-   */
-  bot.command('reconcile', ownerOnly, handleReconcile);
+	/**
+	 * Command: /reconcile
+	 * Check internal ledger balance against on-chain balance (owner only).
+	 *
+	 * Permission: Owner only
+	 * Syntax: /reconcile
+	 */
+	bot.command("reconcile", ownerOnly, handleReconcile);
 
-  /**
-   * Command: /checkdeposit (alias: /checktx)
-   * Check status of a specific deposit by transaction hash.
-   *
-   * Permission: Any user
-   * Syntax: /checkdeposit <tx_hash>
-   *         /checktx <tx_hash>
-   */
-  bot.command('checkdeposit', handleCheckDeposit);
-  bot.command('checktx', handleCheckDeposit); // Alias
+	/**
+	 * Command: /checkdeposit (alias: /checktx)
+	 * Check status of a specific deposit by transaction hash.
+	 *
+	 * Permission: Any user
+	 * Syntax: /checkdeposit <tx_hash>
+	 *         /checktx <tx_hash>
+	 */
+	bot.command("checkdeposit", handleCheckDeposit);
+	bot.command("checktx", handleCheckDeposit); // Alias
 
-  /**
-   * Command: /wallethelp
-   * Display comprehensive wallet command help.
-   *
-   * Permission: Any user
-   * Syntax: /wallethelp
-   */
-  bot.command('wallethelp', async (ctx) => {
-    await ctx.reply(
-      ` *Wallet Commands*\n\n` +
-      `*Basic Commands:*\n` +
-      `/balance - Check your balance\n` +
-      `/deposit - Get deposit instructions\n` +
-      `/withdraw <amount> <address> - Withdraw to external wallet\n` +
-      `/send <amount> <recipient> - Send to user or wallet\n` +
-      `/transactions - View transaction history\n` +
-      `/checkdeposit <tx_hash> - Check a specific deposit\n\n` +
-      `*Send Recipients:*\n` +
-      `• @username - Send to another user\n` +
-      `• User ID - Send to user by ID\n` +
-      `• juno1... - Send to external wallet\n\n` +
-      `*Admin Commands:*\n` +
-      `/walletstats - System statistics\n` +
-      `/giveaway <amount> <@user1> <@user2> - Distribute tokens\n` +
-      `/reconcile - Check internal ledger vs on-chain balance\n\n` +
-      ` *Important:*\n` +
-      `• Always include your user ID (${ctx.from?.id}) as memo when depositing\n` +
-      `• Withdrawals are locked to prevent double-spending\n` +
-      `• Internal transfers are instant and free\n` +
-      `• External transfers incur network fees`,
-      { parse_mode: 'Markdown' }
-    );
-  });
+	/**
+	 * Command: /wallethelp
+	 * Display comprehensive wallet command help.
+	 *
+	 * Permission: Any user
+	 * Syntax: /wallethelp
+	 */
+	bot.command("wallethelp", async (ctx) => {
+		await ctx.reply(
+			` *Wallet Commands*\n\n` +
+				`*Basic Commands:*\n` +
+				`/balance - Check your balance\n` +
+				`/deposit - Get deposit instructions\n` +
+				`/withdraw <amount> <address> - Withdraw to external wallet\n` +
+				`/send <amount> <recipient> - Send to user or wallet\n` +
+				`/transactions - View transaction history\n` +
+				`/checkdeposit <tx_hash> - Check a specific deposit\n\n` +
+				`*Send Recipients:*\n` +
+				`• @username - Send to another user\n` +
+				`• User ID - Send to user by ID\n` +
+				`• juno1... - Send to external wallet\n\n` +
+				`*Admin Commands:*\n` +
+				`/walletstats - System statistics\n` +
+				`/giveaway <amount> <@user1> <@user2> - Distribute tokens\n` +
+				`/reconcile - Check internal ledger vs on-chain balance\n\n` +
+				` *Important:*\n` +
+				`• Always include your user ID (${ctx.from?.id}) as memo when depositing\n` +
+				`• Withdrawals are locked to prevent double-spending\n` +
+				`• Internal transfers are instant and free\n` +
+				`• External transfers incur network fees`,
+			{ parse_mode: "Markdown" },
+		);
+	});
 }

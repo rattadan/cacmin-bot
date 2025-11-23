@@ -6,9 +6,9 @@
  * @module database
  */
 
-import Database from 'better-sqlite3';
-import { config } from './config';
-import { logger } from './utils/logger';
+import Database from "better-sqlite3";
+import { config } from "./config";
+import { logger } from "./utils/logger";
 
 /**
  * SQLite database instance.
@@ -17,7 +17,7 @@ import { logger } from './utils/logger';
 const db = new Database(config.databasePath);
 
 // Enable foreign keys for referential integrity
-db.exec('PRAGMA foreign_keys = ON');
+db.exec("PRAGMA foreign_keys = ON");
 
 /**
  * Executes a SELECT query and returns all matching rows as typed objects.
@@ -35,13 +35,13 @@ db.exec('PRAGMA foreign_keys = ON');
  * ```
  */
 export const query = <T>(sql: string, params: unknown[] = []): T[] => {
-  try {
-    const stmt = db.prepare(sql);
-    return stmt.all(params) as T[];
-  } catch (error) {
-    logger.error(`Database query failed: ${sql}`, error);
-    throw error;
-  }
+	try {
+		const stmt = db.prepare(sql);
+		return stmt.all(params) as T[];
+	} catch (error) {
+		logger.error(`Database query failed: ${sql}`, error);
+		throw error;
+	}
 };
 
 /**
@@ -61,14 +61,17 @@ export const query = <T>(sql: string, params: unknown[] = []): T[] => {
  * console.log(`Updated ${updateResult.changes} rows`);
  * ```
  */
-export const execute = (sql: string, params: unknown[] = []): Database.RunResult => {
-  try {
-    const stmt = db.prepare(sql);
-    return stmt.run(params);
-  } catch (error) {
-    logger.error(`Database execution failed: ${sql}`, error);
-    throw error;
-  }
+export const execute = (
+	sql: string,
+	params: unknown[] = [],
+): Database.RunResult => {
+	try {
+		const stmt = db.prepare(sql);
+		return stmt.run(params);
+	} catch (error) {
+		logger.error(`Database execution failed: ${sql}`, error);
+		throw error;
+	}
 };
 
 /**
@@ -90,13 +93,13 @@ export const execute = (sql: string, params: unknown[] = []): Database.RunResult
  * ```
  */
 export const get = <T>(sql: string, params: unknown[] = []): T | undefined => {
-  try {
-    const stmt = db.prepare(sql);
-    return stmt.get(params) as T | undefined;
-  } catch (error) {
-    logger.error(`Database get failed: ${sql}`, error);
-    throw error;
-  }
+	try {
+		const stmt = db.prepare(sql);
+		return stmt.get(params) as T | undefined;
+	} catch (error) {
+		logger.error(`Database get failed: ${sql}`, error);
+		throw error;
+	}
 };
 
 /**
@@ -127,8 +130,8 @@ export const get = <T>(sql: string, params: unknown[] = []): T | undefined => {
  * ```
  */
 export const initDb = (): void => {
-  // Enhanced users table
-  db.exec(`
+	// Enhanced users table
+	db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY,
       username TEXT,
@@ -142,12 +145,12 @@ export const initDb = (): void => {
     );
   `);
 
-  // NOTE: user_wallets table (from old HD wallet system) has been removed
-  // If migrating from an old database, that table may still exist with historical data
-  // but is no longer created or used by the current code.
+	// NOTE: user_wallets table (from old HD wallet system) has been removed
+	// If migrating from an old database, that table may still exist with historical data
+	// but is no longer created or used by the current code.
 
-  // User balances table - Internal ledger system
-  db.exec(`
+	// User balances table - Internal ledger system
+	db.exec(`
     CREATE TABLE IF NOT EXISTS user_balances (
       user_id INTEGER PRIMARY KEY,
       balance REAL DEFAULT 0,
@@ -157,8 +160,8 @@ export const initDb = (): void => {
     );
   `);
 
-  // Transactions table - Complete audit trail
-  db.exec(`
+	// Transactions table - Complete audit trail
+	db.exec(`
     CREATE TABLE IF NOT EXISTS transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       transaction_type TEXT NOT NULL,
@@ -177,8 +180,8 @@ export const initDb = (): void => {
     );
   `);
 
-  // System wallets configuration
-  db.exec(`
+	// System wallets configuration
+	db.exec(`
     CREATE TABLE IF NOT EXISTS system_wallets (
       id TEXT PRIMARY KEY,
       address TEXT NOT NULL UNIQUE,
@@ -187,8 +190,8 @@ export const initDb = (): void => {
     );
   `);
 
-  // Enhanced rules table
-  db.exec(`
+	// Enhanced rules table
+	db.exec(`
     CREATE TABLE IF NOT EXISTS rules (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       type TEXT NOT NULL,
@@ -199,8 +202,8 @@ export const initDb = (): void => {
     );
   `);
 
-  // Enhanced violations table
-  db.exec(`
+	// Enhanced violations table
+	db.exec(`
     CREATE TABLE IF NOT EXISTS violations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -218,8 +221,8 @@ export const initDb = (): void => {
     );
   `);
 
-  // Jail events log table
-  db.exec(`
+	// Jail events log table
+	db.exec(`
     CREATE TABLE IF NOT EXISTS jail_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -237,8 +240,8 @@ export const initDb = (): void => {
     );
   `);
 
-  // Enhanced user_restrictions table with severity levels
-  db.exec(`
+	// Enhanced user_restrictions table with severity levels
+	db.exec(`
     CREATE TABLE IF NOT EXISTS user_restrictions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -255,30 +258,38 @@ export const initDb = (): void => {
     );
   `);
 
-  // Add new columns to existing user_restrictions table if they don't exist
-  try {
-    db.exec(`ALTER TABLE user_restrictions ADD COLUMN severity TEXT DEFAULT 'delete'`);
-  } catch (e) {
-    // Column already exists, ignore
-  }
-  try {
-    db.exec(`ALTER TABLE user_restrictions ADD COLUMN violation_threshold INTEGER DEFAULT 5`);
-  } catch (e) {
-    // Column already exists, ignore
-  }
-  try {
-    db.exec(`ALTER TABLE user_restrictions ADD COLUMN auto_jail_duration INTEGER DEFAULT 2880`);
-  } catch (e) {
-    // Column already exists, ignore
-  }
-  try {
-    db.exec(`ALTER TABLE user_restrictions ADD COLUMN auto_jail_fine REAL DEFAULT 10.0`);
-  } catch (e) {
-    // Column already exists, ignore
-  }
+	// Add new columns to existing user_restrictions table if they don't exist
+	try {
+		db.exec(
+			`ALTER TABLE user_restrictions ADD COLUMN severity TEXT DEFAULT 'delete'`,
+		);
+	} catch (_e) {
+		// Column already exists, ignore
+	}
+	try {
+		db.exec(
+			`ALTER TABLE user_restrictions ADD COLUMN violation_threshold INTEGER DEFAULT 5`,
+		);
+	} catch (_e) {
+		// Column already exists, ignore
+	}
+	try {
+		db.exec(
+			`ALTER TABLE user_restrictions ADD COLUMN auto_jail_duration INTEGER DEFAULT 2880`,
+		);
+	} catch (_e) {
+		// Column already exists, ignore
+	}
+	try {
+		db.exec(
+			`ALTER TABLE user_restrictions ADD COLUMN auto_jail_fine REAL DEFAULT 10.0`,
+		);
+	} catch (_e) {
+		// Column already exists, ignore
+	}
 
-  // Enhanced global_restrictions table
-  db.exec(`
+	// Enhanced global_restrictions table
+	db.exec(`
     CREATE TABLE IF NOT EXISTS global_restrictions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       restriction TEXT NOT NULL,
@@ -289,8 +300,8 @@ export const initDb = (): void => {
     );
   `);
 
-  // Processed deposits tracking table
-  db.exec(`
+	// Processed deposits tracking table
+	db.exec(`
     CREATE TABLE IF NOT EXISTS processed_deposits (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       tx_hash TEXT NOT NULL UNIQUE,
@@ -307,8 +318,8 @@ export const initDb = (): void => {
     );
   `);
 
-  // Transaction lock table for preventing double-spending
-  db.exec(`
+	// Transaction lock table for preventing double-spending
+	db.exec(`
     CREATE TABLE IF NOT EXISTS transaction_locks (
       user_id INTEGER PRIMARY KEY,
       lock_type TEXT NOT NULL,
@@ -318,8 +329,8 @@ export const initDb = (): void => {
     );
   `);
 
-  // Price history table for JUNO price tracking
-  db.exec(`
+	// Price history table for JUNO price tracking
+	db.exec(`
     CREATE TABLE IF NOT EXISTS price_history (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       price_usd REAL NOT NULL,
@@ -327,8 +338,8 @@ export const initDb = (): void => {
     );
   `);
 
-  // Fine configuration table for USD-based fine amounts
-  db.exec(`
+	// Fine configuration table for USD-based fine amounts
+	db.exec(`
     CREATE TABLE IF NOT EXISTS fine_config (
       fine_type TEXT PRIMARY KEY,
       amount_usd REAL NOT NULL,
@@ -339,8 +350,8 @@ export const initDb = (): void => {
     );
   `);
 
-  // Shared accounts table
-  db.exec(`
+	// Shared accounts table
+	db.exec(`
     CREATE TABLE IF NOT EXISTS shared_accounts (
       id INTEGER PRIMARY KEY,
       name TEXT UNIQUE NOT NULL,
@@ -353,8 +364,8 @@ export const initDb = (): void => {
     );
   `);
 
-  // Shared account permissions table
-  db.exec(`
+	// Shared account permissions table
+	db.exec(`
     CREATE TABLE IF NOT EXISTS shared_account_permissions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       shared_account_id INTEGER NOT NULL,
@@ -374,8 +385,8 @@ export const initDb = (): void => {
     );
   `);
 
-  // Create indexes for performance
-  db.exec(`
+	// Create indexes for performance
+	db.exec(`
     CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
     CREATE INDEX IF NOT EXISTS idx_users_blacklist ON users(blacklist);
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
@@ -411,5 +422,5 @@ export const initDb = (): void => {
     CREATE INDEX IF NOT EXISTS idx_price_history_timestamp ON price_history(timestamp);
   `);
 
-  logger.info('Database initialized successfully');
+	logger.info("Database initialized successfully");
 };

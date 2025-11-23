@@ -5,9 +5,9 @@
  * preventing race conditions and double-spending scenarios.
  */
 
-import { Context } from 'telegraf';
-import { TransactionLockService } from '../services/transactionLock';
-import { logger } from '../utils/logger';
+import type { Context } from "telegraf";
+import { TransactionLockService } from "../services/transactionLock";
+import { logger } from "../utils/logger";
 
 /**
  * Middleware that checks if a user has an active transaction lock.
@@ -28,55 +28,58 @@ import { logger } from '../utils/logger';
  * //  You have a withdrawal transaction in progress.
  * //  Please wait 45 seconds for it to complete."
  */
-export async function lockCheckMiddleware(ctx: Context, next: () => Promise<void>): Promise<void> {
-  try {
-    const userId = ctx.from?.id;
+export async function lockCheckMiddleware(
+	ctx: Context,
+	next: () => Promise<void>,
+): Promise<void> {
+	try {
+		const userId = ctx.from?.id;
 
-    if (!userId) {
-      return next();
-    }
+		if (!userId) {
+			return next();
+		}
 
-    // Check if user is locked
-    const lock = await TransactionLockService.getActiveLock(userId);
+		// Check if user is locked
+		const lock = await TransactionLockService.getActiveLock(userId);
 
-    if (lock) {
-      const now = Math.floor(Date.now() / 1000);
-      const age = now - lock.lockedAt;
+		if (lock) {
+			const now = Math.floor(Date.now() / 1000);
+			const age = now - lock.lockedAt;
 
-      // Determine timeout based on lock type
-      const timeoutMap: Record<string, number> = {
-        'withdrawal': 120,
-        'deposit': 300,
-        'transfer': 30
-      };
-      const timeout = timeoutMap[lock.lockType] || 60;
-      const remainingSeconds = Math.max(0, timeout - age);
+			// Determine timeout based on lock type
+			const timeoutMap: Record<string, number> = {
+				withdrawal: 120,
+				deposit: 300,
+				transfer: 30,
+			};
+			const timeout = timeoutMap[lock.lockType] || 60;
+			const remainingSeconds = Math.max(0, timeout - age);
 
-      await ctx.reply(
-        ` *Transaction in Progress*\n\n` +
-        `You have a ${lock.lockType} transaction in progress.\n` +
-        `Please wait ${remainingSeconds} seconds for it to complete.\n\n` +
-        `If this persists, contact an admin.`,
-        { parse_mode: 'Markdown' }
-      );
+			await ctx.reply(
+				` *Transaction in Progress*\n\n` +
+					`You have a ${lock.lockType} transaction in progress.\n` +
+					`Please wait ${remainingSeconds} seconds for it to complete.\n\n` +
+					`If this persists, contact an admin.`,
+				{ parse_mode: "Markdown" },
+			);
 
-      logger.info('User command blocked due to active lock', {
-        userId,
-        lockType: lock.lockType,
-        remainingSeconds
-      });
+			logger.info("User command blocked due to active lock", {
+				userId,
+				lockType: lock.lockType,
+				remainingSeconds,
+			});
 
-      // Don't continue to next middleware
-      return;
-    }
+			// Don't continue to next middleware
+			return;
+		}
 
-    // User not locked, continue
-    return next();
-  } catch (error) {
-    logger.error('Error in lock check middleware', { error });
-    // On error, allow command to proceed rather than blocking
-    return next();
-  }
+		// User not locked, continue
+		return next();
+	} catch (error) {
+		logger.error("Error in lock check middleware", { error });
+		// On error, allow command to proceed rather than blocking
+		return next();
+	}
 }
 
 /**
@@ -100,39 +103,42 @@ export async function lockCheckMiddleware(ctx: Context, next: () => Promise<void
  * // Non-financial commands proceed even with active lock
  * // /balance, /help, etc. work normally during a withdrawal
  */
-export async function financialLockCheck(ctx: Context, next: () => Promise<void>): Promise<void> {
-  try {
-    const userId = ctx.from?.id;
+export async function financialLockCheck(
+	ctx: Context,
+	next: () => Promise<void>,
+): Promise<void> {
+	try {
+		const userId = ctx.from?.id;
 
-    if (!userId) {
-      return next();
-    }
+		if (!userId) {
+			return next();
+		}
 
-    const command = (ctx.message as any)?.text?.split(' ')[0];
-    const financialCommands = [
-      '/withdraw',
-      '/send',
-      '/transfer',
-      '/pay',
-      '/bail',
-      '/paybail'
-    ];
+		const command = (ctx.message as any)?.text?.split(" ")[0];
+		const financialCommands = [
+			"/withdraw",
+			"/send",
+			"/transfer",
+			"/pay",
+			"/bail",
+			"/paybail",
+		];
 
-    // Only check lock for financial commands
-    if (command && financialCommands.includes(command)) {
-      const isLocked = await TransactionLockService.hasLock(userId);
+		// Only check lock for financial commands
+		if (command && financialCommands.includes(command)) {
+			const isLocked = await TransactionLockService.hasLock(userId);
 
-      if (isLocked) {
-        await ctx.reply(
-          ` You have another transaction in progress. Please wait for it to complete before initiating a new one.`
-        );
-        return;
-      }
-    }
+			if (isLocked) {
+				await ctx.reply(
+					` You have another transaction in progress. Please wait for it to complete before initiating a new one.`,
+				);
+				return;
+			}
+		}
 
-    return next();
-  } catch (error) {
-    logger.error('Error in financial lock check', { error });
-    return next();
-  }
+		return next();
+	} catch (error) {
+		logger.error("Error in financial lock check", { error });
+		return next();
+	}
 }

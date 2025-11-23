@@ -4,10 +4,10 @@
  * Ensures that commands in group environments are explicitly directed at this bot using @mention syntax.
  */
 
-import { Context, MiddlewareFn } from 'telegraf';
-import { logger } from '../utils/logger';
+import type { Context, MiddlewareFn } from "telegraf";
+import { logger } from "../utils/logger";
 
-const BOT_USERNAME = 'banBabyBot';
+const BOT_USERNAME = "banBabyBot";
 
 /**
  * Middleware that filters commands to only respond when explicitly mentioned in group chats.
@@ -31,42 +31,46 @@ const BOT_USERNAME = 'banBabyBot';
  * // In private chat - will be processed
  * /help
  */
-export const commandFilterMiddleware: MiddlewareFn<Context> = async (ctx, next) => {
-  // Check if this is a command message
-  const messageText = ctx.message && 'text' in ctx.message ? ctx.message.text : null;
+export const commandFilterMiddleware: MiddlewareFn<Context> = async (
+	ctx,
+	next,
+) => {
+	// Check if this is a command message
+	const messageText =
+		ctx.message && "text" in ctx.message ? ctx.message.text : null;
 
-  if (!messageText || !messageText.startsWith('/')) {
-    return next();
-  }
+	if (!messageText || !messageText.startsWith("/")) {
+		return next();
+	}
 
-  // Extract command (e.g., "/mute" or "/mute@banBabyBot")
-  const commandMatch = messageText.match(/^\/([a-zA-Z0-9_]+)(@[a-zA-Z0-9_]+)?/);
+	// Extract command (e.g., "/mute" or "/mute@banBabyBot")
+	const commandMatch = messageText.match(/^\/([a-zA-Z0-9_]+)(@[a-zA-Z0-9_]+)?/);
 
-  if (!commandMatch) {
-    return next();
-  }
+	if (!commandMatch) {
+		return next();
+	}
 
-  const [, commandName, botMention] = commandMatch;
+	const [, commandName, botMention] = commandMatch;
 
-  // Check if we're in a group/supergroup chat
-  const chatType = ctx.chat?.type;
-  const isGroupChat = chatType === 'group' || chatType === 'supergroup';
+	// Check if we're in a group/supergroup chat
+	const chatType = ctx.chat?.type;
+	const isGroupChat = chatType === "group" || chatType === "supergroup";
 
-  // In group chats, only respond to commands with @banBabyBot suffix
-  if (isGroupChat) {
-    const isMentioned = botMention === `@${BOT_USERNAME}`;
+	// In group chats, only respond to commands with @banBabyBot suffix
+	if (isGroupChat) {
+		const isMentioned = botMention === `@${BOT_USERNAME}`;
 
-    if (!isMentioned) {
-      // Command is not for this bot, ignore it
-      logger.debug('Ignoring command without bot mention in group', {
-        command: commandName,
-        chatId: ctx.chat?.id,
-        chatType
-      });
-      return; // Don't call next(), stop processing
-    }
-  }
+		if (!isMentioned) {
+			// Command is not for this bot, ignore it
+			logger.debug("Ignoring command without bot mention in group", {
+				command: commandName,
+				chatId: ctx.chat?.id,
+				chatType,
+			});
+			return; // Don't call next(), stop processing
+		}
+	}
 
-  // In private chats or if properly mentioned in groups, continue
-  return next();
+	// In private chats or if properly mentioned in groups, continue
+	return next();
 };

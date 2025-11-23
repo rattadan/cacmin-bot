@@ -5,12 +5,12 @@
  * URL blocks, and regex pattern filters. Whitelisted users, owners, and admins are exempt from filtering.
  */
 
-import { Context, MiddlewareFn } from 'telegraf';
-import { RestrictionService } from '../services/restrictionService';
-import { ensureUserExists } from '../services/userService';
-import { get } from '../database';
-import { User } from '../types';
-import { logger } from '../utils/logger';
+import type { Context, MiddlewareFn } from "telegraf";
+import { get } from "../database";
+import { RestrictionService } from "../services/restrictionService";
+import { ensureUserExists } from "../services/userService";
+import type { User } from "../types";
+import { logger } from "../utils/logger";
 
 /**
  * Middleware that filters messages based on user restrictions and mute status.
@@ -36,53 +36,71 @@ import { logger } from '../utils/logger';
  * // /jail @user 60  <- Mutes user for 60 minutes
  * // User's messages deleted until mute expires
  */
-export const messageFilterMiddleware: MiddlewareFn<Context> = async (ctx, next) => {
-  // Skip if no message or user
-  if (!ctx.message || !ctx.from) {
-    return next();
-  }
+export const messageFilterMiddleware: MiddlewareFn<Context> = async (
+	ctx,
+	next,
+) => {
+	// Skip if no message or user
+	if (!ctx.message || !ctx.from) {
+		return next();
+	}
 
-  try {
-    // Ensure user exists (synchronous operation)
-    ensureUserExists(ctx.from.id, ctx.from.username || 'unknown');
+	try {
+		// Ensure user exists (synchronous operation)
+		ensureUserExists(ctx.from.id, ctx.from.username || "unknown");
 
-    // Get user from database
-    const user = get<User>('SELECT * FROM users WHERE id = ?', [ctx.from.id]);
+		// Get user from database
+		const user = get<User>("SELECT * FROM users WHERE id = ?", [ctx.from.id]);
 
-    // Skip ALL filtering for whitelisted users, owners, and admins
-    if (user?.whitelist || user?.role === 'owner' || user?.role === 'admin') {
-      return next();
-    }
+		// Skip ALL filtering for whitelisted users, owners, and admins
+		if (user?.whitelist || user?.role === "owner" || user?.role === "admin") {
+			return next();
+		}
 
-    // Check if user is muted - ONLY apply in group chats, not DMs
-    const isGroupChat = ctx.chat?.type === 'group' || ctx.chat?.type === 'supergroup';
-    if (isGroupChat && user?.muted_until && user.muted_until > Date.now() / 1000) {
-      try {
-        await ctx.deleteMessage();
-        logger.info('Deleted message from jailed user', { userId: ctx.from.id, mutedUntil: user.muted_until });
-      } catch (error) {
-        logger.error('Failed to delete message - bot may lack admin permissions', {
-          userId: ctx.from.id,
-          chatId: ctx.chat?.id,
-          error
-        });
-      }
-      return; // Don't continue regardless of deletion success
-    }
+		// Check if user is muted - ONLY apply in group chats, not DMs
+		const isGroupChat =
+			ctx.chat?.type === "group" || ctx.chat?.type === "supergroup";
+		if (
+			isGroupChat &&
+			user?.muted_until &&
+			user.muted_until > Date.now() / 1000
+		) {
+			try {
+				await ctx.deleteMessage();
+				logger.info("Deleted message from jailed user", {
+					userId: ctx.from.id,
+					mutedUntil: user.muted_until,
+				});
+			} catch (error) {
+				logger.error(
+					"Failed to delete message - bot may lack admin permissions",
+					{
+						userId: ctx.from.id,
+						chatId: ctx.chat?.id,
+						error,
+					},
+				);
+			}
+			return; // Don't continue regardless of deletion success
+		}
 
-    // Check message against restrictions (only in group chats)
-    if (isGroupChat) {
-      const violated = await RestrictionService.checkMessage(ctx, ctx.message, user);
+		// Check message against restrictions (only in group chats)
+		if (isGroupChat) {
+			const violated = await RestrictionService.checkMessage(
+				ctx,
+				ctx.message,
+				user,
+			);
 
-      if (violated) {
-        // Message was deleted and violation recorded
-        return; // Don't continue to next middleware
-      }
-    }
+			if (violated) {
+				// Message was deleted and violation recorded
+				return; // Don't continue to next middleware
+			}
+		}
 
-    return next();
-  } catch (error) {
-    logger.error('Error in message filter middleware', error);
-    return next(); // Continue on error to avoid blocking
-  }
+		return next();
+	} catch (error) {
+		logger.error("Error in message filter middleware", error);
+		return next(); // Continue on error to avoid blocking
+	}
 };

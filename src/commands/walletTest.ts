@@ -6,11 +6,14 @@
  * @module commands/walletTest
  */
 
-import { Telegraf, Context } from 'telegraf';
-import { UnifiedWalletService, SYSTEM_USER_IDS } from '../services/unifiedWalletService';
-import { LedgerService } from '../services/ledgerService';
-import { logger, StructuredLogger } from '../utils/logger';
-import { ownerOnly } from '../middleware';
+import type { Context, Telegraf } from "telegraf";
+import { ownerOnly } from "../middleware";
+import { LedgerService } from "../services/ledgerService";
+import {
+	SYSTEM_USER_IDS,
+	UnifiedWalletService,
+} from "../services/unifiedWalletService";
+import { logger } from "../utils/logger";
 
 /**
  * Registers all wallet test commands with the bot.
@@ -41,458 +44,479 @@ import { ownerOnly } from '../middleware';
  * ```
  */
 export const registerWalletTestCommands = (bot: Telegraf<Context>) => {
-  /**
-   * Command: /testbalance
-   * Test balance checking for user and bot treasury.
-   *
-   * Permission: Owner only
-   * Syntax: /testbalance
-   *
-   * @example
-   * User: /testbalance
-   * Bot: Balance Test
-   *
-   *      Your balance: `100.000000 JUNO`
-   *      Bot treasury: `500.000000 JUNO`
-   */
-  bot.command('testbalance', ownerOnly, async (ctx) => {
-    const userId = ctx.from?.id;
-    if (!userId) return;
+	/**
+	 * Command: /testbalance
+	 * Test balance checking for user and bot treasury.
+	 *
+	 * Permission: Owner only
+	 * Syntax: /testbalance
+	 *
+	 * @example
+	 * User: /testbalance
+	 * Bot: Balance Test
+	 *
+	 *      Your balance: `100.000000 JUNO`
+	 *      Bot treasury: `500.000000 JUNO`
+	 */
+	bot.command("testbalance", ownerOnly, async (ctx) => {
+		const userId = ctx.from?.id;
+		if (!userId) return;
 
-    try {
-      const balance = await UnifiedWalletService.getBalance(userId);
-      const botBalance = await UnifiedWalletService.getBotBalance();
+		try {
+			const balance = await UnifiedWalletService.getBalance(userId);
+			const botBalance = await UnifiedWalletService.getBotBalance();
 
-      await ctx.reply(
-        ` *Balance Test*\n\n` +
-        `Your balance: \`${balance.toFixed(6)} JUNO\`\n` +
-        `Bot treasury: \`${botBalance.toFixed(6)} JUNO\``,
-        { parse_mode: 'Markdown' }
-      );
-    } catch (error) {
-      logger.error('Balance test failed', { userId, error });
-      await ctx.reply(' Balance test failed');
-    }
-  });
+			await ctx.reply(
+				` *Balance Test*\n\n` +
+					`Your balance: \`${balance.toFixed(6)} JUNO\`\n` +
+					`Bot treasury: \`${botBalance.toFixed(6)} JUNO\``,
+				{ parse_mode: "Markdown" },
+			);
+		} catch (error) {
+			logger.error("Balance test failed", { userId, error });
+			await ctx.reply(" Balance test failed");
+		}
+	});
 
-  /**
-   * Command: /testdeposit
-   * Test deposit instruction generation.
-   *
-   * Permission: Owner only
-   * Syntax: /testdeposit
-   */
-  bot.command('testdeposit', ownerOnly, async (ctx) => {
-    const userId = ctx.from?.id;
-    if (!userId) return;
+	/**
+	 * Command: /testdeposit
+	 * Test deposit instruction generation.
+	 *
+	 * Permission: Owner only
+	 * Syntax: /testdeposit
+	 */
+	bot.command("testdeposit", ownerOnly, async (ctx) => {
+		const userId = ctx.from?.id;
+		if (!userId) return;
 
-    try {
-      const instructions = UnifiedWalletService.getDepositInstructions(userId);
+		try {
+			const instructions = UnifiedWalletService.getDepositInstructions(userId);
 
-      await ctx.reply(
-        ` *Deposit Test Instructions*\n\n` +
-        `Address:\n\`${instructions.address}\`\n\n` +
-        `Memo: \`${instructions.memo}\`\n\n` +
-        `${instructions.instructions}`,
-        { parse_mode: 'Markdown' }
-      );
-    } catch (error) {
-      logger.error('Deposit test failed', { userId, error });
-      await ctx.reply(' Deposit test failed');
-    }
-  });
+			await ctx.reply(
+				` *Deposit Test Instructions*\n\n` +
+					`Address:\n\`${instructions.address}\`\n\n` +
+					`Memo: \`${instructions.memo}\`\n\n` +
+					`${instructions.instructions}`,
+				{ parse_mode: "Markdown" },
+			);
+		} catch (error) {
+			logger.error("Deposit test failed", { userId, error });
+			await ctx.reply(" Deposit test failed");
+		}
+	});
 
-  /**
-   * Command: /testtransfer
-   * Test internal transfer between users.
-   *
-   * Permission: Owner only
-   * Syntax: /testtransfer <toUserId> <amount>
-   */
-  bot.command('testtransfer', ownerOnly, async (ctx) => {
-    const userId = ctx.from?.id;
-    if (!userId) return;
+	/**
+	 * Command: /testtransfer
+	 * Test internal transfer between users.
+	 *
+	 * Permission: Owner only
+	 * Syntax: /testtransfer <toUserId> <amount>
+	 */
+	bot.command("testtransfer", ownerOnly, async (ctx) => {
+		const userId = ctx.from?.id;
+		if (!userId) return;
 
-    const args = ctx.message?.text?.split(' ').slice(1) || [];
-    if (args.length < 2) {
-      return ctx.reply('Usage: /testtransfer <toUserId> <amount>');
-    }
+		const args = ctx.message?.text?.split(" ").slice(1) || [];
+		if (args.length < 2) {
+			return ctx.reply("Usage: /testtransfer <toUserId> <amount>");
+		}
 
-    const toUserId = parseInt(args[0]);
-    const amount = parseFloat(args[1]);
+		const toUserId = parseInt(args[0], 10);
+		const amount = parseFloat(args[1]);
 
-    if (isNaN(toUserId) || isNaN(amount) || amount <= 0) {
-      return ctx.reply('Invalid parameters');
-    }
+		if (Number.isNaN(toUserId) || Number.isNaN(amount) || amount <= 0) {
+			return ctx.reply("Invalid parameters");
+		}
 
-    try {
-      const result = await UnifiedWalletService.transferToUser(
-        userId,
-        toUserId,
-        amount,
-        'Test transfer'
-      );
+		try {
+			const result = await UnifiedWalletService.transferToUser(
+				userId,
+				toUserId,
+				amount,
+				"Test transfer",
+			);
 
-      if (result.success) {
-        await ctx.reply(
-          ` *Transfer Test Successful*\n\n` +
-          `Sent \`${amount.toFixed(6)} JUNO\` to user ${toUserId}\n` +
-          `Your new balance: \`${result.fromBalance?.toFixed(6)} JUNO\`\n` +
-          `Recipient balance: \`${result.toBalance?.toFixed(6)} JUNO\``,
-          { parse_mode: 'Markdown' }
-        );
-      } else {
-        await ctx.reply(` Transfer failed: ${result.error}`);
-      }
-    } catch (error) {
-      logger.error('Transfer test failed', { userId, toUserId, amount, error });
-      await ctx.reply(' Transfer test failed');
-    }
-  });
+			if (result.success) {
+				await ctx.reply(
+					` *Transfer Test Successful*\n\n` +
+						`Sent \`${amount.toFixed(6)} JUNO\` to user ${toUserId}\n` +
+						`Your new balance: \`${result.fromBalance?.toFixed(6)} JUNO\`\n` +
+						`Recipient balance: \`${result.toBalance?.toFixed(6)} JUNO\``,
+					{ parse_mode: "Markdown" },
+				);
+			} else {
+				await ctx.reply(` Transfer failed: ${result.error}`);
+			}
+		} catch (error) {
+			logger.error("Transfer test failed", { userId, toUserId, amount, error });
+			await ctx.reply(" Transfer test failed");
+		}
+	});
 
-  /**
-   * Command: /testfine
-   * Test fine payment from user balance.
-   *
-   * Permission: Owner only
-   * Syntax: /testfine [amount]
-   */
-  bot.command('testfine', ownerOnly, async (ctx) => {
-    const userId = ctx.from?.id;
-    if (!userId) return;
+	/**
+	 * Command: /testfine
+	 * Test fine payment from user balance.
+	 *
+	 * Permission: Owner only
+	 * Syntax: /testfine [amount]
+	 */
+	bot.command("testfine", ownerOnly, async (ctx) => {
+		const userId = ctx.from?.id;
+		if (!userId) return;
 
-    const args = ctx.message?.text?.split(' ').slice(1) || [];
-    const amount = parseFloat(args[0] || '1');
+		const args = ctx.message?.text?.split(" ").slice(1) || [];
+		const amount = parseFloat(args[0] || "1");
 
-    if (isNaN(amount) || amount <= 0) {
-      return ctx.reply('Usage: /testfine [amount]');
-    }
+		if (Number.isNaN(amount) || amount <= 0) {
+			return ctx.reply("Usage: /testfine [amount]");
+		}
 
-    try {
-      const result = await UnifiedWalletService.payFine(
-        userId,
-        amount,
-        'Test fine payment'
-      );
+		try {
+			const result = await UnifiedWalletService.payFine(
+				userId,
+				amount,
+				"Test fine payment",
+			);
 
-      if (result.success) {
-        const botBalance = await UnifiedWalletService.getBotBalance();
+			if (result.success) {
+				const botBalance = await UnifiedWalletService.getBotBalance();
 
-        await ctx.reply(
-          ` *Fine Test Successful*\n\n` +
-          `Paid \`${amount.toFixed(6)} JUNO\` fine\n` +
-          `Your new balance: \`${result.newBalance?.toFixed(6)} JUNO\`\n` +
-          `Bot treasury balance: \`${botBalance.toFixed(6)} JUNO\``,
-          { parse_mode: 'Markdown' }
-        );
-      } else {
-        await ctx.reply(` Fine payment failed: ${result.error}`);
-      }
-    } catch (error) {
-      logger.error('Fine test failed', { userId, amount, error });
-      await ctx.reply(' Fine test failed');
-    }
-  });
+				await ctx.reply(
+					` *Fine Test Successful*\n\n` +
+						`Paid \`${amount.toFixed(6)} JUNO\` fine\n` +
+						`Your new balance: \`${result.newBalance?.toFixed(6)} JUNO\`\n` +
+						`Bot treasury balance: \`${botBalance.toFixed(6)} JUNO\``,
+					{ parse_mode: "Markdown" },
+				);
+			} else {
+				await ctx.reply(` Fine payment failed: ${result.error}`);
+			}
+		} catch (error) {
+			logger.error("Fine test failed", { userId, amount, error });
+			await ctx.reply(" Fine test failed");
+		}
+	});
 
-  /**
-   * Command: /testwithdraw
-   * Test withdrawal validation (dry run - no actual blockchain transaction).
-   *
-   * Permission: Owner only
-   * Syntax: /testwithdraw <address> <amount>
-   */
-  bot.command('testwithdraw', ownerOnly, async (ctx) => {
-    const userId = ctx.from?.id;
-    if (!userId) return;
+	/**
+	 * Command: /testwithdraw
+	 * Test withdrawal validation (dry run - no actual blockchain transaction).
+	 *
+	 * Permission: Owner only
+	 * Syntax: /testwithdraw <address> <amount>
+	 */
+	bot.command("testwithdraw", ownerOnly, async (ctx) => {
+		const userId = ctx.from?.id;
+		if (!userId) return;
 
-    const args = ctx.message?.text?.split(' ').slice(1) || [];
-    if (args.length < 2) {
-      return ctx.reply('Usage: /testwithdraw <address> <amount>');
-    }
+		const args = ctx.message?.text?.split(" ").slice(1) || [];
+		if (args.length < 2) {
+			return ctx.reply("Usage: /testwithdraw <address> <amount>");
+		}
 
-    const address = args[0];
-    const amount = parseFloat(args[1]);
+		const address = args[0];
+		const amount = parseFloat(args[1]);
 
-    if (!address.startsWith('juno1') || isNaN(amount) || amount <= 0) {
-      return ctx.reply('Invalid parameters. Address must start with juno1');
-    }
+		if (!address.startsWith("juno1") || Number.isNaN(amount) || amount <= 0) {
+			return ctx.reply("Invalid parameters. Address must start with juno1");
+		}
 
-    try {
-      // Just validate, don't actually withdraw
-      const balance = await UnifiedWalletService.getBalance(userId);
+		try {
+			// Just validate, don't actually withdraw
+			const balance = await UnifiedWalletService.getBalance(userId);
 
-      if (balance < amount) {
-        await ctx.reply(
-          ` *Withdrawal Test Failed*\n\n` +
-          `Insufficient balance\n` +
-          `Requested: \`${amount.toFixed(6)} JUNO\`\n` +
-          `Available: \`${balance.toFixed(6)} JUNO\``,
-          { parse_mode: 'Markdown' }
-        );
-      } else {
-        await ctx.reply(
-          ` *Withdrawal Test (DRY RUN)*\n\n` +
-          `Would withdraw \`${amount.toFixed(6)} JUNO\`\n` +
-          `To: \`${address}\`\n` +
-          `Current balance: \`${balance.toFixed(6)} JUNO\`\n` +
-          `Balance after: \`${(balance - amount).toFixed(6)} JUNO\`\n\n` +
-          ` This was a dry run - no actual withdrawal`,
-          { parse_mode: 'Markdown' }
-        );
-      }
-    } catch (error) {
-      logger.error('Withdrawal test failed', { userId, address, amount, error });
-      await ctx.reply(' Withdrawal test failed');
-    }
-  });
+			if (balance < amount) {
+				await ctx.reply(
+					` *Withdrawal Test Failed*\n\n` +
+						`Insufficient balance\n` +
+						`Requested: \`${amount.toFixed(6)} JUNO\`\n` +
+						`Available: \`${balance.toFixed(6)} JUNO\``,
+					{ parse_mode: "Markdown" },
+				);
+			} else {
+				await ctx.reply(
+					` *Withdrawal Test (DRY RUN)*\n\n` +
+						`Would withdraw \`${amount.toFixed(6)} JUNO\`\n` +
+						`To: \`${address}\`\n` +
+						`Current balance: \`${balance.toFixed(6)} JUNO\`\n` +
+						`Balance after: \`${(balance - amount).toFixed(6)} JUNO\`\n\n` +
+						` This was a dry run - no actual withdrawal`,
+					{ parse_mode: "Markdown" },
+				);
+			}
+		} catch (error) {
+			logger.error("Withdrawal test failed", {
+				userId,
+				address,
+				amount,
+				error,
+			});
+			await ctx.reply(" Withdrawal test failed");
+		}
+	});
 
-  /**
-   * Command: /testverify
-   * Test on-chain transaction verification.
-   *
-   * Permission: Owner only
-   * Syntax: /testverify <txHash>
-   */
-  bot.command('testverify', ownerOnly, async (ctx) => {
-    const args = ctx.message?.text?.split(' ').slice(1) || [];
-    if (args.length < 1) {
-      return ctx.reply('Usage: /testverify <txHash>');
-    }
+	/**
+	 * Command: /testverify
+	 * Test on-chain transaction verification.
+	 *
+	 * Permission: Owner only
+	 * Syntax: /testverify <txHash>
+	 */
+	bot.command("testverify", ownerOnly, async (ctx) => {
+		const args = ctx.message?.text?.split(" ").slice(1) || [];
+		if (args.length < 1) {
+			return ctx.reply("Usage: /testverify <txHash>");
+		}
 
-    const txHash = args[0];
+		const txHash = args[0];
 
-    try {
-      const result = await UnifiedWalletService.verifyTransaction(txHash);
+		try {
+			const result = await UnifiedWalletService.verifyTransaction(txHash);
 
-      if (result.verified) {
-        await ctx.reply(
-          ` *Transaction Verified*\n\n` +
-          `Hash: \`${txHash}\`\n` +
-          `Amount: \`${result.amount?.toFixed(6)} JUNO\`\n` +
-          `From: \`${result.from}\`\n` +
-          `To: \`${result.to}\`\n` +
-          `Memo: ${result.memo || 'None'}`,
-          { parse_mode: 'Markdown' }
-        );
-      } else {
-        await ctx.reply(` Transaction not found or invalid`);
-      }
-    } catch (error) {
-      logger.error('Verification test failed', { txHash, error });
-      await ctx.reply(' Verification test failed');
-    }
-  });
+			if (result.verified) {
+				await ctx.reply(
+					` *Transaction Verified*\n\n` +
+						`Hash: \`${txHash}\`\n` +
+						`Amount: \`${result.amount?.toFixed(6)} JUNO\`\n` +
+						`From: \`${result.from}\`\n` +
+						`To: \`${result.to}\`\n` +
+						`Memo: ${result.memo || "None"}`,
+					{ parse_mode: "Markdown" },
+				);
+			} else {
+				await ctx.reply(` Transaction not found or invalid`);
+			}
+		} catch (error) {
+			logger.error("Verification test failed", { txHash, error });
+			await ctx.reply(" Verification test failed");
+		}
+	});
 
-  /**
-   * Command: /testwalletstats
-   * Test wallet statistics and reconciliation.
-   *
-   * Permission: Owner only
-   * Syntax: /testwalletstats
-   */
-  bot.command('testwalletstats', ownerOnly, async (ctx) => {
-    try {
-      const stats = await UnifiedWalletService.getStats();
+	/**
+	 * Command: /testwalletstats
+	 * Test wallet statistics and reconciliation.
+	 *
+	 * Permission: Owner only
+	 * Syntax: /testwalletstats
+	 */
+	bot.command("testwalletstats", ownerOnly, async (ctx) => {
+		try {
+			const stats = await UnifiedWalletService.getStats();
 
-      await ctx.reply(
-        ` *Wallet Statistics*\n\n` +
-        `*System Wallet*\n` +
-        `Address: \`${stats.walletAddress}\`\n` +
-        `On-chain balance: \`${stats.onChainBalance.toFixed(6)} JUNO\`\n\n` +
-        `*Internal Ledger*\n` +
-        `Total user balances: \`${stats.internalTotal.toFixed(6)} JUNO\`\n` +
-        `Bot treasury: \`${stats.botBalance.toFixed(6)} JUNO\`\n` +
-        `Unclaimed deposits: \`${stats.unclaimedBalance.toFixed(6)} JUNO\`\n\n` +
-        `*Status*\n` +
-        `Active users: ${stats.activeUsers}\n` +
-        `Pending deposits: ${stats.pendingDeposits}\n` +
-        `Reconciled: ${stats.reconciled ? ' Yes' : ' No'}\n` +
-        `${!stats.reconciled ? `Difference: ${Math.abs(stats.onChainBalance - stats.internalTotal).toFixed(6)} JUNO` : ''}`,
-        { parse_mode: 'Markdown' }
-      );
-    } catch (error) {
-      logger.error('Wallet stats test failed', { error });
-      await ctx.reply(' Wallet stats test failed');
-    }
-  });
+			await ctx.reply(
+				` *Wallet Statistics*\n\n` +
+					`*System Wallet*\n` +
+					`Address: \`${stats.walletAddress}\`\n` +
+					`On-chain balance: \`${stats.onChainBalance.toFixed(6)} JUNO\`\n\n` +
+					`*Internal Ledger*\n` +
+					`Total user balances: \`${stats.internalTotal.toFixed(6)} JUNO\`\n` +
+					`Bot treasury: \`${stats.botBalance.toFixed(6)} JUNO\`\n` +
+					`Unclaimed deposits: \`${stats.unclaimedBalance.toFixed(6)} JUNO\`\n\n` +
+					`*Status*\n` +
+					`Active users: ${stats.activeUsers}\n` +
+					`Pending deposits: ${stats.pendingDeposits}\n` +
+					`Reconciled: ${stats.reconciled ? " Yes" : " No"}\n` +
+					`${!stats.reconciled ? `Difference: ${Math.abs(stats.onChainBalance - stats.internalTotal).toFixed(6)} JUNO` : ""}`,
+				{ parse_mode: "Markdown" },
+			);
+		} catch (error) {
+			logger.error("Wallet stats test failed", { error });
+			await ctx.reply(" Wallet stats test failed");
+		}
+	});
 
-  /**
-   * Command: /testsimulatedeposit
-   * Simulate a deposit without blockchain transaction (for testing).
-   *
-   * Permission: Owner only
-   * Syntax: /testsimulatedeposit [userId] [amount]
-   */
-  bot.command('testsimulatedeposit', ownerOnly, async (ctx) => {
-    const userId = ctx.from?.id;
-    if (!userId) return;
+	/**
+	 * Command: /testsimulatedeposit
+	 * Simulate a deposit without blockchain transaction (for testing).
+	 *
+	 * Permission: Owner only
+	 * Syntax: /testsimulatedeposit [userId] [amount]
+	 */
+	bot.command("testsimulatedeposit", ownerOnly, async (ctx) => {
+		const userId = ctx.from?.id;
+		if (!userId) return;
 
-    const args = ctx.message?.text?.split(' ').slice(1) || [];
-    const targetUserId = args[0] ? parseInt(args[0]) : userId;
-    const amount = parseFloat(args[1] || '10');
+		const args = ctx.message?.text?.split(" ").slice(1) || [];
+		const targetUserId = args[0] ? parseInt(args[0], 10) : userId;
+		const amount = parseFloat(args[1] || "10");
 
-    if (isNaN(targetUserId) || isNaN(amount) || amount <= 0) {
-      return ctx.reply('Usage: /testsimulatedeposit [userId] [amount]');
-    }
+		if (Number.isNaN(targetUserId) || Number.isNaN(amount) || amount <= 0) {
+			return ctx.reply("Usage: /testsimulatedeposit [userId] [amount]");
+		}
 
-    try {
-      // Simulate a deposit by directly crediting the user
-      const result = await LedgerService.processDeposit(
-        targetUserId,
-        amount,
-        `TEST_${Date.now()}`,
-        'simulated_address',
-        'Test deposit simulation'
-      );
+		try {
+			// Simulate a deposit by directly crediting the user
+			const result = await LedgerService.processDeposit(
+				targetUserId,
+				amount,
+				`TEST_${Date.now()}`,
+				"simulated_address",
+				"Test deposit simulation",
+			);
 
-      if (result.success) {
-        await ctx.reply(
-          ` *Deposit Simulation Successful*\n\n` +
-          `User ${targetUserId} credited with \`${amount.toFixed(6)} JUNO\`\n` +
-          `New balance: \`${result.newBalance.toFixed(6)} JUNO\`\n\n` +
-          ` This is a simulated deposit for testing`,
-          { parse_mode: 'Markdown' }
-        );
-      } else {
-        await ctx.reply(` Deposit simulation failed: ${result.error}`);
-      }
-    } catch (error) {
-      logger.error('Deposit simulation failed', { targetUserId, amount, error });
-      await ctx.reply(' Deposit simulation failed');
-    }
-  });
+			if (result.success) {
+				await ctx.reply(
+					` *Deposit Simulation Successful*\n\n` +
+						`User ${targetUserId} credited with \`${amount.toFixed(6)} JUNO\`\n` +
+						`New balance: \`${result.newBalance.toFixed(6)} JUNO\`\n\n` +
+						` This is a simulated deposit for testing`,
+					{ parse_mode: "Markdown" },
+				);
+			} else {
+				await ctx.reply(` Deposit simulation failed: ${result.error}`);
+			}
+		} catch (error) {
+			logger.error("Deposit simulation failed", {
+				targetUserId,
+				amount,
+				error,
+			});
+			await ctx.reply(" Deposit simulation failed");
+		}
+	});
 
-  /**
-   * Command: /testhistory
-   * Test transaction history retrieval.
-   *
-   * Permission: Owner only
-   * Syntax: /testhistory
-   */
-  bot.command('testhistory', ownerOnly, async (ctx) => {
-    const userId = ctx.from?.id;
-    if (!userId) return;
+	/**
+	 * Command: /testhistory
+	 * Test transaction history retrieval.
+	 *
+	 * Permission: Owner only
+	 * Syntax: /testhistory
+	 */
+	bot.command("testhistory", ownerOnly, async (ctx) => {
+		const userId = ctx.from?.id;
+		if (!userId) return;
 
-    try {
-      const transactions = await LedgerService.getUserTransactions(userId, 5);
+		try {
+			const transactions = await LedgerService.getUserTransactions(userId, 5);
 
-      if (transactions.length === 0) {
-        return ctx.reply('No transaction history found');
-      }
+			if (transactions.length === 0) {
+				return ctx.reply("No transaction history found");
+			}
 
-      let message = '*Recent Transactions*\n\n';
+			let message = "*Recent Transactions*\n\n";
 
-      for (const tx of transactions) {
-        const type = tx.transactionType;
-        const amount = tx.amount;
-        const isCredit = tx.toUserId === userId;
+			for (const tx of transactions) {
+				const type = tx.transactionType;
+				const amount = tx.amount;
+				const isCredit = tx.toUserId === userId;
 
-        message += `${isCredit ? '' : ''} ${type.toUpperCase()}: \`${amount.toFixed(6)} JUNO\`\n`;
+				message += `${isCredit ? "" : ""} ${type.toUpperCase()}: \`${amount.toFixed(6)} JUNO\`\n`;
 
-        if (tx.description) {
-          message += `   ${tx.description}\n`;
-        }
+				if (tx.description) {
+					message += `   ${tx.description}\n`;
+				}
 
-        if (tx.txHash) {
-          message += `   Hash: \`${tx.txHash.substring(0, 10)}...\`\n`;
-        }
+				if (tx.txHash) {
+					message += `   Hash: \`${tx.txHash.substring(0, 10)}...\`\n`;
+				}
 
-        message += '\n';
-      }
+				message += "\n";
+			}
 
-      await ctx.reply(message, { parse_mode: 'Markdown' });
-    } catch (error) {
-      logger.error('History test failed', { userId, error });
-      await ctx.reply(' History test failed');
-    }
-  });
+			await ctx.reply(message, { parse_mode: "Markdown" });
+		} catch (error) {
+			logger.error("History test failed", { userId, error });
+			await ctx.reply(" History test failed");
+		}
+	});
 
-  /**
-   * Command: /testfullflow
-   * Run a comprehensive full system flow test including deposit, fine, and transfer.
-   *
-   * Permission: Owner only
-   * Syntax: /testfullflow
-   *
-   * Tests the following sequence:
-   * 1. Check initial balance
-   * 2. Simulate a deposit
-   * 3. Pay a fine
-   * 4. Transfer to bot
-   * 5. Verify final balances
-   */
-  bot.command('testfullflow', ownerOnly, async (ctx) => {
-    const userId = ctx.from?.id;
-    if (!userId) return;
+	/**
+	 * Command: /testfullflow
+	 * Run a comprehensive full system flow test including deposit, fine, and transfer.
+	 *
+	 * Permission: Owner only
+	 * Syntax: /testfullflow
+	 *
+	 * Tests the following sequence:
+	 * 1. Check initial balance
+	 * 2. Simulate a deposit
+	 * 3. Pay a fine
+	 * 4. Transfer to bot
+	 * 5. Verify final balances
+	 */
+	bot.command("testfullflow", ownerOnly, async (ctx) => {
+		const userId = ctx.from?.id;
+		if (!userId) return;
 
-    await ctx.reply(' Starting full wallet flow test...');
+		await ctx.reply(" Starting full wallet flow test...");
 
-    try {
-      // 1. Check initial balance
-      const initialBalance = await UnifiedWalletService.getBalance(userId);
-      await ctx.reply(`1⃣ Initial balance: ${initialBalance.toFixed(6)} JUNO`);
+		try {
+			// 1. Check initial balance
+			const initialBalance = await UnifiedWalletService.getBalance(userId);
+			await ctx.reply(`1⃣ Initial balance: ${initialBalance.toFixed(6)} JUNO`);
 
-      // 2. Simulate a deposit
-      const depositAmount = 100;
-      const depositResult = await LedgerService.processDeposit(
-        userId,
-        depositAmount,
-        `FULLTEST_${Date.now()}`,
-        'test_address',
-        'Full flow test deposit'
-      );
+			// 2. Simulate a deposit
+			const depositAmount = 100;
+			const depositResult = await LedgerService.processDeposit(
+				userId,
+				depositAmount,
+				`FULLTEST_${Date.now()}`,
+				"test_address",
+				"Full flow test deposit",
+			);
 
-      if (!depositResult.success) {
-        throw new Error(`Deposit failed: ${depositResult.error}`);
-      }
+			if (!depositResult.success) {
+				throw new Error(`Deposit failed: ${depositResult.error}`);
+			}
 
-      await ctx.reply(`2⃣ Deposit: +${depositAmount} JUNO (balance: ${depositResult.newBalance.toFixed(6)})`);
+			await ctx.reply(
+				`2⃣ Deposit: +${depositAmount} JUNO (balance: ${depositResult.newBalance.toFixed(6)})`,
+			);
 
-      // 3. Pay a fine
-      const fineAmount = 10;
-      const fineResult = await UnifiedWalletService.payFine(userId, fineAmount, 'Test fine');
+			// 3. Pay a fine
+			const fineAmount = 10;
+			const fineResult = await UnifiedWalletService.payFine(
+				userId,
+				fineAmount,
+				"Test fine",
+			);
 
-      if (!fineResult.success) {
-        throw new Error(`Fine payment failed: ${fineResult.error}`);
-      }
+			if (!fineResult.success) {
+				throw new Error(`Fine payment failed: ${fineResult.error}`);
+			}
 
-      await ctx.reply(`3⃣ Fine paid: -${fineAmount} JUNO (balance: ${fineResult.newBalance?.toFixed(6)})`);
+			await ctx.reply(
+				`3⃣ Fine paid: -${fineAmount} JUNO (balance: ${fineResult.newBalance?.toFixed(6)})`,
+			);
 
-      // 4. Transfer to bot
-      const transferAmount = 5;
-      const transferResult = await UnifiedWalletService.transferToUser(
-        userId,
-        SYSTEM_USER_IDS.BOT_TREASURY,
-        transferAmount,
-        'Test transfer to bot'
-      );
+			// 4. Transfer to bot
+			const transferAmount = 5;
+			const transferResult = await UnifiedWalletService.transferToUser(
+				userId,
+				SYSTEM_USER_IDS.BOT_TREASURY,
+				transferAmount,
+				"Test transfer to bot",
+			);
 
-      if (!transferResult.success) {
-        throw new Error(`Transfer failed: ${transferResult.error}`);
-      }
+			if (!transferResult.success) {
+				throw new Error(`Transfer failed: ${transferResult.error}`);
+			}
 
-      await ctx.reply(`4⃣ Transfer to bot: -${transferAmount} JUNO (balance: ${transferResult.fromBalance?.toFixed(6)})`);
+			await ctx.reply(
+				`4⃣ Transfer to bot: -${transferAmount} JUNO (balance: ${transferResult.fromBalance?.toFixed(6)})`,
+			);
 
-      // 5. Check final balances
-      const finalUserBalance = await UnifiedWalletService.getBalance(userId);
-      const botBalance = await UnifiedWalletService.getBotBalance();
+			// 5. Check final balances
+			const finalUserBalance = await UnifiedWalletService.getBalance(userId);
+			const botBalance = await UnifiedWalletService.getBotBalance();
 
-      await ctx.reply(
-        ` *Full Flow Test Complete*\n\n` +
-        `Initial balance: \`${initialBalance.toFixed(6)} JUNO\`\n` +
-        `Deposited: \`+${depositAmount} JUNO\`\n` +
-        `Fine paid: \`-${fineAmount} JUNO\`\n` +
-        `Transferred: \`-${transferAmount} JUNO\`\n\n` +
-        `Expected: \`${(initialBalance + depositAmount - fineAmount - transferAmount).toFixed(6)} JUNO\`\n` +
-        `Actual: \`${finalUserBalance.toFixed(6)} JUNO\`\n\n` +
-        `Bot treasury: \`${botBalance.toFixed(6)} JUNO\``,
-        { parse_mode: 'Markdown' }
-      );
-    } catch (error) {
-      logger.error('Full flow test failed', { userId, error });
-      await ctx.reply(` Full flow test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  });
+			await ctx.reply(
+				` *Full Flow Test Complete*\n\n` +
+					`Initial balance: \`${initialBalance.toFixed(6)} JUNO\`\n` +
+					`Deposited: \`+${depositAmount} JUNO\`\n` +
+					`Fine paid: \`-${fineAmount} JUNO\`\n` +
+					`Transferred: \`-${transferAmount} JUNO\`\n\n` +
+					`Expected: \`${(initialBalance + depositAmount - fineAmount - transferAmount).toFixed(6)} JUNO\`\n` +
+					`Actual: \`${finalUserBalance.toFixed(6)} JUNO\`\n\n` +
+					`Bot treasury: \`${botBalance.toFixed(6)} JUNO\``,
+				{ parse_mode: "Markdown" },
+			);
+		} catch (error) {
+			logger.error("Full flow test failed", { userId, error });
+			await ctx.reply(
+				` Full flow test failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+			);
+		}
+	});
 
-  logger.info('Wallet test commands registered');
+	logger.info("Wallet test commands registered");
 };

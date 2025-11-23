@@ -1,13 +1,12 @@
 /** User management and permission control middleware */
 
-import { Context, MiddlewareFn } from 'telegraf';
-import { ensureUserExists, getUserRestrictions } from '../services/userService';
-import { isGroupOwner, hasRole } from '../utils/roles';
-import { query } from '../database';
-import { User } from '../types';
-import { logger } from '../utils/logger';
-import { LedgerService } from '../services/ledgerService';
-import { config } from '../config';
+import type { Context, MiddlewareFn } from "telegraf";
+import { config } from "../config";
+import { query } from "../database";
+import { LedgerService } from "../services/ledgerService";
+import { ensureUserExists, getUserRestrictions } from "../services/userService";
+import type { User } from "../types";
+import { logger } from "../utils/logger";
 
 /**
  * Middleware that ensures users exist in the database, initializes their wallet balance,
@@ -32,33 +31,40 @@ import { config } from '../config';
  * });
  * ```
  */
-export const userManagementMiddleware: MiddlewareFn<Context> = async (ctx, next) => {
-  if (!ctx.from || !ctx.from.id) {
-    logger.warn('Request received without user information');
-    return next(); // Skip if no user information is available
-  }
+export const userManagementMiddleware: MiddlewareFn<Context> = async (
+	ctx,
+	next,
+) => {
+	if (!ctx.from || !ctx.from.id) {
+		logger.warn("Request received without user information");
+		return next(); // Skip if no user information is available
+	}
 
-  const userId = ctx.from.id;
-  const username = ctx.from.username || 'unknown';
+	const userId = ctx.from.id;
+	const username = ctx.from.username || "unknown";
 
-  try {
-    // Ensure the user is in the database
-    ensureUserExists(userId, username);
+	try {
+		// Ensure the user is in the database
+		ensureUserExists(userId, username);
 
-    // Ensure user has a balance entry in the ledger
-    await LedgerService.ensureUserBalance(userId);
+		// Ensure user has a balance entry in the ledger
+		await LedgerService.ensureUserBalance(userId);
 
-    // Fetch and preload user restrictions
-    const restrictions = getUserRestrictions(userId);
-    ctx.state.restrictions = restrictions;
+		// Fetch and preload user restrictions
+		const restrictions = getUserRestrictions(userId);
+		ctx.state.restrictions = restrictions;
 
-    logger.debug('User initialized', { userId, username, restrictionCount: restrictions.length });
-  } catch (error) {
-    logger.error('Error loading user', { userId, username, error });
-    ctx.reply('Error processing request');
-  }
+		logger.debug("User initialized", {
+			userId,
+			username,
+			restrictionCount: restrictions.length,
+		});
+	} catch (error) {
+		logger.error("Error loading user", { userId, username, error });
+		ctx.reply("Error processing request");
+	}
 
-  return next(); // Proceed with the next middleware or handler
+	return next(); // Proceed with the next middleware or handler
 };
 
 /**
@@ -76,23 +82,23 @@ export const userManagementMiddleware: MiddlewareFn<Context> = async (ctx, next)
  * });
  */
 export const ownerOnly: MiddlewareFn<Context> = (ctx, next) => {
-  const userId = ctx.from?.id;
-  if (!userId) {
-    return ctx.reply('User ID not found.');
-  }
+	const userId = ctx.from?.id;
+	if (!userId) {
+		return ctx.reply("User ID not found.");
+	}
 
-  // Check if user is in the configured owner IDs list
-  if (config.ownerIds.includes(userId)) {
-    return next();
-  }
+	// Check if user is in the configured owner IDs list
+	if (config.ownerIds.includes(userId)) {
+		return next();
+	}
 
-  // Also check database role for backward compatibility
-  const user = query<User>('SELECT * FROM users WHERE id = ?', [userId])[0];
-  if (user?.role === 'owner') {
-    return next();
-  }
+	// Also check database role for backward compatibility
+	const user = query<User>("SELECT * FROM users WHERE id = ?", [userId])[0];
+	if (user?.role === "owner") {
+		return next();
+	}
 
-  return ctx.reply('Only owners can use this command.');
+	return ctx.reply("Only owners can use this command.");
 };
 
 /**
@@ -110,23 +116,23 @@ export const ownerOnly: MiddlewareFn<Context> = (ctx, next) => {
  * });
  */
 export const adminOrHigher: MiddlewareFn<Context> = (ctx, next) => {
-  const userId = ctx.from?.id;
-  if (!userId) {
-    return ctx.reply('User ID not found.');
-  }
+	const userId = ctx.from?.id;
+	if (!userId) {
+		return ctx.reply("User ID not found.");
+	}
 
-  // Check if user is in configured owner IDs
-  if (config.ownerIds.includes(userId)) {
-    return next();
-  }
+	// Check if user is in configured owner IDs
+	if (config.ownerIds.includes(userId)) {
+		return next();
+	}
 
-  // Check database role
-  const user = query<User>('SELECT * FROM users WHERE id = ?', [userId])[0];
-  if (user?.role === 'owner' || user?.role === 'admin') {
-    return next();
-  }
+	// Check database role
+	const user = query<User>("SELECT * FROM users WHERE id = ?", [userId])[0];
+	if (user?.role === "owner" || user?.role === "admin") {
+		return next();
+	}
 
-  return ctx.reply('You do not have permission to use this command.');
+	return ctx.reply("You do not have permission to use this command.");
 };
 
 /**
@@ -145,23 +151,27 @@ export const adminOrHigher: MiddlewareFn<Context> = (ctx, next) => {
  * });
  */
 export const elevatedOrHigher: MiddlewareFn<Context> = (ctx, next) => {
-  const userId = ctx.from?.id;
-  if (!userId) {
-    return ctx.reply('User ID not found.');
-  }
+	const userId = ctx.from?.id;
+	if (!userId) {
+		return ctx.reply("User ID not found.");
+	}
 
-  // Check if user is in configured owner/admin IDs
-  if (config.ownerIds.includes(userId) || config.adminIds.includes(userId)) {
-    return next();
-  }
+	// Check if user is in configured owner/admin IDs
+	if (config.ownerIds.includes(userId) || config.adminIds.includes(userId)) {
+		return next();
+	}
 
-  // Check database role
-  const user = query<User>('SELECT * FROM users WHERE id = ?', [userId])[0];
-  if (user?.role === 'owner' || user?.role === 'admin' || user?.role === 'elevated') {
-    return next();
-  }
+	// Check database role
+	const user = query<User>("SELECT * FROM users WHERE id = ?", [userId])[0];
+	if (
+		user?.role === "owner" ||
+		user?.role === "admin" ||
+		user?.role === "elevated"
+	) {
+		return next();
+	}
 
-  return ctx.reply('You do not have permission to use this command.');
+	return ctx.reply("You do not have permission to use this command.");
 };
 
 // Alias for clarity in command context

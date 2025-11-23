@@ -19,8 +19,9 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint src/**/*.ts",
-    "format": "prettier --write src/**/*.ts"
+    "lint": "biome check src",
+    "lint:fix": "biome check --fix src",
+    "format": "biome format --write src"
   },
   "keywords": [
     "telegram",
@@ -44,14 +45,12 @@
     "winston": "^3.11.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.3.7",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.9.3",
     "@types/node-cron": "^3.0.10",
-    "@typescript-eslint/eslint-plugin": "^6.13.0",
-    "@typescript-eslint/parser": "^6.13.0",
     "@vitest/coverage-v8": "^4.0.7",
     "@vitest/ui": "^4.0.7",
-    "eslint": "^8.54.0",
     "prettier": "^3.1.0",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",

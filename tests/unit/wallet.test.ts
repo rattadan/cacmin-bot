@@ -42,8 +42,8 @@ vi.mock('../../src/config', () => ({
   },
 }));
 
-// Mock the services
-vi.mock('../../src/services/walletServiceV2');
+// Mock the services with auto-mocking
+vi.mock('../../src/services/unifiedWalletService');
 vi.mock('../../src/services/ledgerService');
 vi.mock('../../src/services/transactionLock');
 vi.mock('../../src/services/depositMonitor');

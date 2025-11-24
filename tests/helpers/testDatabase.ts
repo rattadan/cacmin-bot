@@ -63,8 +63,12 @@ export function initTestDatabase(): Database.Database {
       user_id INTEGER NOT NULL,
       restriction TEXT NOT NULL,
       restricted_action TEXT,
-      restricted_until INTEGER,
       metadata TEXT,
+      restricted_until INTEGER,
+      severity TEXT DEFAULT 'delete',
+      violation_threshold INTEGER DEFAULT 5,
+      auto_jail_duration INTEGER DEFAULT 2880,
+      auto_jail_fine REAL DEFAULT 10.0,
       created_at INTEGER DEFAULT (strftime('%s', 'now')),
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
@@ -172,7 +176,10 @@ export function initTestDatabase(): Database.Database {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       lock_type TEXT NOT NULL,
-      expires_at INTEGER NOT NULL,
+      locked_at INTEGER DEFAULT (strftime('%s', 'now')),
+      expires_at INTEGER,
+      amount REAL DEFAULT 0,
+      tx_hash TEXT,
       metadata TEXT,
       created_at INTEGER DEFAULT (strftime('%s', 'now')),
       FOREIGN KEY (user_id) REFERENCES users(id)

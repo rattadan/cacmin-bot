@@ -47,7 +47,7 @@ vi.mock('../../src/database', () => {
 });
 
 // Mock services
-vi.mock('../../src/services/walletServiceV2');
+vi.mock('../../src/services/unifiedWalletService');
 vi.mock('../../src/services/junoService');
 vi.mock('../../src/services/jailService');
 vi.mock('../../src/utils/logger');

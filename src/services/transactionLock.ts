@@ -468,6 +468,38 @@ export class TransactionLockService {
 	}
 
 	/**
+	 * Generic lock acquisition (alias for lockWithdrawal for simple locking)
+	 */
+	static async acquireLock(
+		userId: number,
+		lockType: string,
+		amount?: number,
+	): Promise<boolean> {
+		// Check if user already has a lock
+		const existingLock = await TransactionLockService.getActiveLock(userId);
+		if (existingLock) {
+			return false;
+		}
+
+		// Create lock
+		const now = Math.floor(Date.now() / 1000);
+		execute(
+			`INSERT INTO transaction_locks (user_id, lock_type, locked_at, amount)
+       VALUES (?, ?, ?, ?)`,
+			[userId, lockType, now, amount || 0],
+		);
+
+		return true;
+	}
+
+	/**
+	 * Generic lock release
+	 */
+	static async releaseLock(userId: number): Promise<void> {
+		execute("DELETE FROM transaction_locks WHERE user_id = ?", [userId]);
+	}
+
+	/**
 	 * Clean up only truly expired locks
 	 */
 	static async cleanExpiredLocks(): Promise<void> {

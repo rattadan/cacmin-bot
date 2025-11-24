@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, Mock } from 'vitest';
 /**
  * Comprehensive Unit Tests for Middleware and Utilities
  *
@@ -110,8 +110,8 @@ describe('Middleware and Utilities Test Suite', () => {
           { id: 1, userId: 999999999, restriction: 'no_stickers', createdAt: Date.now() },
         ];
 
-        (userService.ensureUserExists as jest.Mock).mockReturnValue(undefined);
-        (userService.getUserRestrictions as jest.Mock).mockReturnValue(mockRestrictions);
+        (userService.ensureUserExists as Mock).mockReturnValue(undefined);
+        (userService.getUserRestrictions as Mock).mockReturnValue(mockRestrictions);
 
         await userManagementMiddleware(ctx as Context, next);
 
@@ -137,7 +137,7 @@ describe('Middleware and Utilities Test Suite', () => {
         const ctx = createMockContext({ userId: 123456, username: 'erroruser' });
         const next = vi.fn();
 
-        (userService.ensureUserExists as jest.Mock).mockImplementation(() => {
+        (userService.ensureUserExists as Mock).mockImplementation(() => {
           throw new Error('Database error');
         });
 
@@ -154,8 +154,8 @@ describe('Middleware and Utilities Test Suite', () => {
         ctx.from!.username = undefined;
         const next = vi.fn();
 
-        (userService.ensureUserExists as jest.Mock).mockReturnValue(undefined);
-        (userService.getUserRestrictions as jest.Mock).mockReturnValue([]);
+        (userService.ensureUserExists as Mock).mockReturnValue(undefined);
+        (userService.getUserRestrictions as Mock).mockReturnValue([]);
 
         await userManagementMiddleware(ctx as Context, next);
 
@@ -309,7 +309,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
   describe('src/middleware/messageFilter.ts - Message Filter Middleware', () => {
     beforeEach(() => {
-      (userService.ensureUserExists as jest.Mock).mockResolvedValue(undefined);
+      (userService.ensureUserExists as Mock).mockResolvedValue(undefined);
     });
 
     describe('messageFilterMiddleware', () => {
@@ -410,7 +410,7 @@ describe('Middleware and Utilities Test Suite', () => {
         const pastTime = Math.floor(Date.now() / 1000) - 3600;
         db.prepare('UPDATE users SET muted_until = ? WHERE id = ?').run(pastTime, 444444444);
 
-        (restrictionService.RestrictionService.checkMessage as jest.Mock).mockResolvedValue(false);
+        (restrictionService.RestrictionService.checkMessage as Mock).mockResolvedValue(false);
 
         await messageFilterMiddleware(ctx as Context, next);
 
@@ -422,7 +422,7 @@ describe('Middleware and Utilities Test Suite', () => {
         const ctx = createPlebContext({ chatType: 'supergroup' });
         const next = vi.fn();
 
-        (restrictionService.RestrictionService.checkMessage as jest.Mock).mockResolvedValue(false);
+        (restrictionService.RestrictionService.checkMessage as Mock).mockResolvedValue(false);
 
         await messageFilterMiddleware(ctx as Context, next);
 
@@ -434,7 +434,7 @@ describe('Middleware and Utilities Test Suite', () => {
         const ctx = createPlebContext({ chatType: 'supergroup' });
         const next = vi.fn();
 
-        (restrictionService.RestrictionService.checkMessage as jest.Mock).mockResolvedValue(true);
+        (restrictionService.RestrictionService.checkMessage as Mock).mockResolvedValue(true);
 
         await messageFilterMiddleware(ctx as Context, next);
 
@@ -455,7 +455,7 @@ describe('Middleware and Utilities Test Suite', () => {
         const ctx = createPlebContext({ chatType: 'supergroup' });
         const next = vi.fn();
 
-        (userService.ensureUserExists as jest.Mock).mockRejectedValue(new Error('DB error'));
+        (userService.ensureUserExists as Mock).mockRejectedValue(new Error('DB error'));
 
         await messageFilterMiddleware(ctx as Context, next);
 
@@ -465,7 +465,7 @@ describe('Middleware and Utilities Test Suite', () => {
       it('should handle failed message deletion gracefully', async () => {
         const ctx = createPlebContext({ chatType: 'supergroup' });
         const next = vi.fn();
-        (ctx.deleteMessage as jest.Mock).mockRejectedValue(new Error('No permission'));
+        (ctx.deleteMessage as Mock).mockRejectedValue(new Error('No permission'));
 
         // Jail the user
         const db = require('../helpers/testDatabase').getTestDatabase();
@@ -788,7 +788,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should handle send message failure', async () => {
         setBotInstance(mockBot);
-        (mockBot.telegram.sendMessage as jest.Mock).mockRejectedValue(new Error('Send failed'));
+        (mockBot.telegram.sendMessage as Mock).mockRejectedValue(new Error('Send failed'));
 
         await expect(notifyAdmin('Test')).resolves.not.toThrow();
       });
@@ -798,7 +798,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
         await notifyAdmin('Critical error occurred');
 
-        const calls = (mockBot.telegram.sendMessage as jest.Mock).mock.calls;
+        const calls = (mockBot.telegram.sendMessage as Mock).mock.calls;
         expect(calls[0][1]).toContain(' *Admin Alert*');
         expect(calls[0][1]).toContain('Critical error occurred');
         expect(calls[0][2]).toEqual({ parse_mode: 'Markdown' });
@@ -877,8 +877,8 @@ describe('Middleware and Utilities Test Suite', () => {
         const ctx = createMockContext();
         const next = vi.fn();
 
-        (userService.ensureUserExists as jest.Mock).mockReturnValue(undefined);
-        (userService.getUserRestrictions as jest.Mock).mockReturnValue([
+        (userService.ensureUserExists as Mock).mockReturnValue(undefined);
+        (userService.getUserRestrictions as Mock).mockReturnValue([
           { id: 1, restriction: 'no_urls' },
         ]);
 

@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, Mock } from 'vitest';
 /**
  * Comprehensive unit tests for blockchain services
  * Tests junoService, depositMonitor, and transactionLock
@@ -40,8 +40,14 @@ vi.mock('../../src/utils/logger', () => ({
     info: vi.fn(),
     error: vi.fn(),
     warn: vi.fn(),
-    debug: vi.fn()
-  }
+    debug: vi.fn(),
+  },
+  StructuredLogger: {
+    logError: vi.fn(),
+    logUserAction: vi.fn(),
+    logTransaction: vi.fn(),
+    logWalletAction: vi.fn(),
+  },
 }));
 
 // Mock database to use test database
@@ -96,7 +102,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
   beforeEach(() => {
     cleanTestDatabase();
     vi.clearAllMocks();
-    (global.fetch as jest.Mock).mockReset();
+    (global.fetch as Mock).mockReset();
   });
 
   // ============================================================================
@@ -122,7 +128,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
           }
         };
 
-        (global.fetch as jest.Mock).mockResolvedValueOnce({
+        (global.fetch as Mock).mockResolvedValueOnce({
           ok: true,
           json: async () => mockResponse
         });
@@ -152,7 +158,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
           }
         };
 
-        (global.fetch as jest.Mock).mockResolvedValueOnce({
+        (global.fetch as Mock).mockResolvedValueOnce({
           ok: true,
           json: async () => mockResponse
         });
@@ -180,7 +186,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
           }
         };
 
-        (global.fetch as jest.Mock).mockResolvedValueOnce({
+        (global.fetch as Mock).mockResolvedValueOnce({
           ok: true,
           json: async () => mockResponse
         });
@@ -207,7 +213,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
           }
         };
 
-        (global.fetch as jest.Mock).mockResolvedValueOnce({
+        (global.fetch as Mock).mockResolvedValueOnce({
           ok: true,
           json: async () => mockResponse
         });
@@ -234,7 +240,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
           }
         };
 
-        (global.fetch as jest.Mock).mockResolvedValueOnce({
+        (global.fetch as Mock).mockResolvedValueOnce({
           ok: true,
           json: async () => mockResponse
         });
@@ -244,7 +250,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
       });
 
       test('returns false when transaction not found', async () => {
-        (global.fetch as jest.Mock).mockResolvedValueOnce({
+        (global.fetch as Mock).mockResolvedValueOnce({
           ok: false,
           status: 404
         });
@@ -254,7 +260,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
       });
 
       test('handles network errors gracefully', async () => {
-        (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+        (global.fetch as Mock).mockRejectedValueOnce(new Error('Network error'));
 
         const result = await JunoService.verifyPayment('test_tx_hash', 10.0);
         expect(result).toBe(false);
@@ -278,7 +284,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
           }
         };
 
-        (global.fetch as jest.Mock).mockResolvedValueOnce({
+        (global.fetch as Mock).mockResolvedValueOnce({
           ok: true,
           json: async () => mockResponse
         });
@@ -310,7 +316,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
           }
         };
 
-        (global.fetch as jest.Mock).mockResolvedValueOnce({
+        (global.fetch as Mock).mockResolvedValueOnce({
           ok: true,
           json: async () => mockResponse
         });
@@ -336,7 +342,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
           ]
         };
 
-        (global.fetch as jest.Mock).mockResolvedValueOnce({
+        (global.fetch as Mock).mockResolvedValueOnce({
           ok: true,
           json: async () => mockResponse
         });
@@ -350,7 +356,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
           balances: [{ denom: 'uatom', amount: '1000000' }]
         };
 
-        (global.fetch as jest.Mock).mockResolvedValueOnce({
+        (global.fetch as Mock).mockResolvedValueOnce({
           ok: true,
           json: async () => mockResponse
         });
@@ -360,7 +366,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
       });
 
       test('returns 0 on query error', async () => {
-        (global.fetch as jest.Mock).mockResolvedValueOnce({
+        (global.fetch as Mock).mockResolvedValueOnce({
           ok: false,
           status: 500
         });
@@ -370,7 +376,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
       });
 
       test('returns 0 on network error', async () => {
-        (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+        (global.fetch as Mock).mockRejectedValueOnce(new Error('Network error'));
 
         const balance = await JunoService.getBalance();
         expect(balance).toBe(0);
@@ -468,7 +474,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
           }
         };
 
-        (global.fetch as jest.Mock).mockResolvedValueOnce({
+        (global.fetch as Mock).mockResolvedValueOnce({
           ok: true,
           json: async () => mockResponse
         });
@@ -504,7 +510,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
           }
         };
 
-        (global.fetch as jest.Mock).mockResolvedValueOnce({
+        (global.fetch as Mock).mockResolvedValueOnce({
           ok: true,
           json: async () => mockResponse
         });
@@ -535,7 +541,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
           }
         };
 
-        (global.fetch as jest.Mock).mockResolvedValueOnce({
+        (global.fetch as Mock).mockResolvedValueOnce({
           ok: true,
           json: async () => mockResponse
         });
@@ -566,7 +572,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
           }
         };
 
-        (global.fetch as jest.Mock).mockResolvedValue({
+        (global.fetch as Mock).mockResolvedValue({
           ok: true,
           json: async () => mockResponse
         });
@@ -587,7 +593,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
       });
 
       test('returns not found for nonexistent transaction', async () => {
-        (global.fetch as jest.Mock).mockResolvedValueOnce({
+        (global.fetch as Mock).mockResolvedValueOnce({
           ok: false,
           status: 404
         });
@@ -621,7 +627,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
           }
         };
 
-        (global.fetch as jest.Mock).mockResolvedValueOnce({
+        (global.fetch as Mock).mockResolvedValueOnce({
           ok: true,
           json: async () => mockResponse
         });
@@ -1124,7 +1130,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
           }
         };
 
-        (global.fetch as jest.Mock).mockResolvedValueOnce({
+        (global.fetch as Mock).mockResolvedValueOnce({
           ok: true,
           json: async () => mockResponse
         });

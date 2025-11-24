@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, Mock } from 'vitest';
 /**
  * Comprehensive Integration Tests for Ledger Operations
  *
@@ -177,6 +177,30 @@ function initIntegrationDb(): void {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS transaction_locks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      lock_type TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      metadata TEXT,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS price_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      price_usd REAL NOT NULL,
+      timestamp INTEGER DEFAULT (strftime('%s', 'now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS fine_config (
+      fine_type TEXT PRIMARY KEY,
+      amount_usd REAL NOT NULL,
+      description TEXT,
+      updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+      updated_by INTEGER
+    );
+
     -- Indexes
     CREATE INDEX IF NOT EXISTS idx_user_balances_balance ON user_balances(balance);
     CREATE INDEX IF NOT EXISTS idx_transactions_from_user ON transactions(from_user_id);
@@ -272,6 +296,12 @@ vi.mock('../../src/utils/logger', () => ({
     error: vi.fn(),
     warn: vi.fn(),
     debug: vi.fn(),
+  },
+  StructuredLogger: {
+    logError: vi.fn(),
+    logUserAction: vi.fn(),
+    logTransaction: vi.fn(),
+    logWalletAction: vi.fn(),
   },
 }));
 

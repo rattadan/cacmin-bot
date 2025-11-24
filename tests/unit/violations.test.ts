@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, Mock } from 'vitest';
 /**
  * Unit tests for violation and payment commands
  * Tests violation listing, fine payment, and blockchain verification
@@ -136,7 +136,7 @@ describe('Violation and Payment Commands', () => {
   describe('/payfines - Show unpaid fines', () => {
     beforeEach(() => {
       // Mock UnifiedWalletService.getUserBalance
-      (UnifiedWalletService.getUserBalance as jest.Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(100.0);
     });
 
     it('should only work in private messages', async () => {
@@ -185,7 +185,7 @@ describe('Violation and Payment Commands', () => {
       createTestUser(userId, 'testuser', 'pleb');
 
       createTestViolation(userId, 'no_stickers', 25.0, 0);
-      (UnifiedWalletService.getUserBalance as jest.Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(100.0);
 
       const balance = await UnifiedWalletService.getUserBalance(userId);
       const totalFines = violationService.getTotalFines(userId);
@@ -198,7 +198,7 @@ describe('Violation and Payment Commands', () => {
       createTestUser(userId, 'testuser', 'pleb');
 
       createTestViolation(userId, 'blacklist', 100.0, 0);
-      (UnifiedWalletService.getUserBalance as jest.Mock).mockResolvedValue(50.0);
+      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(50.0);
 
       const balance = await UnifiedWalletService.getUserBalance(userId);
       const totalFines = violationService.getTotalFines(userId);
@@ -209,8 +209,8 @@ describe('Violation and Payment Commands', () => {
 
   describe('/payallfines - Pay all outstanding fines', () => {
     beforeEach(() => {
-      (UnifiedWalletService.getUserBalance as jest.Mock).mockResolvedValue(100.0);
-      (UnifiedWalletService.payFine as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.payFine as Mock).mockResolvedValue({
         success: true,
         newBalance: 40.0
       });
@@ -240,7 +240,7 @@ describe('Violation and Payment Commands', () => {
       createTestUser(userId, 'testuser', 'pleb');
 
       createTestViolation(userId, 'blacklist', 100.0, 0);
-      (UnifiedWalletService.getUserBalance as jest.Mock).mockResolvedValue(50.0);
+      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(50.0);
 
       const balance = await UnifiedWalletService.getUserBalance(userId);
       const totalFines = violationService.getTotalFines(userId);
@@ -255,8 +255,8 @@ describe('Violation and Payment Commands', () => {
       const v1 = createTestViolation(userId, 'no_stickers', 10.0, 0);
       const v2 = createTestViolation(userId, 'no_urls', 5.0, 0);
 
-      (UnifiedWalletService.getUserBalance as jest.Mock).mockResolvedValue(100.0);
-      (UnifiedWalletService.payFine as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.payFine as Mock).mockResolvedValue({
         success: true,
         newBalance: 85.0
       });
@@ -323,8 +323,8 @@ describe('Violation and Payment Commands', () => {
 
       createTestViolation(userId, 'no_stickers', 10.0, 0);
 
-      (UnifiedWalletService.getUserBalance as jest.Mock).mockResolvedValue(100.0);
-      (UnifiedWalletService.payFine as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.payFine as Mock).mockResolvedValue({
         success: false,
         newBalance: 100.0,
         error: 'Payment processing failed'
@@ -339,7 +339,7 @@ describe('Violation and Payment Commands', () => {
 
   describe('/payfine - Pay specific violation (on-chain)', () => {
     beforeEach(() => {
-      (JunoService.getPaymentAddress as jest.Mock).mockReturnValue('juno1testaddress');
+      (JunoService.getPaymentAddress as Mock).mockReturnValue('juno1testaddress');
     });
 
     it('should show all unpaid fines when no violation ID provided', async () => {
@@ -405,7 +405,7 @@ describe('Violation and Payment Commands', () => {
 
   describe('/verifypayment - Verify blockchain payment', () => {
     beforeEach(() => {
-      (JunoService.verifyPayment as jest.Mock).mockResolvedValue(true);
+      (JunoService.verifyPayment as Mock).mockResolvedValue(true);
     });
 
     it('should require violation ID and transaction hash', async () => {
@@ -426,7 +426,7 @@ describe('Violation and Payment Commands', () => {
       const violationId = createTestViolation(userId, 'no_stickers', 25.0, 0);
       const txHash = 'ABC123VALIDTXHASH';
 
-      (JunoService.verifyPayment as jest.Mock).mockResolvedValue(true);
+      (JunoService.verifyPayment as Mock).mockResolvedValue(true);
 
       const verified = await JunoService.verifyPayment(txHash, 25.0);
       expect(verified).toBe(true);
@@ -460,7 +460,7 @@ describe('Violation and Payment Commands', () => {
       const violationId = createTestViolation(userId, 'no_stickers', 25.0, 0);
       const invalidTxHash = 'INVALIDHASH';
 
-      (JunoService.verifyPayment as jest.Mock).mockResolvedValue(false);
+      (JunoService.verifyPayment as Mock).mockResolvedValue(false);
 
       const verified = await JunoService.verifyPayment(invalidTxHash, 25.0);
       expect(verified).toBe(false);
@@ -474,7 +474,7 @@ describe('Violation and Payment Commands', () => {
       const txHash = 'ABC123VALIDTXHASH';
 
       // Verify with wrong amount
-      (JunoService.verifyPayment as jest.Mock).mockResolvedValue(false);
+      (JunoService.verifyPayment as Mock).mockResolvedValue(false);
 
       const verified = await JunoService.verifyPayment(txHash, 10.0); // wrong amount
       expect(verified).toBe(false);
@@ -666,7 +666,7 @@ describe('Violation and Payment Commands', () => {
       const txHash = 'ABCD1234567890';
       const amount = 25.5;
 
-      (JunoService.verifyPayment as jest.Mock).mockResolvedValue(true);
+      (JunoService.verifyPayment as Mock).mockResolvedValue(true);
 
       const verified = await JunoService.verifyPayment(txHash, amount);
 
@@ -678,7 +678,7 @@ describe('Violation and Payment Commands', () => {
       const txHash = 'INVALID';
       const amount = 25.5;
 
-      (JunoService.verifyPayment as jest.Mock).mockRejectedValue(
+      (JunoService.verifyPayment as Mock).mockRejectedValue(
         new Error('RPC endpoint unavailable')
       );
 
@@ -691,8 +691,8 @@ describe('Violation and Payment Commands', () => {
       const txHash = 'ABCD1234567890';
       const amount = 25.5;
 
-      (JunoService.getPaymentAddress as jest.Mock).mockReturnValue('juno1testtreasury');
-      (JunoService.verifyPayment as jest.Mock).mockResolvedValue(true);
+      (JunoService.getPaymentAddress as Mock).mockReturnValue('juno1testtreasury');
+      (JunoService.verifyPayment as Mock).mockResolvedValue(true);
 
       const address = JunoService.getPaymentAddress();
       const verified = await JunoService.verifyPayment(txHash, amount);
@@ -705,7 +705,7 @@ describe('Violation and Payment Commands', () => {
       const txHash = 'ABCD1234567890';
 
       // The verification logic in JunoService allows 0.01 JUNO difference
-      (JunoService.verifyPayment as jest.Mock).mockResolvedValue(true);
+      (JunoService.verifyPayment as Mock).mockResolvedValue(true);
 
       // Verify with amount close to expected (within tolerance)
       const verified = await JunoService.verifyPayment(txHash, 25.00);
@@ -715,7 +715,7 @@ describe('Violation and Payment Commands', () => {
     it('should reject payment with amount outside tolerance', async () => {
       const txHash = 'ABCD1234567890';
 
-      (JunoService.verifyPayment as jest.Mock).mockResolvedValue(false);
+      (JunoService.verifyPayment as Mock).mockResolvedValue(false);
 
       const verified = await JunoService.verifyPayment(txHash, 10.0); // Significantly different
       expect(verified).toBe(false);

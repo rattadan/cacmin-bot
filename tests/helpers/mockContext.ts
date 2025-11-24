@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { vi, Mock } from 'vitest';
 /**
  * Mock Telegraf Context for testing
  */
@@ -155,7 +155,7 @@ export function createPlebContext(options: MockContextOptions = {}): Partial<Con
  * Extracts reply text from a mock context
  */
 export function getReplyText(ctx: Partial<Context>): string {
-  const replyMock = ctx.reply as jest.Mock;
+  const replyMock = ctx.reply as Mock;
   if (!replyMock || replyMock.mock.calls.length === 0) {
     return '';
   }
@@ -166,7 +166,7 @@ export function getReplyText(ctx: Partial<Context>): string {
  * Gets all reply calls from a mock context
  */
 export function getAllReplies(ctx: Partial<Context>): string[] {
-  const replyMock = ctx.reply as jest.Mock;
+  const replyMock = ctx.reply as Mock;
   if (!replyMock) {
     return [];
   }

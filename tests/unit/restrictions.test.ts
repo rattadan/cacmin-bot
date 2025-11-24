@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, Mock } from 'vitest';
 /**
  * Unit tests for restriction and blacklist handlers
  * Tests: src/handlers/restrictions.ts, src/handlers/actions.ts, src/handlers/blacklist.ts
@@ -37,8 +37,8 @@ import { addUserRestriction, removeUserRestriction, getUserRestrictions } from '
 import { RestrictionService } from '../../src/services/restrictionService';
 import { User, UserRestriction, GlobalAction } from '../../src/types';
 
-const mockQuery = database.query as jest.MockedFunction<typeof database.query>;
-const mockExecute = database.execute as jest.MockedFunction<typeof database.execute>;
+const mockQuery = database.query as MockedFunction<typeof database.query>;
+const mockExecute = database.execute as MockedFunction<typeof database.execute>;
 
 // Mock hasRole utility
 vi.mock('../../src/utils/roles', () => ({
@@ -61,6 +61,12 @@ vi.mock('../../src/utils/logger', () => ({
     error: vi.fn(),
     warn: vi.fn(),
     debug: vi.fn(),
+  },
+  StructuredLogger: {
+    logError: vi.fn(),
+    logUserAction: vi.fn(),
+    logTransaction: vi.fn(),
+    logWalletAction: vi.fn(),
   },
 }));
 

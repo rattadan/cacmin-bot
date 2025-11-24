@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, Mock } from 'vitest';
 /**
  * Comprehensive unit tests for database services
  * Tests all CRUD operations, data validation, cascading operations, and edge cases
@@ -55,8 +55,14 @@ vi.mock('../../src/utils/logger', () => ({
     info: vi.fn(),
     error: vi.fn(),
     warn: vi.fn(),
-    debug: vi.fn()
-  }
+    debug: vi.fn(),
+  },
+  StructuredLogger: {
+    logError: vi.fn(),
+    logUserAction: vi.fn(),
+    logTransaction: vi.fn(),
+    logWalletAction: vi.fn(),
+  },
 }));
 
 // Mock database module to use test database
@@ -202,6 +208,20 @@ function initTestDatabase(): void {
       metadata TEXT,
       restricted_until INTEGER,
       created_at INTEGER DEFAULT (strftime('%s', 'now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS price_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      price_usd REAL NOT NULL,
+      timestamp INTEGER DEFAULT (strftime('%s', 'now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS fine_config (
+      fine_type TEXT PRIMARY KEY,
+      amount_usd REAL NOT NULL,
+      description TEXT,
+      updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+      updated_by INTEGER
     );
 
     -- Create performance indexes

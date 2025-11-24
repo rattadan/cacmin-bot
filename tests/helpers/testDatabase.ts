@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { vi, Mock } from 'vitest';
 /**
  * Test database utilities
  */
@@ -191,6 +191,41 @@ export function initTestDatabase(): Database.Database {
       created_at INTEGER DEFAULT (strftime('%s', 'now')),
       FOREIGN KEY (user_id) REFERENCES users(id),
       FOREIGN KEY (jailed_by) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS price_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      price_usd REAL NOT NULL,
+      timestamp INTEGER DEFAULT (strftime('%s', 'now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS fine_config (
+      fine_type TEXT PRIMARY KEY,
+      amount_usd REAL NOT NULL,
+      description TEXT,
+      updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+      updated_by INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_price_history_timestamp ON price_history(timestamp);
+
+    CREATE TABLE IF NOT EXISTS shared_accounts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      balance REAL DEFAULT 0,
+      created_by INTEGER NOT NULL,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      FOREIGN KEY (created_by) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS shared_account_members (
+      account_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      role TEXT DEFAULT 'member',
+      added_at INTEGER DEFAULT (strftime('%s', 'now')),
+      PRIMARY KEY (account_id, user_id),
+      FOREIGN KEY (account_id) REFERENCES shared_accounts(id),
+      FOREIGN KEY (user_id) REFERENCES users(id)
     );
   `);
 

@@ -1,4 +1,4 @@
-import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, Mock } from 'vitest';
 /**
  * End-to-End Tests for Blockchain Wallet Operations
  *
@@ -59,6 +59,12 @@ vi.mock('../../src/utils/logger', () => ({
     error: vi.fn(),
     warn: vi.fn(),
     debug: vi.fn(),
+  },
+  StructuredLogger: {
+    logError: vi.fn(),
+    logUserAction: vi.fn(),
+    logTransaction: vi.fn(),
+    logWalletAction: vi.fn(),
   },
 }));
 
@@ -132,7 +138,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
   beforeEach(() => {
     cleanTestDatabase();
     vi.clearAllMocks();
-    (global.fetch as jest.Mock).mockClear();
+    (global.fetch as Mock).mockClear();
   });
 
   afterAll(() => {
@@ -178,7 +184,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         ],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockTxResponse,
       });
@@ -225,7 +231,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         ],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockTxResponse,
       });
@@ -278,7 +284,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         ],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockTxResponse,
       });
@@ -316,7 +322,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         ],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.fetch as Mock).mockResolvedValue({
         ok: true,
         json: async () => mockTxResponse,
       });
@@ -337,7 +343,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
       createTestUser(444444444, 'testuser', 'pleb');
 
       // First attempt fails
-      (global.fetch as jest.Mock).mockRejectedValueOnce(
+      (global.fetch as Mock).mockRejectedValueOnce(
         new Error('Network timeout')
       );
 
@@ -367,7 +373,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         ],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockTxResponse,
       });
@@ -378,7 +384,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     });
 
     it('should handle API error responses correctly', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
@@ -414,7 +420,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         ],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockTxResponse,
       });
@@ -452,7 +458,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockTxData,
       });
@@ -483,7 +489,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockTxData,
       });
@@ -511,7 +517,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockTxData,
       });
@@ -539,7 +545,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockTxData,
       });
@@ -550,7 +556,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     });
 
     it('should handle transaction not found on chain', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: false,
         status: 404,
       });
@@ -565,7 +571,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
       const validHash = 'A'.repeat(64);
       const invalidHash = 'invalid';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: false,
         status: 400,
       });
@@ -593,7 +599,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockTxData,
       });
@@ -619,7 +625,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         ],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockBalanceResponse,
       });
@@ -639,7 +645,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         ],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockBalanceResponse,
       });
@@ -650,7 +656,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     });
 
     it('should handle API errors when querying balance', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: false,
         status: 500,
       });
@@ -664,7 +670,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
       // Invalid address should be caught at service level
       const invalidAddress = 'cosmos1invalid';
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: false,
         status: 400,
       });
@@ -684,7 +690,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
       addTestBalance(555555555, 150.0);
 
       // Mock on-chain balance matches internal total (250 JUNO)
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           balances: [{ denom: 'ujuno', amount: '250000000' }],
@@ -704,7 +710,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
       addTestBalance(444444444, 100.0);
 
       // Mock on-chain balance differs from internal (100 internal vs 80 on-chain)
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           balances: [{ denom: 'ujuno', amount: '80000000' }],
@@ -730,7 +736,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
 
     it('should broadcast withdrawal transaction successfully', async () => {
       // Mock on-chain balance query
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.fetch as Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
           balances: [{ denom: 'ujuno', amount: '200000000' }],
@@ -777,7 +783,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
 
     it('should prevent concurrent withdrawals with transaction locking', async () => {
       // Mock balance queries
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.fetch as Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
           balances: [{ denom: 'ujuno', amount: '200000000' }],
@@ -811,7 +817,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     });
 
     it('should handle gas fee calculations correctly', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.fetch as Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
           balances: [{ denom: 'ujuno', amount: '200000000' }],
@@ -839,7 +845,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         sendTokens: vi.fn().mockRejectedValue(new Error('Insufficient gas')),
       });
 
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.fetch as Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
           balances: [{ denom: 'ujuno', amount: '200000000' }],
@@ -873,7 +879,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         }),
       });
 
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.fetch as Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
           balances: [{ denom: 'ujuno', amount: '200000000' }],
@@ -895,7 +901,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     });
 
     it('should handle amount precision correctly (JUNO to ujuno)', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.fetch as Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
           balances: [{ denom: 'ujuno', amount: '200000000' }],
@@ -925,7 +931,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
 
     it('should verify on-chain balance changes after withdrawal', async () => {
       let balanceCallCount = 0;
-      (global.fetch as jest.Mock).mockImplementation((url) => {
+      (global.fetch as Mock).mockImplementation((url) => {
         balanceCallCount++;
         if (url.includes('/balances/')) {
           // First call: pre-transaction (200 JUNO)
@@ -962,7 +968,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
       const txHash = 'PENDING_DEPOSIT_TX';
 
       // First query: not found (pending)
-      (global.fetch as jest.Mock)
+      (global.fetch as Mock)
         .mockResolvedValueOnce({
           ok: false,
           status: 404,
@@ -1098,7 +1104,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         ],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockTxs,
       });
@@ -1147,7 +1153,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         ],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockTxs,
       });
@@ -1180,7 +1186,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         ],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => mockTxs,
       });
@@ -1200,7 +1206,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     });
 
     it('should handle network timeout during withdrawal', async () => {
-      (global.fetch as jest.Mock).mockRejectedValue(
+      (global.fetch as Mock).mockRejectedValue(
         new Error('Network request timed out')
       );
 
@@ -1219,7 +1225,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     });
 
     it('should handle RPC endpoint unavailable', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.fetch as Mock).mockResolvedValue({
         ok: false,
         status: 503,
         statusText: 'Service Unavailable',
@@ -1231,7 +1237,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     });
 
     it('should handle malformed API responses', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.fetch as Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
           // Missing expected fields
@@ -1246,7 +1252,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
 
     it('should retry on transient failures', async () => {
       let callCount = 0;
-      (global.fetch as jest.Mock).mockImplementation(() => {
+      (global.fetch as Mock).mockImplementation(() => {
         callCount++;
         if (callCount < 3) {
           return Promise.reject(new Error('Temporary failure'));
@@ -1275,7 +1281,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     });
 
     it('should release locks on system errors', async () => {
-      (global.fetch as jest.Mock).mockRejectedValue(
+      (global.fetch as Mock).mockRejectedValue(
         new Error('Database connection lost')
       );
 
@@ -1293,7 +1299,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     });
 
     it('should handle rate limiting from API', async () => {
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.fetch as Mock).mockResolvedValue({
         ok: false,
         status: 429,
         statusText: 'Too Many Requests',
@@ -1400,7 +1406,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         ],
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => depositTx,
       });
@@ -1426,7 +1432,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
       // Step 3: Bob withdraws to external wallet
       // Mock balance queries for withdrawal process
       let balanceCallCount = 0;
-      (global.fetch as jest.Mock).mockImplementation(() => {
+      (global.fetch as Mock).mockImplementation(() => {
         balanceCallCount++;
         // Return sufficient balance for both pre and post transaction checks
         return Promise.resolve({
@@ -1454,7 +1460,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
       expect(bobBalance).toBe(25.0);
 
       // Verify reconciliation
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      (global.fetch as Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           balances: [{ denom: 'ujuno', amount: '175000000' }], // 175 JUNO remaining

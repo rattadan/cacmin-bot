@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 /**
  * Comprehensive unit tests for database services
  * Tests all CRUD operations, data validation, cascading operations, and edge cases
@@ -24,7 +25,7 @@ import { RestrictionService } from '../../src/services/restrictionService';
 import { User, Violation, UserRestriction, JailEvent } from '../../src/types';
 
 // Mock config for tests
-jest.mock('../../src/config', () => ({
+vi.mock('../../src/config', () => ({
   config: {
     botToken: 'test-token',
     junoRpcUrl: 'https://test.rpc',
@@ -45,16 +46,16 @@ jest.mock('../../src/config', () => ({
       tempBan: 7 * 24 * 60 * 60 * 1000
     }
   },
-  validateConfig: jest.fn()
+  validateConfig: vi.fn()
 }));
 
 // Mock logger
-jest.mock('../../src/utils/logger', () => ({
+vi.mock('../../src/utils/logger', () => ({
   logger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn()
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn()
   }
 }));
 
@@ -63,7 +64,7 @@ let testDb: Database.Database | null = null;
 const TEST_DB_PATH = join(__dirname, '../test-data/services-test.db');
 
 // Override database functions to use test database
-jest.mock('../../src/database', () => {
+vi.mock('../../src/database', () => {
   const Database = require('better-sqlite3');
   const { join } = require('path');
   const testDbPath = join(__dirname, '../test-data/services-test.db');
@@ -92,7 +93,7 @@ jest.mock('../../src/database', () => {
       const stmt = db.prepare(sql);
       return stmt.get(params) as T | undefined;
     },
-    initDb: jest.fn()
+    initDb: vi.fn()
   };
 });
 

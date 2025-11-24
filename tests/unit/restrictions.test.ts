@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 /**
  * Unit tests for restriction and blacklist handlers
  * Tests: src/handlers/restrictions.ts, src/handlers/actions.ts, src/handlers/blacklist.ts
@@ -5,15 +6,15 @@
  */
 
 // Mock the database module BEFORE any imports
-jest.mock('../../src/database', () => ({
-  query: jest.fn(),
-  execute: jest.fn(),
-  get: jest.fn(),
-  initDb: jest.fn(),
+vi.mock('../../src/database', () => ({
+  query: vi.fn(),
+  execute: vi.fn(),
+  get: vi.fn(),
+  initDb: vi.fn(),
 }));
 
 // Mock the config module to avoid loading real config
-jest.mock('../../src/config', () => ({
+vi.mock('../../src/config', () => ({
   config: {
     databasePath: ':memory:',
     botToken: 'test-token',
@@ -40,37 +41,37 @@ const mockQuery = database.query as jest.MockedFunction<typeof database.query>;
 const mockExecute = database.execute as jest.MockedFunction<typeof database.execute>;
 
 // Mock hasRole utility
-jest.mock('../../src/utils/roles', () => ({
-  hasRole: jest.fn((userId: number, role: string) => {
+vi.mock('../../src/utils/roles', () => ({
+  hasRole: vi.fn((userId: number, role: string) => {
     // Owner: 111111111, Admin: 222222222, Elevated: 333333333, Pleb: 444444444
     if (role === 'owner') return userId === 111111111;
     if (role === 'admin') return userId === 222222222;
     if (role === 'elevated') return userId === 333333333;
     return false;
   }),
-  checkIsElevated: jest.fn((userId: number) => {
+  checkIsElevated: vi.fn((userId: number) => {
     return userId === 111111111 || userId === 222222222 || userId === 333333333;
   }),
 }));
 
 // Mock logger
-jest.mock('../../src/utils/logger', () => ({
+vi.mock('../../src/utils/logger', () => ({
   logger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
   },
 }));
 
 // Mock violation service
-jest.mock('../../src/services/violationService', () => ({
-  createViolation: jest.fn().mockResolvedValue(1),
+vi.mock('../../src/services/violationService', () => ({
+  createViolation: vi.fn().mockResolvedValue(1),
 }));
 
 describe('User Restrictions Handler Tests', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('/addrestriction command', () => {
@@ -287,7 +288,7 @@ describe('User Restrictions Handler Tests', () => {
 
 describe('Global Actions Handler Tests', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('/addaction command', () => {
@@ -433,7 +434,7 @@ describe('Global Actions Handler Tests', () => {
 
 describe('Blacklist Handler Tests', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('/addblacklist command', () => {
@@ -584,7 +585,7 @@ describe('Blacklist Handler Tests', () => {
 
 describe('RestrictionService Tests', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('checkMessage - User Restrictions', () => {
@@ -1122,7 +1123,7 @@ describe('RestrictionService Tests', () => {
 
 describe('Permission Validation Tests', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should allow elevated users to manage restrictions', async () => {
@@ -1156,7 +1157,7 @@ describe('Permission Validation Tests', () => {
 
 describe('Integration Tests - Restriction Workflows', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should handle full restriction lifecycle: add, list, remove', async () => {

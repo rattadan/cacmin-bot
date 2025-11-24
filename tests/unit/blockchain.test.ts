@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 /**
  * Comprehensive unit tests for blockchain services
  * Tests junoService, depositMonitor, and transactionLock
@@ -16,7 +17,7 @@ import {
 } from '../helpers/testDatabase';
 
 // Mock config
-jest.mock('../../src/config', () => ({
+vi.mock('../../src/config', () => ({
   config: {
     botToken: 'test-token',
     junoRpcUrl: 'https://test-rpc.juno.com',
@@ -30,21 +31,21 @@ jest.mock('../../src/config', () => ({
     databasePath: ':memory:',
     logLevel: 'silent'
   },
-  validateConfig: jest.fn()
+  validateConfig: vi.fn()
 }));
 
 // Mock logger
-jest.mock('../../src/utils/logger', () => ({
+vi.mock('../../src/utils/logger', () => ({
   logger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn()
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn()
   }
 }));
 
 // Mock database to use test database
-jest.mock('../../src/database', () => {
+vi.mock('../../src/database', () => {
   const Database = require('better-sqlite3');
   const { join } = require('path');
   const testDbPath = join(__dirname, '../test-data/blockchain-test.db');
@@ -75,12 +76,12 @@ jest.mock('../../src/database', () => {
       const stmt = db.prepare(sql);
       return stmt.get(params) as T | undefined;
     },
-    initDb: jest.fn()
+    initDb: vi.fn()
   };
 });
 
 // Mock fetch for blockchain API calls
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 describe('Blockchain Services - Comprehensive Tests', () => {
   beforeAll(() => {
@@ -94,7 +95,7 @@ describe('Blockchain Services - Comprehensive Tests', () => {
 
   beforeEach(() => {
     cleanTestDatabase();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     (global.fetch as jest.Mock).mockReset();
   });
 

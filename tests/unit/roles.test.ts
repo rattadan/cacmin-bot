@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 /**
  * Unit tests for role management commands
  * Tests src/handlers/roles.ts and src/utils/roles.ts
@@ -22,11 +23,11 @@ import { User } from '../../src/types';
 import { config } from '../../src/config';
 
 // Mock the database module to use test database
-jest.mock('../../src/database', () => {
+vi.mock('../../src/database', () => {
   let testDb: any = null;
 
   return {
-    query: jest.fn((sql: string, params: unknown[] = []) => {
+    query: vi.fn((sql: string, params: unknown[] = []) => {
       if (!testDb) {
         const { getTestDatabase } = require('../helpers/testDatabase');
         testDb = getTestDatabase();
@@ -34,7 +35,7 @@ jest.mock('../../src/database', () => {
       const stmt = testDb.prepare(sql);
       return stmt.all(params);
     }),
-    execute: jest.fn((sql: string, params: unknown[] = []) => {
+    execute: vi.fn((sql: string, params: unknown[] = []) => {
       if (!testDb) {
         const { getTestDatabase } = require('../helpers/testDatabase');
         testDb = getTestDatabase();
@@ -42,7 +43,7 @@ jest.mock('../../src/database', () => {
       const stmt = testDb.prepare(sql);
       return stmt.run(params);
     }),
-    get: jest.fn((sql: string, params: unknown[] = []) => {
+    get: vi.fn((sql: string, params: unknown[] = []) => {
       if (!testDb) {
         const { getTestDatabase } = require('../helpers/testDatabase');
         testDb = getTestDatabase();
@@ -54,12 +55,12 @@ jest.mock('../../src/database', () => {
 });
 
 // Mock logger
-jest.mock('../../src/utils/logger', () => ({
+vi.mock('../../src/utils/logger', () => ({
   logger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
   },
 }));
 

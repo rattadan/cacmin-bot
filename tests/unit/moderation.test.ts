@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 /**
  * Unit tests for jail and moderation commands
  */
@@ -22,7 +23,7 @@ import {
 } from '../helpers/testDatabase';
 
 // Mock database module
-jest.mock('../../src/database', () => {
+vi.mock('../../src/database', () => {
   const testDb = require('../helpers/testDatabase');
   return {
     query: (sql: string, params: any[] = []) => {
@@ -41,7 +42,7 @@ jest.mock('../../src/database', () => {
 });
 
 // Mock config
-jest.mock('../../src/config', () => ({
+vi.mock('../../src/config', () => ({
   config: {
     botToken: 'test-token',
     groupChatId: -1001234567890,
@@ -50,24 +51,24 @@ jest.mock('../../src/config', () => ({
     userFundsAddress: 'juno1testuserfundsaddress',
     userFundsMnemonic: 'test mnemonic',
   },
-  validateConfig: jest.fn(),
+  validateConfig: vi.fn(),
 }));
 
 // Mock logger
-jest.mock('../../src/utils/logger', () => ({
+vi.mock('../../src/utils/logger', () => ({
   logger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
   },
 }));
 
 // Mock JunoService
-jest.mock('../../src/services/junoService', () => ({
+vi.mock('../../src/services/junoService', () => ({
   JunoService: {
-    getPaymentAddress: jest.fn().mockReturnValue('juno1testtreasuryaddress'),
-    verifyPayment: jest.fn().mockResolvedValue(true),
+    getPaymentAddress: vi.fn().mockReturnValue('juno1testtreasuryaddress'),
+    verifyPayment: vi.fn().mockResolvedValue(true),
   },
 }));
 
@@ -75,8 +76,8 @@ jest.mock('../../src/services/junoService', () => ({
 // Just mock the bot-specific methods if needed
 
 // Mock user resolver
-jest.mock('../../src/utils/userResolver', () => ({
-  resolveUserId: jest.fn((identifier: string) => {
+vi.mock('../../src/utils/userResolver', () => ({
+  resolveUserId: vi.fn((identifier: string) => {
     if (identifier.startsWith('@')) {
       const username = identifier.slice(1);
       const db = require('../helpers/testDatabase').getTestDatabase();
@@ -86,7 +87,7 @@ jest.mock('../../src/utils/userResolver', () => ({
     const userId = parseInt(identifier);
     return isNaN(userId) ? null : userId;
   }),
-  formatUserIdDisplay: jest.fn((userId: number) => {
+  formatUserIdDisplay: vi.fn((userId: number) => {
     const db = require('../helpers/testDatabase').getTestDatabase();
     const user = db.prepare('SELECT username FROM users WHERE id = ?').get(userId);
     return user?.username ? `@${user.username}` : `${userId}`;

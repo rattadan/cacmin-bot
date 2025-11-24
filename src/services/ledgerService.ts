@@ -45,15 +45,12 @@ interface Transaction {
 export class LedgerService {
 	private static botTreasuryAddress: string;
 	private static userFundsAddress: string;
-	private static rpcEndpoint: string;
 	private static apiEndpoint: string;
 
 	/**
 	 * Initialize the ledger service
 	 */
 	static initialize(): void {
-		LedgerService.rpcEndpoint =
-			config.junoRpcUrl || "https://rpc.juno.basementnodes.ca";
 		LedgerService.apiEndpoint =
 			config.junoApiUrl || "https://api.juno.basementnodes.ca";
 

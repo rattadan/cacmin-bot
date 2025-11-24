@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 /**
  * Comprehensive Unit Tests for Middleware and Utilities
  *
@@ -57,21 +58,21 @@ import { TransactionLockService } from '../../src/services/transactionLock';
 import { config } from '../../src/config';
 
 // Mock database module
-jest.mock('../../src/database', () => {
+vi.mock('../../src/database', () => {
   const testDb = require('../helpers/testDatabase');
   return {
-    query: jest.fn((sql: string, params: any[]) => {
+    query: vi.fn((sql: string, params: any[]) => {
       const db = testDb.getTestDatabase();
       return db.prepare(sql).all(...params);
     }),
-    execute: jest.fn((sql: string, params?: any[]) => {
+    execute: vi.fn((sql: string, params?: any[]) => {
       const db = testDb.getTestDatabase();
       if (params) {
         return db.prepare(sql).run(...params);
       }
       return db.exec(sql);
     }),
-    get: jest.fn((sql: string, params?: any[]) => {
+    get: vi.fn((sql: string, params?: any[]) => {
       const db = testDb.getTestDatabase();
       if (params) {
         return db.prepare(sql).get(...params);
@@ -82,8 +83,8 @@ jest.mock('../../src/database', () => {
 });
 
 // Mock services
-jest.mock('../../src/services/userService');
-jest.mock('../../src/services/restrictionService');
+vi.mock('../../src/services/userService');
+vi.mock('../../src/services/restrictionService');
 
 describe('Middleware and Utilities Test Suite', () => {
   beforeAll(() => {
@@ -93,7 +94,7 @@ describe('Middleware and Utilities Test Suite', () => {
   beforeEach(() => {
     cleanTestDatabase();
     createTestUsers();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterAll(() => {
@@ -104,7 +105,7 @@ describe('Middleware and Utilities Test Suite', () => {
     describe('userManagementMiddleware', () => {
       it('should ensure user exists and load restrictions', async () => {
         const ctx = createMockContext({ userId: 999999999, username: 'newuser' });
-        const next = jest.fn();
+        const next = vi.fn();
         const mockRestrictions = [
           { id: 1, userId: 999999999, restriction: 'no_stickers', createdAt: Date.now() },
         ];
@@ -124,7 +125,7 @@ describe('Middleware and Utilities Test Suite', () => {
         const ctx = createMockContext();
         const ctxMutable = ctx as any;
         ctxMutable.from = undefined;
-        const next = jest.fn();
+        const next = vi.fn();
 
         await userManagementMiddleware(ctx as Context, next);
 
@@ -134,7 +135,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should handle errors gracefully and reply to user', async () => {
         const ctx = createMockContext({ userId: 123456, username: 'erroruser' });
-        const next = jest.fn();
+        const next = vi.fn();
 
         (userService.ensureUserExists as jest.Mock).mockImplementation(() => {
           throw new Error('Database error');
@@ -151,7 +152,7 @@ describe('Middleware and Utilities Test Suite', () => {
       it('should handle users without username', async () => {
         const ctx = createMockContext({ userId: 888888888 });
         ctx.from!.username = undefined;
-        const next = jest.fn();
+        const next = vi.fn();
 
         (userService.ensureUserExists as jest.Mock).mockReturnValue(undefined);
         (userService.getUserRestrictions as jest.Mock).mockReturnValue([]);
@@ -166,7 +167,7 @@ describe('Middleware and Utilities Test Suite', () => {
     describe('ownerOnly middleware', () => {
       it('should allow owner to proceed', async () => {
         const ctx = createOwnerContext();
-        const next = jest.fn();
+        const next = vi.fn();
 
         await ownerOnly(ctx as Context, next);
 
@@ -176,7 +177,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should deny non-owner access', async () => {
         const ctx = createAdminContext();
-        const next = jest.fn();
+        const next = vi.fn();
 
         await ownerOnly(ctx as Context, next);
 
@@ -186,7 +187,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should deny pleb access', async () => {
         const ctx = createPlebContext();
-        const next = jest.fn();
+        const next = vi.fn();
 
         await ownerOnly(ctx as Context, next);
 
@@ -198,7 +199,7 @@ describe('Middleware and Utilities Test Suite', () => {
         const ctx = createMockContext();
         const ctxMutable = ctx as any;
         ctxMutable.from = undefined;
-        const next = jest.fn();
+        const next = vi.fn();
 
         await ownerOnly(ctx as Context, next);
 
@@ -210,7 +211,7 @@ describe('Middleware and Utilities Test Suite', () => {
     describe('adminOrHigher middleware', () => {
       it('should allow owner to proceed', async () => {
         const ctx = createOwnerContext();
-        const next = jest.fn();
+        const next = vi.fn();
 
         await adminOrHigher(ctx as Context, next);
 
@@ -220,7 +221,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should allow admin to proceed', async () => {
         const ctx = createAdminContext();
-        const next = jest.fn();
+        const next = vi.fn();
 
         await adminOrHigher(ctx as Context, next);
 
@@ -230,7 +231,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should deny elevated user access', async () => {
         const ctx = createElevatedContext();
-        const next = jest.fn();
+        const next = vi.fn();
 
         await adminOrHigher(ctx as Context, next);
 
@@ -240,7 +241,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should deny pleb access', async () => {
         const ctx = createPlebContext();
-        const next = jest.fn();
+        const next = vi.fn();
 
         await adminOrHigher(ctx as Context, next);
 
@@ -252,7 +253,7 @@ describe('Middleware and Utilities Test Suite', () => {
     describe('elevatedOrHigher middleware', () => {
       it('should allow owner to proceed', async () => {
         const ctx = createOwnerContext();
-        const next = jest.fn();
+        const next = vi.fn();
 
         await elevatedOrHigher(ctx as Context, next);
 
@@ -262,7 +263,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should allow admin to proceed', async () => {
         const ctx = createAdminContext();
-        const next = jest.fn();
+        const next = vi.fn();
 
         await elevatedOrHigher(ctx as Context, next);
 
@@ -272,7 +273,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should allow elevated user to proceed', async () => {
         const ctx = createElevatedContext();
-        const next = jest.fn();
+        const next = vi.fn();
 
         await elevatedOrHigher(ctx as Context, next);
 
@@ -282,7 +283,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should deny pleb access', async () => {
         const ctx = createPlebContext();
-        const next = jest.fn();
+        const next = vi.fn();
 
         await elevatedOrHigher(ctx as Context, next);
 
@@ -316,7 +317,7 @@ describe('Middleware and Utilities Test Suite', () => {
         const ctx = createMockContext();
         const ctxMutable = ctx as any;
         ctxMutable.message = undefined;
-        const next = jest.fn();
+        const next = vi.fn();
 
         await messageFilterMiddleware(ctx as Context, next);
 
@@ -328,7 +329,7 @@ describe('Middleware and Utilities Test Suite', () => {
         const ctx = createMockContext();
         const ctxMutable = ctx as any;
         ctxMutable.from = undefined;
-        const next = jest.fn();
+        const next = vi.fn();
 
         await messageFilterMiddleware(ctx as Context, next);
 
@@ -338,7 +339,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should skip filtering for whitelisted users', async () => {
         const ctx = createPlebContext({ chatType: 'supergroup' });
-        const next = jest.fn();
+        const next = vi.fn();
 
         // Update existing user to be whitelisted
         const db = require('../helpers/testDatabase').getTestDatabase();
@@ -352,7 +353,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should skip filtering for owners', async () => {
         const ctx = createOwnerContext({ chatType: 'supergroup' });
-        const next = jest.fn();
+        const next = vi.fn();
 
         await messageFilterMiddleware(ctx as Context, next);
 
@@ -362,7 +363,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should skip filtering for admins', async () => {
         const ctx = createAdminContext({ chatType: 'supergroup' });
-        const next = jest.fn();
+        const next = vi.fn();
 
         await messageFilterMiddleware(ctx as Context, next);
 
@@ -372,7 +373,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should delete messages from jailed users in group chats', async () => {
         const ctx = createPlebContext({ chatType: 'supergroup' });
-        const next = jest.fn();
+        const next = vi.fn();
 
         // Jail the user
         const db = require('../helpers/testDatabase').getTestDatabase();
@@ -387,7 +388,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should not delete messages from jailed users in private chats', async () => {
         const ctx = createPlebContext({ chatType: 'private' });
-        const next = jest.fn();
+        const next = vi.fn();
 
         // Jail the user
         const db = require('../helpers/testDatabase').getTestDatabase();
@@ -402,7 +403,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should allow messages from users whose jail time expired', async () => {
         const ctx = createPlebContext({ chatType: 'supergroup' });
-        const next = jest.fn();
+        const next = vi.fn();
 
         // Set expired jail time
         const db = require('../helpers/testDatabase').getTestDatabase();
@@ -419,7 +420,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should check restrictions in group chats', async () => {
         const ctx = createPlebContext({ chatType: 'supergroup' });
-        const next = jest.fn();
+        const next = vi.fn();
 
         (restrictionService.RestrictionService.checkMessage as jest.Mock).mockResolvedValue(false);
 
@@ -431,7 +432,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should not proceed if message violates restrictions', async () => {
         const ctx = createPlebContext({ chatType: 'supergroup' });
-        const next = jest.fn();
+        const next = vi.fn();
 
         (restrictionService.RestrictionService.checkMessage as jest.Mock).mockResolvedValue(true);
 
@@ -442,7 +443,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should skip restriction checks in private chats', async () => {
         const ctx = createPlebContext({ chatType: 'private' });
-        const next = jest.fn();
+        const next = vi.fn();
 
         await messageFilterMiddleware(ctx as Context, next);
 
@@ -452,7 +453,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should continue on error to avoid blocking', async () => {
         const ctx = createPlebContext({ chatType: 'supergroup' });
-        const next = jest.fn();
+        const next = vi.fn();
 
         (userService.ensureUserExists as jest.Mock).mockRejectedValue(new Error('DB error'));
 
@@ -463,7 +464,7 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should handle failed message deletion gracefully', async () => {
         const ctx = createPlebContext({ chatType: 'supergroup' });
-        const next = jest.fn();
+        const next = vi.fn();
         (ctx.deleteMessage as jest.Mock).mockRejectedValue(new Error('No permission'));
 
         // Jail the user
@@ -488,9 +489,9 @@ describe('Middleware and Utilities Test Suite', () => {
     describe('lockCheckMiddleware', () => {
       it('should allow command if user is not locked', async () => {
         const ctx = createPlebContext();
-        const next = jest.fn();
+        const next = vi.fn();
 
-        jest.spyOn(TransactionLockService, 'getUserLock').mockResolvedValue(null);
+        vi.spyOn(TransactionLockService, 'getUserLock').mockResolvedValue(null);
 
         await lockCheckMiddleware(ctx as Context, next);
 
@@ -500,10 +501,10 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should block command if user is locked', async () => {
         const ctx = createPlebContext();
-        const next = jest.fn();
+        const next = vi.fn();
 
         const now = Math.floor(Date.now() / 1000);
-        jest.spyOn(TransactionLockService, 'getUserLock').mockResolvedValue({
+        vi.spyOn(TransactionLockService, 'getUserLock').mockResolvedValue({
           user_id: 444444444,
           lock_type: 'withdrawal',
           locked_at: now,
@@ -519,10 +520,10 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should show remaining seconds in lock message', async () => {
         const ctx = createPlebContext();
-        const next = jest.fn();
+        const next = vi.fn();
 
         const now = Math.floor(Date.now() / 1000);
-        jest.spyOn(TransactionLockService, 'getUserLock').mockResolvedValue({
+        vi.spyOn(TransactionLockService, 'getUserLock').mockResolvedValue({
           user_id: 444444444,
           lock_type: 'withdrawal',
           locked_at: now,
@@ -538,7 +539,7 @@ describe('Middleware and Utilities Test Suite', () => {
         const ctx = createMockContext();
         const ctxMutable = ctx as any;
         ctxMutable.from = undefined;
-        const next = jest.fn();
+        const next = vi.fn();
 
         await lockCheckMiddleware(ctx as Context, next);
 
@@ -548,9 +549,9 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should allow command on error', async () => {
         const ctx = createPlebContext();
-        const next = jest.fn();
+        const next = vi.fn();
 
-        jest.spyOn(TransactionLockService, 'getUserLock').mockRejectedValue(new Error('DB error'));
+        vi.spyOn(TransactionLockService, 'getUserLock').mockRejectedValue(new Error('DB error'));
 
         await lockCheckMiddleware(ctx as Context, next);
 
@@ -561,9 +562,9 @@ describe('Middleware and Utilities Test Suite', () => {
     describe('financialLockCheck', () => {
       it('should allow non-financial commands without checking lock', async () => {
         const ctx = createPlebContext({ messageText: '/balance' });
-        const next = jest.fn();
+        const next = vi.fn();
 
-        jest.spyOn(TransactionLockService, 'isUserLocked').mockResolvedValue(true);
+        vi.spyOn(TransactionLockService, 'isUserLocked').mockResolvedValue(true);
 
         await financialLockCheck(ctx as Context, next);
 
@@ -573,9 +574,9 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should check lock for /withdraw command', async () => {
         const ctx = createPlebContext({ messageText: '/withdraw 100' });
-        const next = jest.fn();
+        const next = vi.fn();
 
-        jest.spyOn(TransactionLockService, 'isUserLocked').mockResolvedValue(false);
+        vi.spyOn(TransactionLockService, 'isUserLocked').mockResolvedValue(false);
 
         await financialLockCheck(ctx as Context, next);
 
@@ -585,9 +586,9 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should block locked user from financial commands', async () => {
         const ctx = createPlebContext({ messageText: '/withdraw 100' });
-        const next = jest.fn();
+        const next = vi.fn();
 
-        jest.spyOn(TransactionLockService, 'isUserLocked').mockResolvedValue(true);
+        vi.spyOn(TransactionLockService, 'isUserLocked').mockResolvedValue(true);
 
         await financialLockCheck(ctx as Context, next);
 
@@ -600,14 +601,14 @@ describe('Middleware and Utilities Test Suite', () => {
 
         for (const command of financialCommands) {
           const ctx = createPlebContext({ messageText: `${command} 100` });
-          const next = jest.fn();
+          const next = vi.fn();
 
-          jest.spyOn(TransactionLockService, 'isUserLocked').mockResolvedValue(false);
+          vi.spyOn(TransactionLockService, 'isUserLocked').mockResolvedValue(false);
 
           await financialLockCheck(ctx as Context, next);
 
           expect(TransactionLockService.isUserLocked).toHaveBeenCalled();
-          jest.clearAllMocks();
+          vi.clearAllMocks();
         }
       });
 
@@ -615,7 +616,7 @@ describe('Middleware and Utilities Test Suite', () => {
         const ctx = createMockContext({ messageText: '/withdraw 100' });
         const ctxMutable = ctx as any;
         ctxMutable.from = undefined;
-        const next = jest.fn();
+        const next = vi.fn();
 
         await financialLockCheck(ctx as Context, next);
 
@@ -624,9 +625,9 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should allow command on error', async () => {
         const ctx = createPlebContext({ messageText: '/withdraw 100' });
-        const next = jest.fn();
+        const next = vi.fn();
 
-        jest.spyOn(TransactionLockService, 'isUserLocked').mockRejectedValue(new Error('DB error'));
+        vi.spyOn(TransactionLockService, 'isUserLocked').mockRejectedValue(new Error('DB error'));
 
         await financialLockCheck(ctx as Context, next);
 
@@ -740,7 +741,7 @@ describe('Middleware and Utilities Test Suite', () => {
     beforeEach(() => {
       mockBot = {
         telegram: {
-          sendMessage: jest.fn().mockResolvedValue({ message_id: 1 }),
+          sendMessage: vi.fn().mockResolvedValue({ message_id: 1 }),
         },
       } as any;
     });
@@ -811,19 +812,19 @@ describe('Middleware and Utilities Test Suite', () => {
         const ctx = createOwnerContext();
         const callOrder: string[] = [];
 
-        const middleware1 = jest.fn(async (ctx: Context, next: () => Promise<void>) => {
+        const middleware1 = vi.fn(async (ctx: Context, next: () => Promise<void>) => {
           callOrder.push('middleware1-before');
           await next();
           callOrder.push('middleware1-after');
         });
 
-        const middleware2 = jest.fn(async (ctx: Context, next: () => Promise<void>) => {
+        const middleware2 = vi.fn(async (ctx: Context, next: () => Promise<void>) => {
           callOrder.push('middleware2-before');
           await next();
           callOrder.push('middleware2-after');
         });
 
-        const middleware3 = jest.fn(async (ctx: Context, next: () => Promise<void>) => {
+        const middleware3 = vi.fn(async (ctx: Context, next: () => Promise<void>) => {
           callOrder.push('middleware3');
         });
 
@@ -846,17 +847,17 @@ describe('Middleware and Utilities Test Suite', () => {
         const ctx = createPlebContext();
         const callOrder: string[] = [];
 
-        const middleware1 = jest.fn(async (ctx: Context, next: () => Promise<void>) => {
+        const middleware1 = vi.fn(async (ctx: Context, next: () => Promise<void>) => {
           callOrder.push('middleware1');
           await next();
         });
 
-        const middleware2 = jest.fn(async (ctx: Context, next: () => Promise<void>) => {
+        const middleware2 = vi.fn(async (ctx: Context, next: () => Promise<void>) => {
           callOrder.push('middleware2');
           // Does not call next()
         });
 
-        const middleware3 = jest.fn(async (ctx: Context, next: () => Promise<void>) => {
+        const middleware3 = vi.fn(async (ctx: Context, next: () => Promise<void>) => {
           callOrder.push('middleware3');
         });
 
@@ -874,7 +875,7 @@ describe('Middleware and Utilities Test Suite', () => {
     describe('State management in context', () => {
       it('should preserve state across middleware', async () => {
         const ctx = createMockContext();
-        const next = jest.fn();
+        const next = vi.fn();
 
         (userService.ensureUserExists as jest.Mock).mockReturnValue(undefined);
         (userService.getUserRestrictions as jest.Mock).mockReturnValue([
@@ -915,7 +916,7 @@ describe('Middleware and Utilities Test Suite', () => {
     describe('Permission denial integration', () => {
       it('should deny pleb from using owner-only command', async () => {
         const ctx = createPlebContext();
-        const next = jest.fn();
+        const next = vi.fn();
 
         await ownerOnly(ctx as Context, next);
 
@@ -925,8 +926,8 @@ describe('Middleware and Utilities Test Suite', () => {
 
       it('should allow elevated user through elevatedOrHigher but not adminOrHigher', async () => {
         const ctx = createElevatedContext();
-        const next1 = jest.fn();
-        const next2 = jest.fn();
+        const next1 = vi.fn();
+        const next2 = vi.fn();
 
         await elevatedOrHigher(ctx as Context, next1);
         await adminOrHigher(ctx as Context, next2);

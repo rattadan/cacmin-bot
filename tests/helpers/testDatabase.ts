@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 /**
  * Test database utilities
  */

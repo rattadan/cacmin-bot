@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 /**
  * Comprehensive Integration Tests for Ledger Operations
  *
@@ -243,15 +244,15 @@ function closeIntegrationDb(): void {
 /**
  * Mock database module to use our test database
  */
-jest.mock('../../src/database', () => ({
-  query: jest.fn((sql: string, params: unknown[] = []) => dbHelpers.query(sql, params)),
-  execute: jest.fn((sql: string, params: unknown[] = []) => dbHelpers.execute(sql, params)),
-  get: jest.fn((sql: string, params: unknown[] = []) => dbHelpers.get(sql, params)),
-  initDb: jest.fn(),
+vi.mock('../../src/database', () => ({
+  query: vi.fn((sql: string, params: unknown[] = []) => dbHelpers.query(sql, params)),
+  execute: vi.fn((sql: string, params: unknown[] = []) => dbHelpers.execute(sql, params)),
+  get: vi.fn((sql: string, params: unknown[] = []) => dbHelpers.get(sql, params)),
+  initDb: vi.fn(),
 }));
 
 // Mock config (use inline path instead of variable to avoid initialization order issues)
-jest.mock('../../src/config', () => ({
+vi.mock('../../src/config', () => ({
   config: {
     databasePath: ':memory:',
     botToken: 'test-token',
@@ -265,12 +266,12 @@ jest.mock('../../src/config', () => ({
 }));
 
 // Mock logger
-jest.mock('../../src/utils/logger', () => ({
+vi.mock('../../src/utils/logger', () => ({
   logger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
   },
 }));
 

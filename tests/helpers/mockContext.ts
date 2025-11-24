@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 /**
  * Mock Telegraf Context for testing
  */
@@ -71,17 +72,17 @@ export function createMockContext(options: MockContextOptions = {}): Partial<Con
     message: mockMessage,
   };
 
-  const replySpy = jest.fn().mockResolvedValue({
+  const replySpy = vi.fn().mockResolvedValue({
     message_id: messageId + 1,
     date: Math.floor(Date.now() / 1000),
     chat: mockChat,
     text: 'Mock reply',
   });
 
-  const deleteMessageSpy = jest.fn().mockResolvedValue(true);
-  const restrictChatMemberSpy = jest.fn().mockResolvedValue(true);
-  const banChatMemberSpy = jest.fn().mockResolvedValue(true);
-  const unbanChatMemberSpy = jest.fn().mockResolvedValue(true);
+  const deleteMessageSpy = vi.fn().mockResolvedValue(true);
+  const restrictChatMemberSpy = vi.fn().mockResolvedValue(true);
+  const banChatMemberSpy = vi.fn().mockResolvedValue(true);
+  const unbanChatMemberSpy = vi.fn().mockResolvedValue(true);
 
   const mockContext: Partial<Context> = {
     update: mockUpdate,

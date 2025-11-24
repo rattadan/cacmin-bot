@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 /**
  * Comprehensive unit tests for wallet commands
  * Tests all wallet-related commands with proper mocking and validation
@@ -5,7 +6,7 @@
 
 import { Context } from 'telegraf';
 import * as walletHandlers from '../../src/handlers/wallet';
-import { WalletServiceV2 } from '../../src/services/walletServiceV2';
+import { UnifiedWalletService } from '../../src/services/unifiedWalletService';
 import { LedgerService } from '../../src/services/ledgerService';
 import { TransactionLockService } from '../../src/services/transactionLock';
 import { DepositMonitor } from '../../src/services/depositMonitor';
@@ -22,15 +23,15 @@ import {
 } from '../helpers/mockContext';
 
 // Mock database before any other imports
-jest.mock('../../src/database', () => ({
-  query: jest.fn(() => []),
-  execute: jest.fn(() => ({ changes: 0, lastInsertRowid: 0 })),
-  get: jest.fn(() => undefined),
-  initDb: jest.fn(),
+vi.mock('../../src/database', () => ({
+  query: vi.fn(() => []),
+  execute: vi.fn(() => ({ changes: 0, lastInsertRowid: 0 })),
+  get: vi.fn(() => undefined),
+  initDb: vi.fn(),
 }));
 
 // Mock config
-jest.mock('../../src/config', () => ({
+vi.mock('../../src/config', () => ({
   config: {
     databasePath: ':memory:',
     botToken: 'test-token',
@@ -42,35 +43,35 @@ jest.mock('../../src/config', () => ({
 }));
 
 // Mock the services
-jest.mock('../../src/services/walletServiceV2');
-jest.mock('../../src/services/ledgerService');
-jest.mock('../../src/services/transactionLock');
-jest.mock('../../src/services/depositMonitor');
-jest.mock('../../src/utils/roles');
-jest.mock('../../src/utils/logger', () => ({
+vi.mock('../../src/services/walletServiceV2');
+vi.mock('../../src/services/ledgerService');
+vi.mock('../../src/services/transactionLock');
+vi.mock('../../src/services/depositMonitor');
+vi.mock('../../src/utils/roles');
+vi.mock('../../src/utils/logger', () => ({
   logger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
   },
 }));
 
 describe('Wallet Commands', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('/balance', () => {
     it('should show user balance successfully', async () => {
       const ctx = createPlebContext({ userId: 444444444, username: 'pleb' });
 
-      // Mock WalletServiceV2.getUserBalance
-      (WalletServiceV2.getUserBalance as jest.Mock).mockResolvedValue(125.5);
+      // Mock UnifiedWalletService.getUserBalance
+      (UnifiedWalletService.getUserBalance as jest.Mock).mockResolvedValue(125.5);
 
       await walletHandlers.handleBalance(ctx as Context);
 
-      expect(WalletServiceV2.getUserBalance).toHaveBeenCalledWith(444444444);
+      expect(UnifiedWalletService.getUserBalance).toHaveBeenCalledWith(444444444);
       expect(ctx.reply).toHaveBeenCalledWith(
         expect.stringContaining('125.500000 JUNO'),
         expect.objectContaining({ parse_mode: 'Markdown' })
@@ -84,7 +85,7 @@ describe('Wallet Commands', () => {
     it('should handle zero balance', async () => {
       const ctx = createPlebContext({ userId: 444444444 });
 
-      (WalletServiceV2.getUserBalance as jest.Mock).mockResolvedValue(0);
+      (UnifiedWalletService.getUserBalance as jest.Mock).mockResolvedValue(0);
 
       await walletHandlers.handleBalance(ctx as Context);
 
@@ -101,7 +102,7 @@ describe('Wallet Commands', () => {
         (ctx.from as any).username = undefined;
       }
 
-      (WalletServiceV2.getUserBalance as jest.Mock).mockResolvedValue(50.0);
+      (UnifiedWalletService.getUserBalance as jest.Mock).mockResolvedValue(50.0);
 
       await walletHandlers.handleBalance(ctx as Context);
 
@@ -114,7 +115,7 @@ describe('Wallet Commands', () => {
     it('should handle errors gracefully', async () => {
       const ctx = createPlebContext({ userId: 444444444 });
 
-      (WalletServiceV2.getUserBalance as jest.Mock).mockRejectedValue(
+      (UnifiedWalletService.getUserBalance as jest.Mock).mockRejectedValue(
         new Error('Database error')
       );
 
@@ -131,7 +132,7 @@ describe('Wallet Commands', () => {
 
       await walletHandlers.handleBalance(ctx as Context);
 
-      expect(WalletServiceV2.getUserBalance).not.toHaveBeenCalled();
+      expect(UnifiedWalletService.getUserBalance).not.toHaveBeenCalled();
       expect(ctx.reply).not.toHaveBeenCalled();
     });
   });
@@ -140,7 +141,7 @@ describe('Wallet Commands', () => {
     it('should show deposit instructions with address and memo', async () => {
       const ctx = createPlebContext({ userId: 444444444 });
 
-      (WalletServiceV2.getDepositInfo as jest.Mock).mockReturnValue({
+      (UnifiedWalletService.getDepositInfo as jest.Mock).mockReturnValue({
         address: 'juno1testuserfundsaddress',
         memo: '444444444',
         instructions: 'Send JUNO to juno1testuserfundsaddress with memo: 444444444',
@@ -148,7 +149,7 @@ describe('Wallet Commands', () => {
 
       await walletHandlers.handleDeposit(ctx as Context);
 
-      expect(WalletServiceV2.getDepositInfo).toHaveBeenCalledWith(444444444);
+      expect(UnifiedWalletService.getDepositInfo).toHaveBeenCalledWith(444444444);
       expect(ctx.reply).toHaveBeenCalledWith(
         expect.stringContaining('juno1testuserfundsaddress'),
         expect.objectContaining({ parse_mode: 'Markdown' })
@@ -169,14 +170,14 @@ describe('Wallet Commands', () => {
 
       await walletHandlers.handleDeposit(ctx as Context);
 
-      expect(WalletServiceV2.getDepositInfo).not.toHaveBeenCalled();
+      expect(UnifiedWalletService.getDepositInfo).not.toHaveBeenCalled();
       expect(ctx.reply).not.toHaveBeenCalled();
     });
 
     it('should handle errors gracefully', async () => {
       const ctx = createPlebContext({ userId: 444444444 });
 
-      (WalletServiceV2.getDepositInfo as jest.Mock).mockImplementation(() => {
+      (UnifiedWalletService.getDepositInfo as jest.Mock).mockImplementation(() => {
         throw new Error('Config error');
       });
 
@@ -190,7 +191,7 @@ describe('Wallet Commands', () => {
 
   describe('/withdraw', () => {
     beforeEach(() => {
-      (WalletServiceV2.getUserBalance as jest.Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.getUserBalance as jest.Mock).mockResolvedValue(100.0);
     });
 
     it('should show usage error for invalid format', async () => {
@@ -256,7 +257,7 @@ describe('Wallet Commands', () => {
         messageText: '/withdraw 200 juno1recipient',
       });
 
-      (WalletServiceV2.getUserBalance as jest.Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.getUserBalance as jest.Mock).mockResolvedValue(100.0);
 
       await walletHandlers.handleWithdraw(ctx as Context);
 
@@ -276,8 +277,8 @@ describe('Wallet Commands', () => {
         messageText: '/withdraw 50 juno1recipient',
       });
 
-      (WalletServiceV2.getUserBalance as jest.Mock).mockResolvedValue(100.0);
-      (WalletServiceV2.sendToExternalWallet as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.getUserBalance as jest.Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.sendToExternalWallet as jest.Mock).mockResolvedValue({
         success: true,
         txHash: 'ABCD1234',
         newBalance: 50.0,
@@ -285,7 +286,7 @@ describe('Wallet Commands', () => {
 
       await walletHandlers.handleWithdraw(ctx as Context);
 
-      expect(WalletServiceV2.sendToExternalWallet).toHaveBeenCalledWith(
+      expect(UnifiedWalletService.sendToExternalWallet).toHaveBeenCalledWith(
         444444444,
         'juno1recipient',
         50,
@@ -305,8 +306,8 @@ describe('Wallet Commands', () => {
         messageText: '/withdraw 50 juno1recipient',
       });
 
-      (WalletServiceV2.getUserBalance as jest.Mock).mockResolvedValue(100.0);
-      (WalletServiceV2.sendToExternalWallet as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.getUserBalance as jest.Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.sendToExternalWallet as jest.Mock).mockResolvedValue({
         success: false,
         error: 'Network timeout',
         newBalance: 100.0,
@@ -330,7 +331,7 @@ describe('Wallet Commands', () => {
         messageText: '/withdraw 50 juno1recipient',
       });
 
-      (WalletServiceV2.getUserBalance as jest.Mock).mockRejectedValue(
+      (UnifiedWalletService.getUserBalance as jest.Mock).mockRejectedValue(
         new Error('Database error')
       );
 
@@ -344,7 +345,7 @@ describe('Wallet Commands', () => {
 
   describe('/send', () => {
     beforeEach(() => {
-      (WalletServiceV2.getUserBalance as jest.Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.getUserBalance as jest.Mock).mockResolvedValue(100.0);
     });
 
     it('should show usage error for invalid format', async () => {
@@ -397,7 +398,7 @@ describe('Wallet Commands', () => {
         messageText: '/send 200 @recipient',
       });
 
-      (WalletServiceV2.getUserBalance as jest.Mock).mockResolvedValue(50.0);
+      (UnifiedWalletService.getUserBalance as jest.Mock).mockResolvedValue(50.0);
 
       await walletHandlers.handleSend(ctx as Context);
 
@@ -414,7 +415,7 @@ describe('Wallet Commands', () => {
         messageText: '/send 25 juno1recipient',
       });
 
-      (WalletServiceV2.sendToExternalWallet as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.sendToExternalWallet as jest.Mock).mockResolvedValue({
         success: true,
         txHash: 'TX123',
         newBalance: 75.0,
@@ -422,7 +423,7 @@ describe('Wallet Commands', () => {
 
       await walletHandlers.handleSend(ctx as Context);
 
-      expect(WalletServiceV2.sendToExternalWallet).toHaveBeenCalledWith(
+      expect(UnifiedWalletService.sendToExternalWallet).toHaveBeenCalledWith(
         444444444,
         'juno1recipient',
         25,
@@ -440,7 +441,7 @@ describe('Wallet Commands', () => {
         messageText: '/send 15 @recipient',
       });
 
-      (WalletServiceV2.sendToUsername as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.sendToUsername as jest.Mock).mockResolvedValue({
         success: true,
         recipient: 'recipient',
         newBalance: 85.0,
@@ -448,7 +449,7 @@ describe('Wallet Commands', () => {
 
       await walletHandlers.handleSend(ctx as Context);
 
-      expect(WalletServiceV2.sendToUsername).toHaveBeenCalledWith(
+      expect(UnifiedWalletService.sendToUsername).toHaveBeenCalledWith(
         444444444,
         '@recipient',
         15
@@ -465,14 +466,14 @@ describe('Wallet Commands', () => {
         messageText: '/send 20 555555555',
       });
 
-      (WalletServiceV2.sendToUser as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.sendToUser as jest.Mock).mockResolvedValue({
         success: true,
         fromBalance: 80.0,
       });
 
       await walletHandlers.handleSend(ctx as Context);
 
-      expect(WalletServiceV2.sendToUser).toHaveBeenCalledWith(
+      expect(UnifiedWalletService.sendToUser).toHaveBeenCalledWith(
         444444444,
         555555555,
         20
@@ -485,7 +486,7 @@ describe('Wallet Commands', () => {
         messageText: '/send 10 @nonexistent',
       });
 
-      (WalletServiceV2.sendToUsername as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.sendToUsername as jest.Mock).mockResolvedValue({
         success: false,
         error: 'User @nonexistent not found',
       });
@@ -533,13 +534,13 @@ describe('Wallet Commands', () => {
         },
       ];
 
-      (WalletServiceV2.getUserTransactionHistory as jest.Mock).mockResolvedValue(
+      (UnifiedWalletService.getUserTransactionHistory as jest.Mock).mockResolvedValue(
         mockTransactions
       );
 
       await walletHandlers.handleTransactions(ctx as Context);
 
-      expect(WalletServiceV2.getUserTransactionHistory).toHaveBeenCalledWith(444444444, 10);
+      expect(UnifiedWalletService.getUserTransactionHistory).toHaveBeenCalledWith(444444444, 10);
       expect(ctx.reply).toHaveBeenCalledWith(
         expect.stringContaining('Recent Transactions'),
         expect.objectContaining({ parse_mode: 'Markdown' })
@@ -557,7 +558,7 @@ describe('Wallet Commands', () => {
     it('should handle empty transaction history', async () => {
       const ctx = createPlebContext({ userId: 444444444 });
 
-      (WalletServiceV2.getUserTransactionHistory as jest.Mock).mockResolvedValue([]);
+      (UnifiedWalletService.getUserTransactionHistory as jest.Mock).mockResolvedValue([]);
 
       await walletHandlers.handleTransactions(ctx as Context);
 
@@ -581,7 +582,7 @@ describe('Wallet Commands', () => {
         },
       ];
 
-      (WalletServiceV2.getUserTransactionHistory as jest.Mock).mockResolvedValue(
+      (UnifiedWalletService.getUserTransactionHistory as jest.Mock).mockResolvedValue(
         mockTransactions
       );
 
@@ -608,7 +609,7 @@ describe('Wallet Commands', () => {
         },
       ];
 
-      (WalletServiceV2.getUserTransactionHistory as jest.Mock).mockResolvedValue(
+      (UnifiedWalletService.getUserTransactionHistory as jest.Mock).mockResolvedValue(
         mockTransactions
       );
 
@@ -647,7 +648,7 @@ describe('Wallet Commands', () => {
         },
       ];
 
-      (WalletServiceV2.getUserTransactionHistory as jest.Mock).mockResolvedValue(
+      (UnifiedWalletService.getUserTransactionHistory as jest.Mock).mockResolvedValue(
         mockTransactions
       );
 
@@ -670,7 +671,7 @@ describe('Wallet Commands', () => {
     it('should handle errors gracefully', async () => {
       const ctx = createPlebContext({ userId: 444444444 });
 
-      (WalletServiceV2.getUserTransactionHistory as jest.Mock).mockRejectedValue(
+      (UnifiedWalletService.getUserTransactionHistory as jest.Mock).mockRejectedValue(
         new Error('Database error')
       );
 
@@ -693,25 +694,25 @@ describe('Wallet Commands', () => {
       expect(ctx.reply).toHaveBeenCalledWith(
         expect.stringContaining('requires elevated permissions')
       );
-      expect(WalletServiceV2.getSystemBalances).not.toHaveBeenCalled();
+      expect(UnifiedWalletService.getSystemBalances).not.toHaveBeenCalled();
     });
 
     it('should show wallet statistics for elevated users', async () => {
       const ctx = createElevatedContext({ userId: 333333333 });
 
       (roles.checkIsElevated as jest.Mock).mockReturnValue(true);
-      (WalletServiceV2.getSystemBalances as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.getSystemBalances as jest.Mock).mockResolvedValue({
         treasury: { address: 'juno1treasury', onChain: 500.0 },
         userFunds: { address: 'juno1userfunds', onChain: 1000.0 },
       });
-      (WalletServiceV2.getLedgerStats as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.getLedgerStats as jest.Mock).mockResolvedValue({
         totalUsers: 100,
         activeUsers: 75,
         totalBalance: 1000.0,
         recentDeposits: 10,
         recentWithdrawals: 5,
       });
-      (WalletServiceV2.reconcileBalances as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.reconcileBalances as jest.Mock).mockResolvedValue({
         internalTotal: 1000.0,
         onChainTotal: 1000.0,
         difference: 0.0,
@@ -721,9 +722,9 @@ describe('Wallet Commands', () => {
       await walletHandlers.handleWalletStats(ctx as Context);
 
       expect(roles.checkIsElevated).toHaveBeenCalledWith(333333333);
-      expect(WalletServiceV2.getSystemBalances).toHaveBeenCalled();
-      expect(WalletServiceV2.getLedgerStats).toHaveBeenCalled();
-      expect(WalletServiceV2.reconcileBalances).toHaveBeenCalled();
+      expect(UnifiedWalletService.getSystemBalances).toHaveBeenCalled();
+      expect(UnifiedWalletService.getLedgerStats).toHaveBeenCalled();
+      expect(UnifiedWalletService.reconcileBalances).toHaveBeenCalled();
 
       const replies = getAllReplies(ctx);
       expect(replies).toContainEqual(expect.stringContaining('Fetching wallet statistics'));
@@ -737,18 +738,18 @@ describe('Wallet Commands', () => {
       const ctx = createOwnerContext({ userId: 111111111 });
 
       (roles.checkIsElevated as jest.Mock).mockReturnValue(true);
-      (WalletServiceV2.getSystemBalances as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.getSystemBalances as jest.Mock).mockResolvedValue({
         treasury: { address: 'juno1treasury', onChain: 500.0 },
         userFunds: { address: 'juno1userfunds', onChain: 1000.0 },
       });
-      (WalletServiceV2.getLedgerStats as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.getLedgerStats as jest.Mock).mockResolvedValue({
         totalUsers: 100,
         activeUsers: 75,
         totalBalance: 1050.0,
         recentDeposits: 10,
         recentWithdrawals: 5,
       });
-      (WalletServiceV2.reconcileBalances as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.reconcileBalances as jest.Mock).mockResolvedValue({
         internalTotal: 1050.0,
         onChainTotal: 1000.0,
         difference: 50.0,
@@ -767,7 +768,7 @@ describe('Wallet Commands', () => {
       const ctx = createElevatedContext({ userId: 333333333 });
 
       (roles.checkIsElevated as jest.Mock).mockReturnValue(true);
-      (WalletServiceV2.getSystemBalances as jest.Mock).mockRejectedValue(
+      (UnifiedWalletService.getSystemBalances as jest.Mock).mockRejectedValue(
         new Error('Network error')
       );
 
@@ -793,7 +794,7 @@ describe('Wallet Commands', () => {
       expect(ctx.reply).toHaveBeenCalledWith(
         expect.stringContaining('requires elevated permissions')
       );
-      expect(WalletServiceV2.distributeGiveaway).not.toHaveBeenCalled();
+      expect(UnifiedWalletService.distributeGiveaway).not.toHaveBeenCalled();
     });
 
     it('should show usage error for invalid format', async () => {
@@ -834,10 +835,10 @@ describe('Wallet Commands', () => {
       });
 
       (roles.checkIsElevated as jest.Mock).mockReturnValue(true);
-      (WalletServiceV2.findUserByUsername as jest.Mock)
+      (UnifiedWalletService.findUserByUsername as jest.Mock)
         .mockResolvedValueOnce({ id: 444444444, username: 'user1' })
         .mockResolvedValueOnce({ id: 333333333, username: 'user2' });
-      (WalletServiceV2.distributeGiveaway as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.distributeGiveaway as jest.Mock).mockResolvedValue({
         succeeded: [444444444, 333333333, 555555555],
         failed: [],
         totalDistributed: 75.0,
@@ -845,7 +846,7 @@ describe('Wallet Commands', () => {
 
       await walletHandlers.handleGiveaway(ctx as Context);
 
-      expect(WalletServiceV2.distributeGiveaway).toHaveBeenCalledWith(
+      expect(UnifiedWalletService.distributeGiveaway).toHaveBeenCalledWith(
         [444444444, 333333333, 555555555],
         25,
         'Giveaway from admin'
@@ -865,7 +866,7 @@ describe('Wallet Commands', () => {
       });
 
       (roles.checkIsElevated as jest.Mock).mockReturnValue(true);
-      (WalletServiceV2.findUserByUsername as jest.Mock).mockResolvedValue(null);
+      (UnifiedWalletService.findUserByUsername as jest.Mock).mockResolvedValue(null);
 
       await walletHandlers.handleGiveaway(ctx as Context);
 
@@ -880,7 +881,7 @@ describe('Wallet Commands', () => {
       });
 
       (roles.checkIsElevated as jest.Mock).mockReturnValue(true);
-      (WalletServiceV2.findUserByUsername as jest.Mock).mockResolvedValue(null);
+      (UnifiedWalletService.findUserByUsername as jest.Mock).mockResolvedValue(null);
 
       await walletHandlers.handleGiveaway(ctx as Context);
 
@@ -896,10 +897,10 @@ describe('Wallet Commands', () => {
       });
 
       (roles.checkIsElevated as jest.Mock).mockReturnValue(true);
-      (WalletServiceV2.findUserByUsername as jest.Mock)
+      (UnifiedWalletService.findUserByUsername as jest.Mock)
         .mockResolvedValueOnce({ id: 444444444, username: 'user1' })
         .mockResolvedValueOnce({ id: 555555555, username: 'user2' });
-      (WalletServiceV2.distributeGiveaway as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.distributeGiveaway as jest.Mock).mockResolvedValue({
         succeeded: [444444444],
         failed: [555555555],
         totalDistributed: 10.0,
@@ -937,7 +938,7 @@ describe('Wallet Commands', () => {
 
       // Mock the dynamic import
       const mockDepositMonitor = {
-        checkSpecificTransaction: jest.fn().mockResolvedValue({
+        checkSpecificTransaction: vi.fn().mockResolvedValue({
           found: true,
           processed: false,
           userId: 444444444,
@@ -945,7 +946,7 @@ describe('Wallet Commands', () => {
         }),
       };
 
-      jest.doMock('../../src/services/depositMonitor', () => ({
+      vi.doMock('../../src/services/depositMonitor', () => ({
         DepositMonitor: mockDepositMonitor,
       }));
 
@@ -962,13 +963,13 @@ describe('Wallet Commands', () => {
       });
 
       const mockDepositMonitor = {
-        checkSpecificTransaction: jest.fn().mockResolvedValue({
+        checkSpecificTransaction: vi.fn().mockResolvedValue({
           found: false,
           processed: false,
         }),
       };
 
-      jest.doMock('../../src/services/depositMonitor', () => ({
+      vi.doMock('../../src/services/depositMonitor', () => ({
         DepositMonitor: mockDepositMonitor,
       }));
 
@@ -985,7 +986,7 @@ describe('Wallet Commands', () => {
       });
 
       const mockDepositMonitor = {
-        checkSpecificTransaction: jest.fn().mockResolvedValue({
+        checkSpecificTransaction: vi.fn().mockResolvedValue({
           found: true,
           processed: true,
           userId: 444444444,
@@ -993,7 +994,7 @@ describe('Wallet Commands', () => {
         }),
       };
 
-      jest.doMock('../../src/services/depositMonitor', () => ({
+      vi.doMock('../../src/services/depositMonitor', () => ({
         DepositMonitor: mockDepositMonitor,
       }));
 
@@ -1020,7 +1021,7 @@ describe('Wallet Commands', () => {
       const ctx = createOwnerContext({ userId: 111111111 });
 
       const mockLedgerService = {
-        reconcileAndAlert: jest.fn().mockResolvedValue({
+        reconcileAndAlert: vi.fn().mockResolvedValue({
           internalTotal: 1000.0,
           onChainTotal: 1000.0,
           difference: 0.0,
@@ -1028,7 +1029,7 @@ describe('Wallet Commands', () => {
         }),
       };
 
-      jest.doMock('../../src/services/ledgerService', () => ({
+      vi.doMock('../../src/services/ledgerService', () => ({
         LedgerService: mockLedgerService,
       }));
 

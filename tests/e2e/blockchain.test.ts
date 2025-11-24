@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 /**
  * End-to-End Tests for Blockchain Wallet Operations
  *
@@ -20,7 +21,7 @@
  * 6. Test with actual faucet tokens on testnet first
  */
 
-import { WalletServiceV2 } from '../../src/services/walletServiceV2';
+import { UnifiedWalletService } from '../../src/services/unifiedWalletService';
 import { LedgerService } from '../../src/services/ledgerService';
 import { DepositMonitor } from '../../src/services/depositMonitor';
 import { JunoService } from '../../src/services/junoService';
@@ -37,10 +38,10 @@ import {
 import * as database from '../../src/database';
 
 // Mock global fetch for blockchain API calls
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 // Mock config
-jest.mock('../../src/config', () => ({
+vi.mock('../../src/config', () => ({
   config: {
     junoRpcUrl: 'https://rpc-test.juno.giansalex.dev',
     junoApiUrl: 'https://api-test.juno.giansalex.dev',
@@ -52,20 +53,20 @@ jest.mock('../../src/config', () => ({
 }));
 
 // Mock logger
-jest.mock('../../src/utils/logger', () => ({
+vi.mock('../../src/utils/logger', () => ({
   logger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
   },
 }));
 
 // Mock CosmJS wallet creation for withdrawal tests
-jest.mock('@cosmjs/proto-signing', () => ({
+vi.mock('@cosmjs/proto-signing', () => ({
   DirectSecp256k1HdWallet: {
-    fromMnemonic: jest.fn().mockResolvedValue({
-      getAccounts: jest.fn().mockResolvedValue([
+    fromMnemonic: vi.fn().mockResolvedValue({
+      getAccounts: vi.fn().mockResolvedValue([
         {
           address: 'juno1userfunds456test',
           algo: 'secp256k1',
@@ -77,10 +78,10 @@ jest.mock('@cosmjs/proto-signing', () => ({
 }));
 
 // Mock SigningStargateClient for withdrawal tests
-jest.mock('@cosmjs/stargate', () => ({
+vi.mock('@cosmjs/stargate', () => ({
   SigningStargateClient: {
-    connectWithSigner: jest.fn().mockResolvedValue({
-      sendTokens: jest.fn().mockResolvedValue({
+    connectWithSigner: vi.fn().mockResolvedValue({
+      sendTokens: vi.fn().mockResolvedValue({
         code: 0,
         transactionHash: 'MOCK_TX_HASH_SUCCESS',
         rawLog: '',
@@ -88,7 +89,7 @@ jest.mock('@cosmjs/stargate', () => ({
     }),
   },
   GasPrice: {
-    fromString: jest.fn().mockReturnValue({
+    fromString: vi.fn().mockReturnValue({
       amount: '0.025',
       denom: 'ujuno',
     }),
@@ -101,21 +102,21 @@ describe('E2E: Blockchain Wallet Operations', () => {
 
     // Mock database functions to use test database
     const testDb = require('../helpers/testDatabase').getTestDatabase();
-    (database.query as any) = jest.fn((sql: string, params?: any[]) => {
+    (database.query as any) = vi.fn((sql: string, params?: any[]) => {
       try {
         return testDb.prepare(sql).all(...(params || []));
       } catch (e) {
         return [];
       }
     });
-    (database.get as any) = jest.fn((sql: string, params?: any[]) => {
+    (database.get as any) = vi.fn((sql: string, params?: any[]) => {
       try {
         return testDb.prepare(sql).get(...(params || []));
       } catch (e) {
         return undefined;
       }
     });
-    (database.execute as any) = jest.fn((sql: string, params?: any[]) => {
+    (database.execute as any) = vi.fn((sql: string, params?: any[]) => {
       try {
         return testDb.prepare(sql).run(...(params || []));
       } catch (e) {
@@ -130,7 +131,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
 
   beforeEach(() => {
     cleanTestDatabase();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     (global.fetch as jest.Mock).mockClear();
   });
 
@@ -143,7 +144,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
       createTestUser(444444444, 'testuser', 'pleb');
       createTestSystemWallet('user_funds', 'juno1userfunds456test');
       createTestSystemWallet('treasury', 'juno1treasury123test');
-      await WalletServiceV2.initialize();
+      await UnifiedWalletService.initialize();
       DepositMonitor.initialize();
     });
 
@@ -607,7 +608,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     beforeEach(async () => {
       createTestSystemWallet('treasury', 'juno1treasury123test');
       createTestSystemWallet('user_funds', 'juno1userfunds456test');
-      await WalletServiceV2.initialize();
+      await UnifiedWalletService.initialize();
     });
 
     it('should query on-chain balance successfully', async () => {
@@ -724,7 +725,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
       createTestUser(444444444, 'testuser', 'pleb');
       createTestSystemWallet('user_funds', 'juno1userfunds456test');
       addTestBalance(444444444, 200.0);
-      await WalletServiceV2.initialize();
+      await UnifiedWalletService.initialize();
     });
 
     it('should broadcast withdrawal transaction successfully', async () => {
@@ -736,7 +737,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         }),
       });
 
-      const result = await WalletServiceV2.sendToExternalWallet(
+      const result = await UnifiedWalletService.sendToExternalWallet(
         444444444,
         'juno1recipient123',
         50.0,
@@ -753,7 +754,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     });
 
     it('should validate recipient address format before withdrawal', async () => {
-      const result = await WalletServiceV2.sendToExternalWallet(
+      const result = await UnifiedWalletService.sendToExternalWallet(
         444444444,
         'cosmos1invalid',
         50.0
@@ -764,7 +765,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     });
 
     it('should check balance before withdrawal', async () => {
-      const result = await WalletServiceV2.sendToExternalWallet(
+      const result = await UnifiedWalletService.sendToExternalWallet(
         444444444,
         'juno1recipient123',
         500.0 // More than available
@@ -784,13 +785,13 @@ describe('E2E: Blockchain Wallet Operations', () => {
       });
 
       // Start two withdrawals concurrently
-      const withdrawal1Promise = WalletServiceV2.sendToExternalWallet(
+      const withdrawal1Promise = UnifiedWalletService.sendToExternalWallet(
         444444444,
         'juno1recipient1',
         50.0
       );
 
-      const withdrawal2Promise = WalletServiceV2.sendToExternalWallet(
+      const withdrawal2Promise = UnifiedWalletService.sendToExternalWallet(
         444444444,
         'juno1recipient2',
         50.0
@@ -817,7 +818,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         }),
       });
 
-      const result = await WalletServiceV2.sendToExternalWallet(
+      const result = await UnifiedWalletService.sendToExternalWallet(
         444444444,
         'juno1recipient123',
         50.0
@@ -834,8 +835,8 @@ describe('E2E: Blockchain Wallet Operations', () => {
       const { SigningStargateClient } = require('@cosmjs/stargate');
 
       // Mock transaction failure
-      SigningStargateClient.connectWithSigner = jest.fn().mockResolvedValue({
-        sendTokens: jest.fn().mockRejectedValue(new Error('Insufficient gas')),
+      SigningStargateClient.connectWithSigner = vi.fn().mockResolvedValue({
+        sendTokens: vi.fn().mockRejectedValue(new Error('Insufficient gas')),
       });
 
       (global.fetch as jest.Mock).mockResolvedValue({
@@ -847,7 +848,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
 
       const balanceBefore = await LedgerService.getUserBalance(444444444);
 
-      const result = await WalletServiceV2.sendToExternalWallet(
+      const result = await UnifiedWalletService.sendToExternalWallet(
         444444444,
         'juno1recipient123',
         50.0
@@ -864,8 +865,8 @@ describe('E2E: Blockchain Wallet Operations', () => {
     it('should refund user on transaction rejection (non-zero code)', async () => {
       const { SigningStargateClient } = require('@cosmjs/stargate');
 
-      SigningStargateClient.connectWithSigner = jest.fn().mockResolvedValue({
-        sendTokens: jest.fn().mockResolvedValue({
+      SigningStargateClient.connectWithSigner = vi.fn().mockResolvedValue({
+        sendTokens: vi.fn().mockResolvedValue({
           code: 5,
           transactionHash: 'FAILED_TX',
           rawLog: 'Out of gas',
@@ -879,7 +880,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         }),
       });
 
-      const result = await WalletServiceV2.sendToExternalWallet(
+      const result = await UnifiedWalletService.sendToExternalWallet(
         444444444,
         'juno1recipient123',
         50.0
@@ -901,7 +902,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         }),
       });
 
-      const result = await WalletServiceV2.sendToExternalWallet(
+      const result = await UnifiedWalletService.sendToExternalWallet(
         444444444,
         'juno1recipient123',
         12.345678 // Test precision
@@ -940,7 +941,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         return Promise.resolve({ ok: true, json: async () => ({}) });
       });
 
-      const result = await WalletServiceV2.sendToExternalWallet(
+      const result = await UnifiedWalletService.sendToExternalWallet(
         444444444,
         'juno1recipient123',
         50.0
@@ -954,7 +955,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
   describe('Transaction Confirmation Waiting', () => {
     beforeEach(async () => {
       createTestUser(444444444, 'testuser', 'pleb');
-      await WalletServiceV2.initialize();
+      await UnifiedWalletService.initialize();
     });
 
     it('should wait for deposit transaction confirmation', async () => {
@@ -1195,7 +1196,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     beforeEach(async () => {
       createTestUser(444444444, 'testuser', 'pleb');
       addTestBalance(444444444, 100.0);
-      await WalletServiceV2.initialize();
+      await UnifiedWalletService.initialize();
     });
 
     it('should handle network timeout during withdrawal', async () => {
@@ -1203,7 +1204,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         new Error('Network request timed out')
       );
 
-      const result = await WalletServiceV2.sendToExternalWallet(
+      const result = await UnifiedWalletService.sendToExternalWallet(
         444444444,
         'juno1recipient123',
         50.0
@@ -1278,7 +1279,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         new Error('Database connection lost')
       );
 
-      const result = await WalletServiceV2.sendToExternalWallet(
+      const result = await UnifiedWalletService.sendToExternalWallet(
         444444444,
         'juno1recipient123',
         50.0
@@ -1309,7 +1310,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     beforeEach(async () => {
       createTestUser(444444444, 'testuser', 'pleb');
       addTestBalance(444444444, 200.0);
-      await WalletServiceV2.initialize();
+      await UnifiedWalletService.initialize();
     });
 
     it('should validate Juno address format (bech32 with juno1 prefix)', async () => {
@@ -1331,7 +1332,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
       }
 
       for (const addr of invalidAddresses) {
-        const result = await WalletServiceV2.sendToExternalWallet(
+        const result = await UnifiedWalletService.sendToExternalWallet(
           444444444,
           addr,
           10.0
@@ -1351,14 +1352,14 @@ describe('E2E: Blockchain Wallet Operations', () => {
 
       addTestBalance(444444444, 50.0); // Ensure balance for test
 
-      const result1 = await WalletServiceV2.sendToExternalWallet(
+      const result1 = await UnifiedWalletService.sendToExternalWallet(
         444444444,
         tooShort,
         10.0
       );
       expect(result1.success).toBe(false);
 
-      const result2 = await WalletServiceV2.sendToExternalWallet(
+      const result2 = await UnifiedWalletService.sendToExternalWallet(
         444444444,
         tooLong,
         10.0
@@ -1372,7 +1373,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
       createTestUser(111111111, 'alice', 'pleb');
       createTestUser(222222222, 'bob', 'pleb');
       createTestSystemWallet('user_funds', 'juno1userfunds456test');
-      await WalletServiceV2.initialize();
+      await UnifiedWalletService.initialize();
       DepositMonitor.initialize();
     });
 
@@ -1411,7 +1412,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
       expect(initialAliceBalance).toBe(200.0);
 
       // Step 2: Alice transfers to Bob internally
-      const transferResult = await WalletServiceV2.sendToUser(
+      const transferResult = await UnifiedWalletService.sendToUser(
         111111111,
         222222222,
         50.0,
@@ -1436,7 +1437,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
         });
       });
 
-      const withdrawResult = await WalletServiceV2.sendToExternalWallet(
+      const withdrawResult = await UnifiedWalletService.sendToExternalWallet(
         222222222,
         'juno1bobexternal',
         25.0

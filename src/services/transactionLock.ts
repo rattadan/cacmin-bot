@@ -485,6 +485,16 @@ export class TransactionLockService {
 	}
 
 	/**
+	 * Alias for getActiveLock - get lock details for a user.
+	 *
+	 * @param userId - User ID to get lock for
+	 * @returns Lock details or null if no active lock
+	 */
+	static async getUserLock(userId: number): Promise<TransactionLock | null> {
+		return TransactionLockService.getActiveLock(userId);
+	}
+
+	/**
 	 * Generic lock acquisition (alias for lockWithdrawal for simple locking)
 	 */
 	static async acquireLock(

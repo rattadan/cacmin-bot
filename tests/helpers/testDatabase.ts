@@ -8,10 +8,11 @@ import { join } from 'path';
 import { existsSync, unlinkSync, mkdirSync } from 'fs';
 
 let testDb: Database.Database | null = null;
-const TEST_DB_PATH = join(__dirname, '../test-data/test.db');
+let testDbPath: string | null = null;
 
 /**
  * Initialize test database with schema
+ * Uses unique path per invocation to avoid conflicts
  */
 export function initTestDatabase(): Database.Database {
   // Create test-data directory if it doesn't exist
@@ -20,13 +21,16 @@ export function initTestDatabase(): Database.Database {
     mkdirSync(testDataDir, { recursive: true });
   }
 
-  // Remove existing test database
-  if (existsSync(TEST_DB_PATH)) {
-    unlinkSync(TEST_DB_PATH);
+  // Generate unique path using process id and timestamp
+  testDbPath = join(testDataDir, `test-${process.pid}-${Date.now()}.db`);
+
+  // Remove existing test database if any
+  if (existsSync(testDbPath)) {
+    unlinkSync(testDbPath);
   }
 
   // Create new database
-  testDb = new Database(TEST_DB_PATH);
+  testDb = new Database(testDbPath);
 
   // Create schema
   testDb.exec(`
@@ -256,6 +260,7 @@ export function cleanTestDatabase(): void {
   if (!testDb) return;
 
   testDb.exec(`
+    DELETE FROM transaction_locks;
     DELETE FROM user_locks;
     DELETE FROM processed_deposits;
     DELETE FROM transactions;
@@ -281,8 +286,13 @@ export function closeTestDatabase(): void {
   }
 
   // Clean up test database file
-  if (existsSync(TEST_DB_PATH)) {
-    unlinkSync(TEST_DB_PATH);
+  if (testDbPath && existsSync(testDbPath)) {
+    try {
+      unlinkSync(testDbPath);
+    } catch {
+      // Ignore cleanup errors
+    }
+    testDbPath = null;
   }
 }
 

@@ -156,8 +156,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     closeTestDatabase();
   });
 
-  // Skip: DepositMonitor.checkForDeposits() is a stub - deposit detection not fully implemented
-  describe.skip('Deposit Detection from Blockchain', () => {
+  describe('Deposit Detection from Blockchain', () => {
     beforeEach(async () => {
       createTestUser(444444444, 'testuser', 'pleb');
       createTestSystemWallet('user_funds', 'juno1userfunds456test');
@@ -166,34 +165,35 @@ describe('E2E: Blockchain Wallet Operations', () => {
       DepositMonitor.initialize();
     });
 
-    it('should detect and process deposit with valid memo', async () => {
-      // Mock blockchain API response for recent transactions
+    // TODO: Test needs protobuf-formatted mock tx with memo embedded in base64
+    it.skip('should detect and process deposit with valid memo', async () => {
+      // Mock RPC tx_search response (the format DepositMonitor expects)
+      // Encode a mock tx with the memo in base64
+      // The memo "444444444" needs to appear in the base64-decoded buffer
+      const mockTx = Buffer.from('mock_tx_data_50000000_ujuno_444444444').toString('base64');
       const mockTxResponse = {
-        txs: [
-          {
-            txhash: 'DEPOSIT_TX_HASH_001',
-            height: '12345678',
-            tx: {
-              body: {
-                messages: [
+        result: {
+          txs: [
+            {
+              hash: 'DEPOSIT_TX_HASH_001',
+              height: '12345678',
+              tx: mockTx,
+              tx_result: {
+                code: 0,
+                events: [
                   {
-                    '@type': '/cosmos.bank.v1beta1.MsgSend',
-                    from_address: 'juno1sender123abc',
-                    to_address: 'juno1userfunds456test',
-                    amount: [
-                      {
-                        denom: 'ujuno',
-                        amount: '50000000', // 50 JUNO
-                      },
+                    type: 'transfer',
+                    attributes: [
+                      { key: 'recipient', value: 'juno1userfunds456test' },
+                      { key: 'sender', value: 'juno1sender123abc' },
+                      { key: 'amount', value: '50000000ujuno' },
                     ],
                   },
                 ],
-                memo: '444444444', // User ID as memo
               },
             },
-            timestamp: new Date().toISOString(),
-          },
-        ],
+          ],
+        },
       };
 
       (global.fetch as Mock).mockResolvedValueOnce({
@@ -202,7 +202,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
       });
 
       // Manually trigger deposit check
-      await (DepositMonitor as any).checkForDeposits();
+      await DepositMonitor.checkForDeposits();
 
       // Verify user balance was updated
       const balance = await LedgerService.getUserBalance(444444444);
@@ -255,7 +255,8 @@ describe('E2E: Blockchain Wallet Operations', () => {
       expect(balance).toBe(0);
     });
 
-    it('should handle multiple deposits in single transaction batch', async () => {
+    // TODO: Test needs RPC tx_search format mocks
+    it.skip('should handle multiple deposits in single transaction batch', async () => {
       createTestUser(111111111, 'user1', 'pleb');
       createTestUser(222222222, 'user2', 'pleb');
 
@@ -310,7 +311,8 @@ describe('E2E: Blockchain Wallet Operations', () => {
       expect(balance2).toBe(75.0);
     });
 
-    it('should prevent double-processing of same deposit', async () => {
+    // TODO: Test needs RPC tx_search format mocks
+    it.skip('should prevent double-processing of same deposit', async () => {
       createTestUser(444444444, 'testuser', 'pleb');
 
       const mockTxResponse = {
@@ -351,7 +353,8 @@ describe('E2E: Blockchain Wallet Operations', () => {
       expect(balanceAfterSecond).toBe(10.0); // No double-credit
     });
 
-    it('should handle network failures gracefully with retry logic', async () => {
+    // TODO: Test needs RPC tx_search format mocks
+    it.skip('should handle network failures gracefully with retry logic', async () => {
       createTestUser(444444444, 'testuser', 'pleb');
 
       // First attempt fails
@@ -408,7 +411,8 @@ describe('E2E: Blockchain Wallet Operations', () => {
       expect(global.fetch).toHaveBeenCalled();
     });
 
-    it('should parse amount precision correctly (ujuno to JUNO)', async () => {
+    // TODO: Test needs RPC tx_search format mocks
+    it.skip('should parse amount precision correctly (ujuno to JUNO)', async () => {
       createTestUser(444444444, 'testuser', 'pleb');
 
       const mockTxResponse = {
@@ -737,8 +741,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     });
   });
 
-  // Skip: UnifiedWalletService.sendToExternalWallet() doesn't exist - withdrawal not fully implemented
-  describe.skip('Withdrawal Transaction Broadcasting', () => {
+  describe('Withdrawal Transaction Broadcasting', () => {
     beforeEach(async () => {
       createTestUser(444444444, 'testuser', 'pleb');
       createTestSystemWallet('user_funds', 'juno1userfunds456test');
@@ -746,7 +749,8 @@ describe('E2E: Blockchain Wallet Operations', () => {
       await UnifiedWalletService.initialize();
     });
 
-    it('should broadcast withdrawal transaction successfully', async () => {
+    // TODO: Test needs SigningStargateClient mock setup
+    it.skip('should broadcast withdrawal transaction successfully', async () => {
       // Mock on-chain balance query
       (global.fetch as Mock).mockResolvedValue({
         ok: true,
@@ -782,7 +786,8 @@ describe('E2E: Blockchain Wallet Operations', () => {
       expect(result.error).toContain('Invalid Juno address format');
     });
 
-    it('should check balance before withdrawal', async () => {
+    // TODO: Test needs SigningStargateClient mock setup
+    it.skip('should check balance before withdrawal', async () => {
       const result = await UnifiedWalletService.sendToExternalWallet(
         444444444,
         'juno1recipient123',
@@ -793,7 +798,8 @@ describe('E2E: Blockchain Wallet Operations', () => {
       expect(result.error).toContain('Insufficient balance');
     });
 
-    it('should prevent concurrent withdrawals with transaction locking', async () => {
+    // TODO: Test needs SigningStargateClient mock setup
+    it.skip('should prevent concurrent withdrawals with transaction locking', async () => {
       // Mock balance queries
       (global.fetch as Mock).mockResolvedValue({
         ok: true,
@@ -828,7 +834,8 @@ describe('E2E: Blockchain Wallet Operations', () => {
       expect(failedResult.error).toContain('transaction is in progress');
     });
 
-    it('should handle gas fee calculations correctly', async () => {
+    // TODO: Test needs SigningStargateClient mock setup
+    it.skip('should handle gas fee calculations correctly', async () => {
       (global.fetch as Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
@@ -849,7 +856,8 @@ describe('E2E: Blockchain Wallet Operations', () => {
       expect(GasPrice.fromString).toHaveBeenCalledWith('0.025ujuno');
     });
 
-    it('should refund user on transaction broadcast failure', async () => {
+    // TODO: Test needs SigningStargateClient mock setup
+    it.skip('should refund user on transaction broadcast failure', async () => {
       const { SigningStargateClient } = require('@cosmjs/stargate');
 
       // Mock transaction failure
@@ -880,7 +888,8 @@ describe('E2E: Blockchain Wallet Operations', () => {
       expect(balanceAfter).toBe(balanceBefore);
     });
 
-    it('should refund user on transaction rejection (non-zero code)', async () => {
+    // TODO: Test needs SigningStargateClient mock setup
+    it.skip('should refund user on transaction rejection (non-zero code)', async () => {
       const { SigningStargateClient } = require('@cosmjs/stargate');
 
       SigningStargateClient.connectWithSigner = vi.fn().mockResolvedValue({
@@ -912,7 +921,8 @@ describe('E2E: Blockchain Wallet Operations', () => {
       expect(balance).toBe(200.0);
     });
 
-    it('should handle amount precision correctly (JUNO to ujuno)', async () => {
+    // TODO: Test needs SigningStargateClient mock setup
+    it.skip('should handle amount precision correctly (JUNO to ujuno)', async () => {
       (global.fetch as Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
@@ -941,7 +951,8 @@ describe('E2E: Blockchain Wallet Operations', () => {
       );
     });
 
-    it('should verify on-chain balance changes after withdrawal', async () => {
+    // TODO: Test needs SigningStargateClient mock setup
+    it.skip('should verify on-chain balance changes after withdrawal', async () => {
       let balanceCallCount = 0;
       (global.fetch as Mock).mockImplementation((url) => {
         balanceCallCount++;
@@ -970,8 +981,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     });
   });
 
-  // Skip: Tests rely on deposit/withdrawal flow which is not fully implemented
-  describe.skip('Transaction Confirmation Waiting', () => {
+  describe('Transaction Confirmation Waiting', () => {
     beforeEach(async () => {
       createTestUser(444444444, 'testuser', 'pleb');
       await UnifiedWalletService.initialize();
@@ -1020,7 +1030,8 @@ describe('E2E: Blockchain Wallet Operations', () => {
       expect(result.amount).toBe(100.0);
     });
 
-    it('should track transaction status updates in ledger', async () => {
+    // TODO: Test needs SigningStargateClient mock setup
+    it.skip('should track transaction status updates in ledger', async () => {
       addTestBalance(444444444, 100.0);
 
       // Create pending withdrawal
@@ -1054,13 +1065,13 @@ describe('E2E: Blockchain Wallet Operations', () => {
     });
   });
 
-  // Skip: DepositMonitor.routeDepositByMemo() doesn't exist - memo routing not fully implemented
-  describe.skip('Memo Parsing and Routing', () => {
+  describe('Memo Parsing and Routing', () => {
     beforeEach(() => {
       DepositMonitor.initialize();
     });
 
-    it('should route deposit to correct user based on numeric memo', async () => {
+    // TODO: Test needs RPC tx_search format mocks for DepositMonitor
+    it.skip('should route deposit to correct user based on numeric memo', async () => {
       createTestUser(111111111, 'user1', 'pleb');
       createTestUser(222222222, 'user2', 'pleb');
       createTestUser(333333333, 'user3', 'pleb');
@@ -1219,8 +1230,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
       await UnifiedWalletService.initialize();
     });
 
-    // Skip: UnifiedWalletService.sendToExternalWallet() doesn't exist
-    it.skip('should handle network timeout during withdrawal', async () => {
+    it('should handle network timeout during withdrawal', async () => {
       (global.fetch as Mock).mockRejectedValue(
         new Error('Network request timed out')
       );
@@ -1295,8 +1305,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
       expect(callCount).toBe(3);
     });
 
-    // Skip: UnifiedWalletService.sendToExternalWallet() doesn't exist
-    it.skip('should release locks on system errors', async () => {
+    it('should release locks on system errors', async () => {
       (global.fetch as Mock).mockRejectedValue(
         new Error('Database connection lost')
       );
@@ -1328,8 +1337,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     });
   });
 
-  // Skip: UnifiedWalletService.sendToExternalWallet() doesn't exist
-  describe.skip('Address Format Validation', () => {
+  describe('Address Format Validation', () => {
     beforeEach(async () => {
       createTestUser(444444444, 'testuser', 'pleb');
       addTestBalance(444444444, 200.0);
@@ -1391,8 +1399,7 @@ describe('E2E: Blockchain Wallet Operations', () => {
     });
   });
 
-  // Skip: Tests rely on deposit/withdrawal flow which is not fully implemented
-  describe.skip('System Integration Tests', () => {
+  describe('System Integration Tests', () => {
     beforeEach(async () => {
       createTestUser(111111111, 'alice', 'pleb');
       createTestUser(222222222, 'bob', 'pleb');
@@ -1401,7 +1408,8 @@ describe('E2E: Blockchain Wallet Operations', () => {
       DepositMonitor.initialize();
     });
 
-    it('should handle complete deposit-to-withdrawal flow', async () => {
+    // TODO: Test needs SigningStargateClient + RPC format mocks
+    it.skip('should handle complete deposit-to-withdrawal flow', async () => {
       // Step 1: Alice deposits
       const depositTx = {
         txs: [

@@ -440,21 +440,18 @@ describe('Blockchain Services - Comprehensive Tests', () => {
         DepositMonitor.stop();
       });
 
-      // Skip: getStatus implementation returns different fields than expected
-      test.skip('getStatus returns correct information', () => {
+      test('getStatus returns correct information', () => {
         DepositMonitor.stop();
 
         const status = DepositMonitor.getStatus();
-        expect(status).toEqual({
-          isRunning: false,
-          walletAddress: 'juno1testuserfundsaddress123456789',
-          checkInterval: 60000
-        });
+        expect(status.isRunning).toBe(false);
+        expect(status.walletAddress).toBe('juno1testuserfundsaddress123456789');
+        expect(status.checkInterval).toBe(60000);
+        expect(status).toHaveProperty('lastCheck');
       });
     });
 
-    // Skip: checkSpecificTransaction logic not fully implemented
-    describe.skip('checkSpecificTransaction', () => {
+    describe('checkSpecificTransaction', () => {
       test('processes valid deposit transaction', async () => {
         const mockResponse = {
           tx_response: {
@@ -639,24 +636,23 @@ describe('Blockchain Services - Comprehensive Tests', () => {
       });
     });
 
-    // Skip: cleanupOldRecords implementation doesn't match expected behavior
-    describe.skip('cleanupOldRecords', () => {
+    describe('cleanupOldRecords', () => {
       test('removes old processed deposit records', () => {
         const db = getTestDatabase();
         const now = Math.floor(Date.now() / 1000);
         const thirtyOneDaysAgo = now - (31 * 24 * 60 * 60);
         const twentyNineDaysAgo = now - (29 * 24 * 60 * 60);
 
-        // Insert old and new records
-        db.prepare('INSERT INTO processed_deposits (tx_hash, processed_at) VALUES (?, ?)').run(
+        // Insert old and new records (using created_at which is what cleanupOldRecords checks)
+        db.prepare('INSERT INTO processed_deposits (tx_hash, created_at) VALUES (?, ?)').run(
           'old_tx_1',
           thirtyOneDaysAgo
         );
-        db.prepare('INSERT INTO processed_deposits (tx_hash, processed_at) VALUES (?, ?)').run(
+        db.prepare('INSERT INTO processed_deposits (tx_hash, created_at) VALUES (?, ?)').run(
           'old_tx_2',
           thirtyOneDaysAgo
         );
-        db.prepare('INSERT INTO processed_deposits (tx_hash, processed_at) VALUES (?, ?)').run(
+        db.prepare('INSERT INTO processed_deposits (tx_hash, created_at) VALUES (?, ?)').run(
           'recent_tx',
           twentyNineDaysAgo
         );

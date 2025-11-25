@@ -126,7 +126,16 @@ export function initTestDatabase(): Database.Database {
 
     CREATE TABLE IF NOT EXISTS processed_deposits (
       tx_hash TEXT PRIMARY KEY,
-      processed_at INTEGER DEFAULT (strftime('%s', 'now'))
+      user_id INTEGER,
+      amount REAL,
+      from_address TEXT,
+      memo TEXT,
+      height INTEGER,
+      processed INTEGER DEFAULT 0,
+      error TEXT,
+      processed_at INTEGER,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      FOREIGN KEY (user_id) REFERENCES users(id)
     );
 
     CREATE TABLE IF NOT EXISTS user_locks (

@@ -1668,4 +1668,50 @@ export class UnifiedWalletService {
 		}
 		logger.info("Unified wallet service stopped");
 	}
+
+	/**
+	 * Send funds to external wallet (alias for processWithdrawal)
+	 * Provided for API consistency with test expectations
+	 *
+	 * @param userId - User initiating the withdrawal
+	 * @param toAddress - External Juno address
+	 * @param amount - Amount in JUNO
+	 * @param description - Optional transaction description
+	 * @returns Transaction result
+	 */
+	static async sendToExternalWallet(
+		userId: number,
+		toAddress: string,
+		amount: number,
+		description?: string,
+	): Promise<{
+		success: boolean;
+		txHash?: string;
+		error?: string;
+		newBalance?: number;
+	}> {
+		return UnifiedWalletService.processWithdrawal(userId, toAddress, amount);
+	}
+
+	/**
+	 * Alias for transferToUser - send funds to another user
+	 */
+	static async sendToUser(
+		fromUserId: number,
+		toUserId: number,
+		amount: number,
+		description?: string,
+	): Promise<{
+		success: boolean;
+		error?: string;
+		fromBalance?: number;
+		toBalance?: number;
+	}> {
+		return UnifiedWalletService.transferToUser(
+			fromUserId,
+			toUserId,
+			amount,
+			description,
+		);
+	}
 }

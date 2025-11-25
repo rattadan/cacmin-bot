@@ -23,31 +23,22 @@ import { User } from '../../src/types';
 import { config } from '../../src/config';
 
 // Mock the database module to use test database
-vi.mock('../../src/database', () => {
-  let testDb: any = null;
+vi.mock('../../src/database', async () => {
+  const { getTestDatabase } = await import('../helpers/testDatabase');
 
   return {
     query: vi.fn((sql: string, params: unknown[] = []) => {
-      if (!testDb) {
-        const { getTestDatabase } = require('../helpers/testDatabase');
-        testDb = getTestDatabase();
-      }
+      const testDb = getTestDatabase();
       const stmt = testDb.prepare(sql);
       return stmt.all(params);
     }),
     execute: vi.fn((sql: string, params: unknown[] = []) => {
-      if (!testDb) {
-        const { getTestDatabase } = require('../helpers/testDatabase');
-        testDb = getTestDatabase();
-      }
+      const testDb = getTestDatabase();
       const stmt = testDb.prepare(sql);
       return stmt.run(params);
     }),
     get: vi.fn((sql: string, params: unknown[] = []) => {
-      if (!testDb) {
-        const { getTestDatabase } = require('../helpers/testDatabase');
-        testDb = getTestDatabase();
-      }
+      const testDb = getTestDatabase();
       const stmt = testDb.prepare(sql);
       return stmt.get(params);
     }),

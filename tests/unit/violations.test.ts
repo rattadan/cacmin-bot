@@ -27,8 +27,8 @@ import {
 import { Violation } from '../../src/types';
 
 // Mock the database module to use test database
-vi.mock('../../src/database', () => {
-  const testDb = require('../helpers/testDatabase');
+vi.mock('../../src/database', async () => {
+  const testDb = await import('../helpers/testDatabase');
   return {
     query: vi.fn((sql: string, params: any[] = []) => {
       const db = testDb.getTestDatabase();
@@ -47,7 +47,13 @@ vi.mock('../../src/database', () => {
 });
 
 // Mock services
-vi.mock('../../src/services/unifiedWalletService');
+vi.mock('../../src/services/unifiedWalletService', () => ({
+  UnifiedWalletService: {
+    initialize: vi.fn(),
+    getBalance: vi.fn(),
+    payFine: vi.fn(),
+  }
+}));
 vi.mock('../../src/services/junoService');
 vi.mock('../../src/services/jailService');
 vi.mock('../../src/utils/logger');
@@ -135,8 +141,8 @@ describe('Violation and Payment Commands', () => {
 
   describe('/payfines - Show unpaid fines', () => {
     beforeEach(() => {
-      // Mock UnifiedWalletService.getUserBalance
-      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(100.0);
+      // Mock UnifiedWalletService.getBalance
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(100.0);
     });
 
     it('should only work in private messages', async () => {
@@ -185,9 +191,9 @@ describe('Violation and Payment Commands', () => {
       createTestUser(userId, 'testuser', 'pleb');
 
       createTestViolation(userId, 'no_stickers', 25.0, 0);
-      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(100.0);
 
-      const balance = await UnifiedWalletService.getUserBalance(userId);
+      const balance = await UnifiedWalletService.getBalance(userId);
       const totalFines = violationService.getTotalFines(userId);
 
       expect(balance).toBeGreaterThanOrEqual(totalFines);
@@ -198,9 +204,9 @@ describe('Violation and Payment Commands', () => {
       createTestUser(userId, 'testuser', 'pleb');
 
       createTestViolation(userId, 'blacklist', 100.0, 0);
-      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(50.0);
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(50.0);
 
-      const balance = await UnifiedWalletService.getUserBalance(userId);
+      const balance = await UnifiedWalletService.getBalance(userId);
       const totalFines = violationService.getTotalFines(userId);
 
       expect(balance).toBeLessThan(totalFines);
@@ -209,7 +215,7 @@ describe('Violation and Payment Commands', () => {
 
   describe('/payallfines - Pay all outstanding fines', () => {
     beforeEach(() => {
-      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(100.0);
       (UnifiedWalletService.payFine as Mock).mockResolvedValue({
         success: true,
         newBalance: 40.0
@@ -240,9 +246,9 @@ describe('Violation and Payment Commands', () => {
       createTestUser(userId, 'testuser', 'pleb');
 
       createTestViolation(userId, 'blacklist', 100.0, 0);
-      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(50.0);
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(50.0);
 
-      const balance = await UnifiedWalletService.getUserBalance(userId);
+      const balance = await UnifiedWalletService.getBalance(userId);
       const totalFines = violationService.getTotalFines(userId);
 
       expect(balance).toBeLessThan(totalFines);
@@ -255,21 +261,20 @@ describe('Violation and Payment Commands', () => {
       const v1 = createTestViolation(userId, 'no_stickers', 10.0, 0);
       const v2 = createTestViolation(userId, 'no_urls', 5.0, 0);
 
-      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(100.0);
       (UnifiedWalletService.payFine as Mock).mockResolvedValue({
         success: true,
         newBalance: 85.0
       });
 
       const totalFines = violationService.getTotalFines(userId);
-      const result = await UnifiedWalletService.payFine(userId, totalFines, undefined, 'Test payment');
+      const result = await UnifiedWalletService.payFine(userId, totalFines, 'Test payment');
 
       expect(result.success).toBe(true);
       expect(result.newBalance).toBe(85.0);
       expect(UnifiedWalletService.payFine).toHaveBeenCalledWith(
         userId,
         15.0,
-        undefined,
         'Test payment'
       );
     });
@@ -323,7 +328,7 @@ describe('Violation and Payment Commands', () => {
 
       createTestViolation(userId, 'no_stickers', 10.0, 0);
 
-      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(100.0);
       (UnifiedWalletService.payFine as Mock).mockResolvedValue({
         success: false,
         newBalance: 100.0,

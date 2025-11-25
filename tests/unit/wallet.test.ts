@@ -39,15 +39,37 @@ vi.mock('../../src/config', () => ({
     botTreasuryAddress: 'juno1testtreasuryaddress',
     userFundsAddress: 'juno1testuserfundsaddress',
     adminChatId: '123456789',
+    ownerIds: [111111111], // Mock owner ID
   },
 }));
 
-// Mock the services with auto-mocking
-vi.mock('../../src/services/unifiedWalletService');
-vi.mock('../../src/services/ledgerService');
+// Mock the services - need to provide mock implementations
+vi.mock('../../src/services/unifiedWalletService', () => ({
+  UnifiedWalletService: {
+    getBalance: vi.fn(),
+    getDepositInstructions: vi.fn(),
+    processWithdrawal: vi.fn(),
+    transferToUser: vi.fn(),
+    sendToUsername: vi.fn(),
+    getTxHistory: vi.fn(),
+    getSystemBalances: vi.fn(),
+    getLedgerStats: vi.fn(),
+    reconcileBalances: vi.fn(),
+    findUserByUsername: vi.fn(),
+    distributeGiveaway: vi.fn(),
+    verifyTransaction: vi.fn(),
+  },
+}));
+vi.mock('../../src/services/ledgerService', () => ({
+  LedgerService: {
+    reconcileAndAlert: vi.fn(),
+  },
+}));
 vi.mock('../../src/services/transactionLock');
 vi.mock('../../src/services/depositMonitor');
-vi.mock('../../src/utils/roles');
+vi.mock('../../src/utils/roles', () => ({
+  checkIsElevated: vi.fn(),
+}));
 vi.mock('../../src/utils/logger', () => ({
   logger: {
     info: vi.fn(),
@@ -72,12 +94,12 @@ describe('Wallet Commands', () => {
     it('should show user balance successfully', async () => {
       const ctx = createPlebContext({ userId: 444444444, username: 'pleb' });
 
-      // Mock UnifiedWalletService.getUserBalance
-      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(125.5);
+      // Mock UnifiedWalletService.getBalance
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(125.5);
 
       await walletHandlers.handleBalance(ctx as Context);
 
-      expect(UnifiedWalletService.getUserBalance).toHaveBeenCalledWith(444444444);
+      expect(UnifiedWalletService.getBalance).toHaveBeenCalledWith(444444444);
       expect(ctx.reply).toHaveBeenCalledWith(
         expect.stringContaining('125.500000 JUNO'),
         expect.objectContaining({ parse_mode: 'Markdown' })
@@ -91,7 +113,7 @@ describe('Wallet Commands', () => {
     it('should handle zero balance', async () => {
       const ctx = createPlebContext({ userId: 444444444 });
 
-      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(0);
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(0);
 
       await walletHandlers.handleBalance(ctx as Context);
 
@@ -108,7 +130,7 @@ describe('Wallet Commands', () => {
         (ctx.from as any).username = undefined;
       }
 
-      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(50.0);
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(50.0);
 
       await walletHandlers.handleBalance(ctx as Context);
 
@@ -121,7 +143,7 @@ describe('Wallet Commands', () => {
     it('should handle errors gracefully', async () => {
       const ctx = createPlebContext({ userId: 444444444 });
 
-      (UnifiedWalletService.getUserBalance as Mock).mockRejectedValue(
+      (UnifiedWalletService.getBalance as Mock).mockRejectedValue(
         new Error('Database error')
       );
 
@@ -138,7 +160,7 @@ describe('Wallet Commands', () => {
 
       await walletHandlers.handleBalance(ctx as Context);
 
-      expect(UnifiedWalletService.getUserBalance).not.toHaveBeenCalled();
+      expect(UnifiedWalletService.getBalance).not.toHaveBeenCalled();
       expect(ctx.reply).not.toHaveBeenCalled();
     });
   });
@@ -147,7 +169,7 @@ describe('Wallet Commands', () => {
     it('should show deposit instructions with address and memo', async () => {
       const ctx = createPlebContext({ userId: 444444444 });
 
-      (UnifiedWalletService.getDepositInfo as Mock).mockReturnValue({
+      (UnifiedWalletService.getDepositInstructions as Mock).mockReturnValue({
         address: 'juno1testuserfundsaddress',
         memo: '444444444',
         instructions: 'Send JUNO to juno1testuserfundsaddress with memo: 444444444',
@@ -155,7 +177,7 @@ describe('Wallet Commands', () => {
 
       await walletHandlers.handleDeposit(ctx as Context);
 
-      expect(UnifiedWalletService.getDepositInfo).toHaveBeenCalledWith(444444444);
+      expect(UnifiedWalletService.getDepositInstructions).toHaveBeenCalledWith(444444444);
       expect(ctx.reply).toHaveBeenCalledWith(
         expect.stringContaining('juno1testuserfundsaddress'),
         expect.objectContaining({ parse_mode: 'Markdown' })
@@ -176,28 +198,28 @@ describe('Wallet Commands', () => {
 
       await walletHandlers.handleDeposit(ctx as Context);
 
-      expect(UnifiedWalletService.getDepositInfo).not.toHaveBeenCalled();
+      expect(UnifiedWalletService.getDepositInstructions).not.toHaveBeenCalled();
       expect(ctx.reply).not.toHaveBeenCalled();
     });
 
     it('should handle errors gracefully', async () => {
       const ctx = createPlebContext({ userId: 444444444 });
 
-      (UnifiedWalletService.getDepositInfo as Mock).mockImplementation(() => {
+      (UnifiedWalletService.getDepositInstructions as Mock).mockImplementation(() => {
         throw new Error('Config error');
       });
 
       await walletHandlers.handleDeposit(ctx as Context);
 
       expect(ctx.reply).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to generate deposit information')
+        expect.stringContaining('Failed to generate deposit info')
       );
     });
   });
 
   describe('/withdraw', () => {
     beforeEach(() => {
-      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(100.0);
     });
 
     it('should show usage error for invalid format', async () => {
@@ -263,7 +285,7 @@ describe('Wallet Commands', () => {
         messageText: '/withdraw 200 juno1recipient',
       });
 
-      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(100.0);
 
       await walletHandlers.handleWithdraw(ctx as Context);
 
@@ -283,8 +305,8 @@ describe('Wallet Commands', () => {
         messageText: '/withdraw 50 juno1recipient',
       });
 
-      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(100.0);
-      (UnifiedWalletService.sendToExternalWallet as Mock).mockResolvedValue({
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.processWithdrawal as Mock).mockResolvedValue({
         success: true,
         txHash: 'ABCD1234',
         newBalance: 50.0,
@@ -292,18 +314,17 @@ describe('Wallet Commands', () => {
 
       await walletHandlers.handleWithdraw(ctx as Context);
 
-      expect(UnifiedWalletService.sendToExternalWallet).toHaveBeenCalledWith(
+      expect(UnifiedWalletService.processWithdrawal).toHaveBeenCalledWith(
         444444444,
         'juno1recipient',
-        50,
-        'Withdrawal from Telegram bot'
+        50
       );
 
       const replies = getAllReplies(ctx);
       expect(replies).toContainEqual(expect.stringContaining('Processing withdrawal'));
       expect(replies).toContainEqual(expect.stringContaining('Withdrawal Successful'));
       expect(replies).toContainEqual(expect.stringContaining('ABCD1234'));
-      expect(replies).toContainEqual(expect.stringContaining('50.000000 JUNO'));
+      expect(replies).toContainEqual(expect.stringContaining('50 JUNO'));
     });
 
     it('should handle failed withdrawal', async () => {
@@ -312,8 +333,8 @@ describe('Wallet Commands', () => {
         messageText: '/withdraw 50 juno1recipient',
       });
 
-      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(100.0);
-      (UnifiedWalletService.sendToExternalWallet as Mock).mockResolvedValue({
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.processWithdrawal as Mock).mockResolvedValue({
         success: false,
         error: 'Network timeout',
         newBalance: 100.0,
@@ -337,21 +358,21 @@ describe('Wallet Commands', () => {
         messageText: '/withdraw 50 juno1recipient',
       });
 
-      (UnifiedWalletService.getUserBalance as Mock).mockRejectedValue(
+      (UnifiedWalletService.getBalance as Mock).mockRejectedValue(
         new Error('Database error')
       );
 
       await walletHandlers.handleWithdraw(ctx as Context);
 
       expect(ctx.reply).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to process withdrawal')
+        expect.stringContaining('Withdrawal failed')
       );
     });
   });
 
   describe('/send', () => {
     beforeEach(() => {
-      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(100.0);
     });
 
     it('should show usage error for invalid format', async () => {
@@ -404,7 +425,7 @@ describe('Wallet Commands', () => {
         messageText: '/send 200 @recipient',
       });
 
-      (UnifiedWalletService.getUserBalance as Mock).mockResolvedValue(50.0);
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(50.0);
 
       await walletHandlers.handleSend(ctx as Context);
 
@@ -421,7 +442,7 @@ describe('Wallet Commands', () => {
         messageText: '/send 25 juno1recipient',
       });
 
-      (UnifiedWalletService.sendToExternalWallet as Mock).mockResolvedValue({
+      (UnifiedWalletService.processWithdrawal as Mock).mockResolvedValue({
         success: true,
         txHash: 'TX123',
         newBalance: 75.0,
@@ -429,11 +450,10 @@ describe('Wallet Commands', () => {
 
       await walletHandlers.handleSend(ctx as Context);
 
-      expect(UnifiedWalletService.sendToExternalWallet).toHaveBeenCalledWith(
+      expect(UnifiedWalletService.processWithdrawal).toHaveBeenCalledWith(
         444444444,
         'juno1recipient',
-        25,
-        'Transfer from @sender'
+        25
       );
 
       const replies = getAllReplies(ctx);
@@ -450,7 +470,7 @@ describe('Wallet Commands', () => {
       (UnifiedWalletService.sendToUsername as Mock).mockResolvedValue({
         success: true,
         recipient: 'recipient',
-        newBalance: 85.0,
+        fromBalance: 85.0,
       });
 
       await walletHandlers.handleSend(ctx as Context);
@@ -458,7 +478,9 @@ describe('Wallet Commands', () => {
       expect(UnifiedWalletService.sendToUsername).toHaveBeenCalledWith(
         444444444,
         '@recipient',
-        15
+        15,
+        undefined,
+        ctx
       );
 
       const replies = getAllReplies(ctx);
@@ -472,14 +494,14 @@ describe('Wallet Commands', () => {
         messageText: '/send 20 555555555',
       });
 
-      (UnifiedWalletService.sendToUser as Mock).mockResolvedValue({
+      (UnifiedWalletService.transferToUser as Mock).mockResolvedValue({
         success: true,
         fromBalance: 80.0,
       });
 
       await walletHandlers.handleSend(ctx as Context);
 
-      expect(UnifiedWalletService.sendToUser).toHaveBeenCalledWith(
+      expect(UnifiedWalletService.transferToUser).toHaveBeenCalledWith(
         444444444,
         555555555,
         20
@@ -540,13 +562,13 @@ describe('Wallet Commands', () => {
         },
       ];
 
-      (UnifiedWalletService.getUserTransactionHistory as Mock).mockResolvedValue(
+      (UnifiedWalletService.getTxHistory as Mock).mockResolvedValue(
         mockTransactions
       );
 
       await walletHandlers.handleTransactions(ctx as Context);
 
-      expect(UnifiedWalletService.getUserTransactionHistory).toHaveBeenCalledWith(444444444, 10);
+      expect(UnifiedWalletService.getTxHistory).toHaveBeenCalledWith(444444444, 10);
       expect(ctx.reply).toHaveBeenCalledWith(
         expect.stringContaining('Recent Transactions'),
         expect.objectContaining({ parse_mode: 'Markdown' })
@@ -564,7 +586,7 @@ describe('Wallet Commands', () => {
     it('should handle empty transaction history', async () => {
       const ctx = createPlebContext({ userId: 444444444 });
 
-      (UnifiedWalletService.getUserTransactionHistory as Mock).mockResolvedValue([]);
+      (UnifiedWalletService.getTxHistory as Mock).mockResolvedValue([]);
 
       await walletHandlers.handleTransactions(ctx as Context);
 
@@ -588,7 +610,7 @@ describe('Wallet Commands', () => {
         },
       ];
 
-      (UnifiedWalletService.getUserTransactionHistory as Mock).mockResolvedValue(
+      (UnifiedWalletService.getTxHistory as Mock).mockResolvedValue(
         mockTransactions
       );
 
@@ -615,7 +637,7 @@ describe('Wallet Commands', () => {
         },
       ];
 
-      (UnifiedWalletService.getUserTransactionHistory as Mock).mockResolvedValue(
+      (UnifiedWalletService.getTxHistory as Mock).mockResolvedValue(
         mockTransactions
       );
 
@@ -654,7 +676,7 @@ describe('Wallet Commands', () => {
         },
       ];
 
-      (UnifiedWalletService.getUserTransactionHistory as Mock).mockResolvedValue(
+      (UnifiedWalletService.getTxHistory as Mock).mockResolvedValue(
         mockTransactions
       );
 
@@ -677,14 +699,14 @@ describe('Wallet Commands', () => {
     it('should handle errors gracefully', async () => {
       const ctx = createPlebContext({ userId: 444444444 });
 
-      (UnifiedWalletService.getUserTransactionHistory as Mock).mockRejectedValue(
+      (UnifiedWalletService.getTxHistory as Mock).mockRejectedValue(
         new Error('Database error')
       );
 
       await walletHandlers.handleTransactions(ctx as Context);
 
       expect(ctx.reply).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to fetch transaction history')
+        expect.stringContaining('Failed to fetch history')
       );
     });
   });
@@ -708,8 +730,9 @@ describe('Wallet Commands', () => {
 
       (roles.checkIsElevated as Mock).mockReturnValue(true);
       (UnifiedWalletService.getSystemBalances as Mock).mockResolvedValue({
-        treasury: { address: 'juno1treasury', onChain: 500.0 },
-        userFunds: { address: 'juno1userfunds', onChain: 1000.0 },
+        treasury: 500.0,
+        reserve: 250.0,
+        unclaimed: 100.0,
       });
       (UnifiedWalletService.getLedgerStats as Mock).mockResolvedValue({
         totalUsers: 100,
@@ -736,7 +759,6 @@ describe('Wallet Commands', () => {
       expect(replies).toContainEqual(expect.stringContaining('Fetching wallet statistics'));
       expect(replies).toContainEqual(expect.stringContaining('Wallet System Statistics'));
       expect(replies).toContainEqual(expect.stringContaining('500.000000 JUNO'));
-      expect(replies).toContainEqual(expect.stringContaining('1000.000000 JUNO'));
       expect(replies).toContainEqual(expect.stringContaining('Balanced'));
     });
 
@@ -745,8 +767,9 @@ describe('Wallet Commands', () => {
 
       (roles.checkIsElevated as Mock).mockReturnValue(true);
       (UnifiedWalletService.getSystemBalances as Mock).mockResolvedValue({
-        treasury: { address: 'juno1treasury', onChain: 500.0 },
-        userFunds: { address: 'juno1userfunds', onChain: 1000.0 },
+        treasury: 500.0,
+        reserve: 250.0,
+        unclaimed: 100.0,
       });
       (UnifiedWalletService.getLedgerStats as Mock).mockResolvedValue({
         totalUsers: 100,
@@ -781,7 +804,7 @@ describe('Wallet Commands', () => {
       await walletHandlers.handleWalletStats(ctx as Context);
 
       expect(ctx.reply).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to fetch wallet statistics')
+        expect.stringContaining('Failed to fetch stats')
       );
     });
   });

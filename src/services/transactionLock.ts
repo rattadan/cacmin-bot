@@ -468,6 +468,23 @@ export class TransactionLockService {
 	}
 
 	/**
+	 * Alias for hasLock - checks if a user has an active transaction lock.
+	 *
+	 * @param userId - User ID to check
+	 * @returns True if user has an active lock, false otherwise
+	 */
+	static async isUserLocked(userId: number): Promise<boolean> {
+		return TransactionLockService.hasLock(userId);
+	}
+
+	/**
+	 * Initialize the transaction lock service (no-op, provided for API consistency)
+	 */
+	static initialize(): void {
+		// No initialization needed - service uses static methods
+	}
+
+	/**
 	 * Generic lock acquisition (alias for lockWithdrawal for simple locking)
 	 */
 	static async acquireLock(

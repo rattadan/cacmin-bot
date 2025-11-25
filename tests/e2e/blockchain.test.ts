@@ -33,9 +33,43 @@ import {
   createTestUser,
   addTestBalance,
   getTestBalance,
+  getTestDatabase,
   createTestSystemWallet,
 } from '../helpers/testDatabase';
-import * as database from '../../src/database';
+
+// Initialize test database before mocks are set up
+let testDb: ReturnType<typeof getTestDatabase> | null = null;
+
+// Mock database module to use test database
+vi.mock('../../src/database', () => {
+  return {
+    query: vi.fn((sql: string, params?: unknown[]) => {
+      if (!testDb) return [];
+      try {
+        return testDb.prepare(sql).all(...(params || []));
+      } catch {
+        return [];
+      }
+    }),
+    get: vi.fn((sql: string, params?: unknown[]) => {
+      if (!testDb) return undefined;
+      try {
+        return testDb.prepare(sql).get(...(params || []));
+      } catch {
+        return undefined;
+      }
+    }),
+    execute: vi.fn((sql: string, params?: unknown[]) => {
+      if (!testDb) return { changes: 0, lastInsertRowid: 0 };
+      try {
+        return testDb.prepare(sql).run(...(params || []));
+      } catch {
+        return { changes: 0, lastInsertRowid: 0 };
+      }
+    }),
+    initDb: vi.fn(),
+  };
+});
 
 // Mock global fetch for blockchain API calls
 global.fetch = vi.fn();
@@ -105,30 +139,7 @@ vi.mock('@cosmjs/stargate', () => ({
 describe('E2E: Blockchain Wallet Operations', () => {
   beforeAll(() => {
     initTestDatabase();
-
-    // Mock database functions to use test database
-    const testDb = require('../helpers/testDatabase').getTestDatabase();
-    (database.query as any) = vi.fn((sql: string, params?: any[]) => {
-      try {
-        return testDb.prepare(sql).all(...(params || []));
-      } catch (e) {
-        return [];
-      }
-    });
-    (database.get as any) = vi.fn((sql: string, params?: any[]) => {
-      try {
-        return testDb.prepare(sql).get(...(params || []));
-      } catch (e) {
-        return undefined;
-      }
-    });
-    (database.execute as any) = vi.fn((sql: string, params?: any[]) => {
-      try {
-        return testDb.prepare(sql).run(...(params || []));
-      } catch (e) {
-        return { changes: 0, lastInsertRowid: 0 };
-      }
-    });
+    testDb = getTestDatabase();
 
     // Initialize services
     LedgerService.initialize();

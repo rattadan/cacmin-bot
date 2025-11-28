@@ -9,6 +9,7 @@ import { Telegraf, Context } from 'telegraf';
 import { CallbackQuery } from 'telegraf/types';
 import { adminOrHigher, ownerOnly, elevatedOrHigher } from '../middleware/index';
 import { logger, StructuredLogger } from '../utils/logger';
+import { escapeMarkdownV2, escapeNumber } from '../utils/markdown';
 import {
   restrictionTypeKeyboard,
   jailDurationKeyboard,
@@ -203,7 +204,7 @@ async function handleRestrictionCallback(ctx: Context, data: string, userId: num
   setSession(userId, 'add_restriction', 1, { restrictionType });
 
   await ctx.editMessageText(
-    `🎯 *Add Restriction: ${restrictionType}*\n\n` +
+    `🎯 *Add Restriction: ${escapeMarkdownV2(restrictionType)}*\n\n` +
     `Please reply with the user ID or @username to restrict.\n\n` +
     `Format: \`userId\` or \`@username\``,
     { parse_mode: 'MarkdownV2' }
@@ -241,7 +242,7 @@ async function handleJailCallback(ctx: Context, data: string, userId: number): P
   setSession(userId, 'jail', 1, { minutes });
 
   await ctx.editMessageText(
-    `⏱️ *Jail User for ${minutes} minutes*\n\n` +
+    `⏱️ *Jail User for ${escapeNumber(minutes, 0)} minutes*\n\n` +
     `Please reply with the user ID or @username to jail.\n\n` +
     `Format: \`userId\` or \`@username\``,
     { parse_mode: 'MarkdownV2' }
@@ -268,10 +269,10 @@ async function handleDurationCallback(ctx: Context, data: string, userId: number
   session.data.duration = duration;
   setSession(userId, session.action, session.step + 1, session.data);
 
-  const durationText = duration ? `${duration / 3600} hours` : 'permanent';
+  const durationText = duration ? `${escapeNumber(duration / 3600, 1)} hours` : 'permanent';
   await ctx.editMessageText(
     `✅ Duration set to: ${durationText}\n\n` +
-    `Restriction will be applied. Use /listrestrictions <userId> to verify.`,
+    `Restriction will be applied\\. Use /listrestrictions <userId> to verify\\.`,
     { parse_mode: 'MarkdownV2' }
   );
 
@@ -300,7 +301,7 @@ async function handleGiveawayCallback(ctx: Context, data: string, userId: number
   setSession(userId, 'giveaway', 1, { amount });
 
   await ctx.editMessageText(
-    `💰 *Giveaway: ${amount} JUNO*\n\n` +
+    `💰 *Giveaway: ${escapeNumber(amount, 2)} JUNO*\n\n` +
     `Please reply with the user ID or @username to receive the giveaway.\n\n` +
     `Format: \`userId\` or \`@username\``,
     { parse_mode: 'MarkdownV2' }
@@ -316,10 +317,10 @@ async function handleGlobalActionCallback(ctx: Context, data: string, userId: nu
   setSession(userId, 'add_global_action', 1, { actionType });
 
   await ctx.editMessageText(
-    `🌐 *Add Global Action: ${actionType}*\n\n` +
-    `This will restrict ALL users from: ${actionType}\n\n` +
-    `Optionally, reply with a specific action to restrict (e.g., specific sticker pack name, domain, etc.)\n` +
-    `Or type "apply" to apply globally.`,
+    `🌐 *Add Global Action: ${escapeMarkdownV2(actionType)}*\n\n` +
+    `This will restrict ALL users from: ${escapeMarkdownV2(actionType)}\n\n` +
+    `Optionally, reply with a specific action to restrict \\(e\\.g\\., specific sticker pack name, domain, etc\\.\\)\n` +
+    `Or type "apply" to apply globally\\.`,
     { parse_mode: 'MarkdownV2' }
   );
 }
@@ -360,12 +361,12 @@ async function handleListCallback(ctx: Context, data: string, userId: number): P
     const users = query<User>(`SELECT id, username FROM users WHERE ${column} = 1`);
 
     if (users.length === 0) {
-      await ctx.editMessageText(`The ${listType} is empty.`);
+      await ctx.editMessageText(`The ${escapeMarkdownV2(listType)} is empty\\.`, { parse_mode: 'MarkdownV2' });
       return;
     }
 
-    const message = users.map(u => `• ${u.username ? '@' + u.username : 'User ' + u.id} (${u.id})`).join('\n');
-    await ctx.editMessageText(`*${listType.charAt(0).toUpperCase() + listType.slice(1)}:*\n\n${message}`, { parse_mode: 'MarkdownV2' });
+    const message = users.map(u => `• ${u.username ? '@' + escapeMarkdownV2(u.username) : 'User ' + escapeNumber(u.id, 0)} \\(${escapeNumber(u.id, 0)}\\)`).join('\n');
+    await ctx.editMessageText(`*${escapeMarkdownV2(listType.charAt(0).toUpperCase() + listType.slice(1))}:*\n\n${message}`, { parse_mode: 'MarkdownV2' });
     return;
   }
 
@@ -373,8 +374,8 @@ async function handleListCallback(ctx: Context, data: string, userId: number): P
 
   await ctx.editMessageText(
     `📋 *List Management*\n\n` +
-    `Action: ${action}\n\n` +
-    `Please reply with the user ID or @username.\n\n` +
+    `Action: ${escapeMarkdownV2(action)}\n\n` +
+    `Please reply with the user ID or @username\\.\n\n` +
     `Format: \`@username\` or \`userId\``,
     { parse_mode: 'MarkdownV2' }
   );
@@ -396,8 +397,9 @@ async function handlePermissionCallback(ctx: Context, data: string, userId: numb
   setSession(userId, session.action, session.step + 1, session.data);
 
   await ctx.editMessageText(
-    `✅ Permission level set to: ${permission}\n\n` +
-    `Access will be granted when you confirm.`
+    `✅ Permission level set to: ${escapeMarkdownV2(permission)}\n\n` +
+    `Access will be granted when you confirm\\.`,
+    { parse_mode: 'MarkdownV2' }
   );
 }
 
@@ -414,7 +416,7 @@ async function handleConfirmationCallback(ctx: Context, data: string, userId: nu
   }
 
   // Execute the confirmed action
-  await ctx.editMessageText(`✅ ${action} confirmed and executed!`);
+  await ctx.editMessageText(`✅ ${escapeMarkdownV2(action)} confirmed and executed\\!`, { parse_mode: 'MarkdownV2' });
   clearSession(userId);
 }
 
@@ -467,5 +469,5 @@ async function handleUserSelectionCallback(ctx: Context, data: string, userId: n
   session.data.targetUserId = selectedUserId;
   setSession(userId, session.action, session.step + 1, session.data);
 
-  await ctx.editMessageText(`✅ User ${selectedUserId} selected. Proceeding with ${session.action}...`);
+  await ctx.editMessageText(`✅ User ${escapeNumber(selectedUserId, 0)} selected\\. Proceeding with ${escapeMarkdownV2(session.action)}\\.\\.\\.`, { parse_mode: 'MarkdownV2' });
 }

@@ -12,6 +12,7 @@ import { config } from '../config';
 import { adminOrHigher, ownerOnly } from '../middleware/index';
 import { logger, StructuredLogger } from '../utils/logger';
 import { resolveUserFromContext } from '../utils/userResolver';
+import { escapeMarkdownV2, escapeNumber } from '../utils/markdown';
 
 /**
  * Registers all giveaway-related commands with the bot.
@@ -56,8 +57,8 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
 
       await ctx.reply(
         ` *Bot Wallet Balance*\n\n` +
-        `Address: \`${config.botTreasuryAddress}\`\n` +
-        `Balance: *${balance.toFixed(6)} JUNO*`,
+        `Address: \`${escapeMarkdownV2(config.botTreasuryAddress || 'N/A')}\`\n` +
+        `Balance: *${escapeNumber(balance, 6)} JUNO*`,
         { parse_mode: 'MarkdownV2' }
       );
     } catch (error) {
@@ -129,9 +130,9 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
       if (result.succeeded.length > 0) {
         await ctx.reply(
           ` *Giveaway Sent!*\n\n` +
-          `Recipient: ${target.username ? '@' + target.username : targetUserId} (${targetUserId})\n` +
-          `Amount: ${amount.toFixed(6)} JUNO\n\n` +
-          ` Tokens have been credited to the user's internal balance.\n` +
+          `Recipient: ${target.username ? escapeMarkdownV2('@' + target.username) : targetUserId} (${targetUserId})\n` +
+          `Amount: ${escapeNumber(amount, 6)} JUNO\n\n` +
+          ` Tokens have been credited to the user's internal balance\\.\n` +
           `They can check their balance with /mybalance`,
           { parse_mode: 'MarkdownV2' }
         );
@@ -147,8 +148,8 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
       } else {
         await ctx.reply(
           ` *Giveaway Failed*\n\n` +
-          `Unable to credit user ${target.username ? '@' + target.username : targetUserId} (${targetUserId})\n\n` +
-          `Please check logs or try again later.`,
+          `Unable to credit user ${target.username ? escapeMarkdownV2('@' + target.username) : targetUserId} (${targetUserId})\n\n` +
+          `Please check logs or try again later\\.`,
           { parse_mode: 'MarkdownV2' }
         );
       }
@@ -214,16 +215,16 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
 
       await ctx.reply(
         ` *Treasury & Ledger Status*\n\n` +
-        `* On-Chain Treasury Wallet:*\n` +
-        `Address: \`${treasuryAddress}\`\n` +
-        `Balance: *${treasuryBalance?.toFixed(6) || '0'} JUNO*\n` +
-        `Purpose: Receives bail/fine payments via on-chain transfers\n\n` +
-        `* Internal Ledger System:*\n` +
-        `Total User Balances: \`${totalUserBalances.toFixed(6)} JUNO\`\n` +
-        `Fines Collected: \`${totalFines.toFixed(6)} JUNO\` (deducted from users)\n` +
-        `Bail Collected: \`${totalBail.toFixed(6)} JUNO\` (deducted from users)\n\n` +
-        `*Note:* Treasury and ledger are separate systems.\n` +
-        `• Treasury: On-chain wallet for direct payments\n` +
+        `*On\\-Chain Treasury Wallet:*\n` +
+        `Address: \`${escapeMarkdownV2(treasuryAddress || 'N/A')}\`\n` +
+        `Balance: *${escapeNumber(treasuryBalance || 0, 6)} JUNO*\n` +
+        `Purpose: Receives bail/fine payments via on\\-chain transfers\n\n` +
+        `*Internal Ledger System:*\n` +
+        `Total User Balances: \`${escapeNumber(totalUserBalances, 6)} JUNO\`\n` +
+        `Fines Collected: \`${escapeNumber(totalFines, 6)} JUNO\` (deducted from users)\n` +
+        `Bail Collected: \`${escapeNumber(totalBail, 6)} JUNO\` (deducted from users)\n\n` +
+        `*Note:* Treasury and ledger are separate systems\\.\n` +
+        `• Treasury: On\\-chain wallet for direct payments\n` +
         `• Ledger: Internal accounting for user balances\n\n` +
         `Use /giveaway to distribute funds\n` +
         `Use /walletstats for detailed reconciliation`,

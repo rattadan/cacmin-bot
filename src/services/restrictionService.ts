@@ -6,6 +6,7 @@ import { logger } from '../utils/logger';
 import { createViolation } from './violationService';
 import { createPatternObject, testPatternSafely } from '../utils/safeRegex';
 import { JailService } from './jailService';
+import { escapeMarkdownV2, escapeNumber } from '../utils/markdown';
 
 export class RestrictionService {
   /**
@@ -258,11 +259,11 @@ export class RestrictionService {
         default:
           // Just delete + warn (already done above)
           await ctx.reply(
-            `⚠️ Your message was deleted for violating restriction: ${restriction.restriction}\n\n` +
-            `Violations in last hour: ${recentViolations.length}/${threshold}\n` +
-            `${recentViolations.length >= threshold - 1 ? '🚨 Warning: One more violation will result in automatic 2-day jail with a 10 JUNO fine!\n' : ''}` +
-            `\nUse /violations to check your status.\n` +
-            `If you get jailed, use /paybail to pay your fine and get unjailed immediately.`
+            `⚠️ Your message was deleted for violating restriction: ${escapeMarkdownV2(restriction.restriction || 'Unknown')}\n\n` +
+            `Violations in last hour: ${escapeMarkdownV2(recentViolations.length)}/${escapeMarkdownV2(threshold)}\n` +
+            `${recentViolations.length >= threshold - 1 ? '🚨 Warning: One more violation will result in automatic 2\\-day jail with a 10 JUNO fine\\!\n' : ''}` +
+            `\nUse /violations to check your status\\.\n` +
+            `If you get jailed, use /paybail to pay your fine and get unjailed immediately\\.`
           );
           break;
       }
@@ -341,14 +342,14 @@ export class RestrictionService {
 
       // Notify user with payment guidance
       await ctx.reply(
-        `🚨 *AUTOMATIC JAIL - Spam Detection*\n\n` +
-        `You have been automatically jailed for ${duration} minutes (${Math.round(duration / 1440)} days) due to repeated violations of: ${restriction.restriction}\n\n` +
-        `**Fine Amount:** ${fine} JUNO\n\n` +
+        `🚨 *AUTOMATIC JAIL \\- Spam Detection*\n\n` +
+        `You have been automatically jailed for ${escapeMarkdownV2(duration)} minutes \\(${escapeMarkdownV2(Math.round(duration / 1440))} days\\) due to repeated violations of: ${escapeMarkdownV2(restriction.restriction || 'Unknown')}\n\n` +
+        `**Fine Amount:** ${escapeNumber(fine, 1)} JUNO\n\n` +
         `💰 **To get unjailed immediately:**\n` +
-        `1. Check your balance: \`/balance\`\n` +
-        `2. Deposit JUNO if needed: \`/deposit\`\n` +
-        `3. Pay your bail: \`/paybail\`\n\n` +
-        `Otherwise, you will be automatically released after ${Math.round(duration / 1440)} days.\n\n` +
+        `1\\. Check your balance: \`/balance\`\n` +
+        `2\\. Deposit JUNO if needed: \`/deposit\`\n` +
+        `3\\. Pay your bail: \`/paybail\`\n\n` +
+        `Otherwise, you will be automatically released after ${escapeMarkdownV2(Math.round(duration / 1440))} days\\.\n\n` +
         `View your violations: \`/violations\``,
         { parse_mode: 'MarkdownV2' }
       );
@@ -413,13 +414,13 @@ export class RestrictionService {
       }
 
       await ctx.reply(
-        `🔒 *JAILED - Restriction Violation*\n\n` +
-        `You have been jailed for ${duration} minutes for violating: ${restriction.restriction}\n\n` +
-        `**Fine: ${fine} JUNO**\n\n` +
+        `🔒 *JAILED \\- Restriction Violation*\n\n` +
+        `You have been jailed for ${escapeMarkdownV2(duration)} minutes for violating: ${escapeMarkdownV2(restriction.restriction || 'Unknown')}\n\n` +
+        `**Fine: ${escapeNumber(fine, 1)} JUNO**\n\n` +
         `💰 **To get unjailed immediately:**\n` +
-        `1. Check your balance: \`/balance\`\n` +
-        `2. Deposit JUNO if needed: \`/deposit\`\n` +
-        `3. Pay your bail: \`/paybail\`\n\n` +
+        `1\\. Check your balance: \`/balance\`\n` +
+        `2\\. Deposit JUNO if needed: \`/deposit\`\n` +
+        `3\\. Pay your bail: \`/paybail\`\n\n` +
         `View your violations: \`/violations\``,
         { parse_mode: 'MarkdownV2' }
       );
@@ -467,10 +468,10 @@ export class RestrictionService {
       execute('UPDATE users SET muted_until = ? WHERE id = ?', [mutedUntil, userId]);
 
       await ctx.reply(
-        `🔇 *MUTED - Restriction Violation*\n\n` +
-        `You have been temporarily muted for ${duration} minutes.\n\n` +
-        `You will not be able to send messages until the mute expires.\n\n` +
-        `⚠️ **Warning:** Continued violations will result in automatic jail with a fine that can only be removed by paying in JUNO.\n\n` +
+        `🔇 *MUTED \\- Restriction Violation*\n\n` +
+        `You have been temporarily muted for ${escapeMarkdownV2(duration)} minutes\\.\n\n` +
+        `You will not be able to send messages until the mute expires\\.\n\n` +
+        `⚠️ **Warning:** Continued violations will result in automatic jail with a fine that can only be removed by paying in JUNO\\.\n\n` +
         `View your violations: \`/violations\``,
         { parse_mode: 'MarkdownV2' }
       );

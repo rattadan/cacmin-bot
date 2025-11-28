@@ -20,6 +20,7 @@ import { UnifiedWalletService } from '../services/unifiedWalletService';
 import { logger, StructuredLogger } from '../utils/logger';
 import { checkIsElevated } from '../utils/roles';
 import { config } from '../config';
+import { escapeMarkdownV2, escapeNumber } from '../utils/markdown';
 
 /**
  * Handles the /balance command.
@@ -41,8 +42,8 @@ export async function handleBalance(ctx: Context): Promise<void> {
     const username = ctx.from.username ? `@${ctx.from.username}` : `User ${userId}`;
 
     await ctx.reply(
-      ` *Balance for ${username}*\n\n` +
-      `Current balance: \`${balance.toFixed(6)} JUNO\``,
+      ` *Balance for ${escapeMarkdownV2(username)}*\n\n` +
+      `Current balance: \`${escapeNumber(balance, 6)} JUNO\``,
       { parse_mode: 'MarkdownV2' }
     );
 
@@ -104,9 +105,9 @@ export async function handleDeposit(ctx: Context): Promise<void> {
       ` *Deposit Instructions*\n\n` +
       `To deposit JUNO to your account:\n\n` +
       `1⃣ Send JUNO to this address:\n` +
-      `\`${depositInfo.address}\`\n\n` +
+      `\`${escapeMarkdownV2(depositInfo.address)}\`\n\n` +
       `2⃣ **IMPORTANT**: Include this memo:\n` +
-      `\`${depositInfo.memo}\`\n\n` +
+      `\`${escapeMarkdownV2(depositInfo.memo)}\`\n\n` +
       ` *Your memo is unique to you and will never change*\n` +
       ` *Deposits without the correct memo cannot be credited*\n\n` +
       `Your deposit will be credited automatically once confirmed on-chain.`,
@@ -175,8 +176,8 @@ export async function handleWithdraw(ctx: Context): Promise<void> {
     if (balance < amount) {
       await ctx.reply(
         ` *Insufficient balance*\n\n` +
-        `Requested: \`${amount} JUNO\`\n` +
-        `Available: \`${balance.toFixed(6)} JUNO\``,
+        `Requested: \`${escapeNumber(amount, 6)} JUNO\`\n` +
+        `Available: \`${escapeNumber(balance, 6)} JUNO\``,
         { parse_mode: 'MarkdownV2' }
       );
       return;
@@ -203,10 +204,10 @@ export async function handleWithdraw(ctx: Context): Promise<void> {
 
       await ctx.reply(
         ` *Withdrawal Successful*\n\n` +
-        `Amount: \`${amount} JUNO\`\n` +
-        `To: \`${address}\`\n` +
-        `New Balance: \`${result.newBalance?.toFixed(6)} JUNO\`\n` +
-        (result.txHash ? `\nTransaction: \`${result.txHash}\`` : ''),
+        `Amount: \`${escapeNumber(amount, 6)} JUNO\`\n` +
+        `To: \`${escapeMarkdownV2(address)}\`\n` +
+        `New Balance: \`${escapeNumber(result.newBalance || 0, 6)} JUNO\`\n` +
+        (result.txHash ? `\nTransaction: \`${escapeMarkdownV2(result.txHash)}\`` : ''),
         { parse_mode: 'MarkdownV2' }
       );
     } else {
@@ -219,8 +220,8 @@ export async function handleWithdraw(ctx: Context): Promise<void> {
 
       await ctx.reply(
         ` *Withdrawal Failed*\n\n` +
-        `Error: ${result.error}\n` +
-        `Balance: \`${result.newBalance?.toFixed(6)} JUNO\``,
+        `Error: ${escapeMarkdownV2(result.error || 'Unknown error')}\n` +
+        `Balance: \`${escapeNumber(result.newBalance || 0, 6)} JUNO\``,
         { parse_mode: 'MarkdownV2' }
       );
     }
@@ -283,8 +284,8 @@ export async function handleSend(ctx: Context): Promise<void> {
     if (balance < amount) {
       await ctx.reply(
         ` *Insufficient balance*\n\n` +
-        `Requested: \`${amount} JUNO\`\n` +
-        `Available: \`${balance.toFixed(6)} JUNO\``,
+        `Requested: \`${escapeNumber(amount, 6)} JUNO\`\n` +
+        `Available: \`${escapeNumber(balance, 6)} JUNO\``,
         { parse_mode: 'MarkdownV2' }
       );
       return;
@@ -313,10 +314,10 @@ export async function handleSend(ctx: Context): Promise<void> {
 
         await ctx.reply(
           ` *External Transfer Successful*\n\n` +
-          `Amount: \`${amount} JUNO\`\n` +
-          `To: \`${recipient}\`\n` +
-          `New Balance: \`${result.newBalance?.toFixed(6)} JUNO\`\n` +
-          (result.txHash ? `\nTransaction: \`${result.txHash}\`` : ''),
+          `Amount: \`${escapeNumber(amount, 6)} JUNO\`\n` +
+          `To: \`${escapeMarkdownV2(recipient)}\`\n` +
+          `New Balance: \`${escapeNumber(result.newBalance || 0, 6)} JUNO\`\n` +
+          (result.txHash ? `\nTransaction: \`${escapeMarkdownV2(result.txHash)}\`` : ''),
           { parse_mode: 'MarkdownV2' }
         );
       } else {
@@ -329,7 +330,7 @@ export async function handleSend(ctx: Context): Promise<void> {
 
         await ctx.reply(
           ` *Transfer Failed*\n\n` +
-          `Error: ${result.error}`,
+          `Error: ${escapeMarkdownV2(result.error || 'Unknown error')}`,
           { parse_mode: 'MarkdownV2' }
         );
       }
@@ -356,9 +357,9 @@ export async function handleSend(ctx: Context): Promise<void> {
 
         await ctx.reply(
           ` *Transfer Successful*\n\n` +
-          `Amount: \`${amount} JUNO\`\n` +
-          `To: @${result.recipient}\n` +
-          `Your New Balance: \`${result.fromBalance?.toFixed(6)} JUNO\``,
+          `Amount: \`${escapeNumber(amount, 6)} JUNO\`\n` +
+          `To: ${escapeMarkdownV2('@' + (result.recipient || ''))}\n` +
+          `Your New Balance: \`${escapeNumber(result.fromBalance || 0, 6)} JUNO\``,
           { parse_mode: 'MarkdownV2' }
         );
       } else {
@@ -371,7 +372,7 @@ export async function handleSend(ctx: Context): Promise<void> {
 
         await ctx.reply(
           ` *Transfer Failed*\n\n` +
-          `Error: ${result.error}`,
+          `Error: ${escapeMarkdownV2(result.error || 'Unknown error')}`,
           { parse_mode: 'MarkdownV2' }
         );
       }
@@ -403,9 +404,9 @@ export async function handleSend(ctx: Context): Promise<void> {
 
         await ctx.reply(
           ` *Transfer Successful*\n\n` +
-          `Amount: \`${amount} JUNO\`\n` +
-          `To: User ${recipientId}\n` +
-          `Your New Balance: \`${result.fromBalance?.toFixed(6)} JUNO\``,
+          `Amount: \`${escapeNumber(amount, 6)} JUNO\`\n` +
+          `To: User ${escapeMarkdownV2(recipientId)}\n` +
+          `Your New Balance: \`${escapeNumber(result.fromBalance || 0, 6)} JUNO\``,
           { parse_mode: 'MarkdownV2' }
         );
       } else {
@@ -418,7 +419,7 @@ export async function handleSend(ctx: Context): Promise<void> {
 
         await ctx.reply(
           ` *Transfer Failed*\n\n` +
-          `Error: ${result.error}`,
+          `Error: ${escapeMarkdownV2(result.error || 'Unknown error')}`,
           { parse_mode: 'MarkdownV2' }
         );
       }
@@ -487,12 +488,12 @@ export async function handleTransactions(ctx: Context): Promise<void> {
 
     let message = targetUserId === requesterId
       ? '*Recent Transactions*\n\n'
-      : `*Transaction History for User ${targetUserId}*\n\n`;
+      : `*Transaction History for User ${escapeMarkdownV2(targetUserId)}*\n\n`;
 
     for (const tx of transactions) {
       const date = new Date((tx.created_at || 0) * 1000).toLocaleString();
       const type = tx.transaction_type.toUpperCase();
-      const amount = tx.amount.toFixed(6);
+      const amount = escapeNumber(tx.amount, 6);
 
       let description = '';
       switch (tx.transaction_type) {
@@ -519,27 +520,27 @@ export async function handleTransactions(ctx: Context): Promise<void> {
           description = `+${amount} JUNO (Giveaway)`;
           break;
         default:
-          description = `${amount} JUNO (${type})`;
+          description = `${amount} JUNO (${escapeMarkdownV2(type)})`;
       }
 
-      message += `[${date}]\n`;
-      message += `Type: ${type}\n`;
+      message += `[${escapeMarkdownV2(date)}]\n`;
+      message += `Type: ${escapeMarkdownV2(type)}\n`;
       message += `Amount: ${description}\n`;
 
       if (tx.status && tx.status !== 'completed') {
-        message += `Status: ${tx.status.toUpperCase()}\n`;
+        message += `Status: ${escapeMarkdownV2(tx.status.toUpperCase())}\n`;
       }
 
       if (tx.tx_hash) {
-        message += `TX Hash: \`${tx.tx_hash}\`\n`;
+        message += `TX Hash: \`${escapeMarkdownV2(tx.tx_hash)}\`\n`;
       }
 
       if (tx.external_address) {
-        message += `Address: \`${tx.external_address}\`\n`;
+        message += `Address: \`${escapeMarkdownV2(tx.external_address)}\`\n`;
       }
 
       if (tx.description) {
-        message += `Note: ${tx.description}\n`;
+        message += `Note: ${escapeMarkdownV2(tx.description)}\n`;
       }
 
       message += '\n';
@@ -591,21 +592,21 @@ export async function handleWalletStats(ctx: Context): Promise<void> {
     let message = ' *Wallet System Statistics*\n\n';
 
     message += '*System Wallets:*\n';
-    message += `Treasury: \`${systemBalances.treasury.toFixed(6)} JUNO\`\n`;
-    message += `Reserve: \`${systemBalances.reserve.toFixed(6)} JUNO\`\n`;
-    message += `Unclaimed: \`${systemBalances.unclaimed.toFixed(6)} JUNO\`\n\n`;
+    message += `Treasury: \`${escapeNumber(systemBalances.treasury, 6)} JUNO\`\n`;
+    message += `Reserve: \`${escapeNumber(systemBalances.reserve, 6)} JUNO\`\n`;
+    message += `Unclaimed: \`${escapeNumber(systemBalances.unclaimed, 6)} JUNO\`\n\n`;
 
     message += '*Ledger Statistics:*\n';
-    message += `Total Users: ${ledgerStats.totalUsers}\n`;
-    message += `Active Users: ${ledgerStats.activeUsers}\n`;
-    message += `Total Balance (Internal): \`${ledgerStats.totalBalance.toFixed(6)} JUNO\`\n`;
-    message += `24h Deposits: ${ledgerStats.recentDeposits}\n`;
-    message += `24h Withdrawals: ${ledgerStats.recentWithdrawals}\n\n`;
+    message += `Total Users: ${escapeMarkdownV2(ledgerStats.totalUsers)}\n`;
+    message += `Active Users: ${escapeMarkdownV2(ledgerStats.activeUsers)}\n`;
+    message += `Total Balance (Internal): \`${escapeNumber(ledgerStats.totalBalance, 6)} JUNO\`\n`;
+    message += `24h Deposits: ${escapeMarkdownV2(ledgerStats.recentDeposits)}\n`;
+    message += `24h Withdrawals: ${escapeMarkdownV2(ledgerStats.recentWithdrawals)}\n\n`;
 
     message += '*Reconciliation:*\n';
-    message += `Internal Total: \`${reconciliation.internalTotal.toFixed(6)} JUNO\`\n`;
-    message += `On-chain Total: \`${reconciliation.onChainTotal.toFixed(6)} JUNO\`\n`;
-    message += `Difference: \`${reconciliation.difference.toFixed(6)} JUNO\`\n`;
+    message += `Internal Total: \`${escapeNumber(reconciliation.internalTotal, 6)} JUNO\`\n`;
+    message += `On-chain Total: \`${escapeNumber(reconciliation.onChainTotal, 6)} JUNO\`\n`;
+    message += `Difference: \`${escapeNumber(reconciliation.difference, 6)} JUNO\`\n`;
     message += `Status: ${reconciliation.matched ? ' Balanced' : ' Mismatch'}\n`;
 
     await ctx.reply(message, { parse_mode: 'MarkdownV2' });
@@ -689,7 +690,7 @@ export async function handleGiveaway(ctx: Context): Promise<void> {
       return;
     }
 
-    await ctx.reply(` Distributing ${amount} JUNO to ${userIds.length} users...`);
+    await ctx.reply(` Distributing ${escapeNumber(amount, 6)} JUNO to ${escapeMarkdownV2(userIds.length)} users...`);
 
     const result = await UnifiedWalletService.distributeGiveaway(
       userIds,
@@ -699,10 +700,10 @@ export async function handleGiveaway(ctx: Context): Promise<void> {
 
     await ctx.reply(
       ` *Giveaway Complete*\n\n` +
-      `Amount per user: \`${amount} JUNO\`\n` +
-      `Successful: ${result.succeeded.length}\n` +
-      `Failed: ${result.failed.length}\n` +
-      `Total distributed: \`${result.totalDistributed.toFixed(6)} JUNO\``,
+      `Amount per user: \`${escapeNumber(amount, 6)} JUNO\`\n` +
+      `Successful: ${escapeMarkdownV2(result.succeeded.length)}\n` +
+      `Failed: ${escapeMarkdownV2(result.failed.length)}\n` +
+      `Total distributed: \`${escapeNumber(result.totalDistributed, 6)} JUNO\``,
       { parse_mode: 'MarkdownV2' }
     );
 
@@ -777,20 +778,20 @@ export async function handleCheckDeposit(ctx: Context): Promise<void> {
     if (processedDeposit) {
       await ctx.reply(
         ` *Transaction Already Processed*\n\n` +
-        `From: \`${result.from}\`\n` +
-        `Amount: \`${result.amount} JUNO\`\n` +
-        (recipientUserId ? `User ID: ${recipientUserId}\n` : '') +
-        (result.memo ? `Memo: ${result.memo}\n` : '') +
+        `From: \`${escapeMarkdownV2(result.from || '')}\`\n` +
+        `Amount: \`${escapeMarkdownV2(result.amount || '')} JUNO\`\n` +
+        (recipientUserId ? `User ID: ${escapeMarkdownV2(recipientUserId)}\n` : '') +
+        (result.memo ? `Memo: ${escapeMarkdownV2(result.memo)}\n` : '') +
         `Processed: `,
         { parse_mode: 'MarkdownV2' }
       );
     } else {
       await ctx.reply(
         ` *Transaction Found*\n\n` +
-        `From: \`${result.from}\`\n` +
-        `Amount: \`${result.amount} JUNO\`\n` +
-        (recipientUserId ? `Recipient User ID: ${recipientUserId}\n` : 'No valid user ID in memo\n') +
-        (result.memo ? `Memo: ${result.memo}\n` : 'No memo\n') +
+        `From: \`${escapeMarkdownV2(result.from || '')}\`\n` +
+        `Amount: \`${escapeMarkdownV2(result.amount || '')} JUNO\`\n` +
+        (recipientUserId ? `Recipient User ID: ${escapeMarkdownV2(recipientUserId)}\n` : 'No valid user ID in memo\n') +
+        (result.memo ? `Memo: ${escapeMarkdownV2(result.memo)}\n` : 'No memo\n') +
         `Status: Pending processing`,
         { parse_mode: 'MarkdownV2' }
       );
@@ -831,9 +832,9 @@ export async function handleReconcile(ctx: Context): Promise<void> {
 
     await ctx.reply(
       ` *Balance Reconciliation Results*\n\n` +
-      `Internal Ledger Total: \`${result.internalTotal.toFixed(6)} JUNO\`\n` +
-      `User Funds On-Chain: \`${result.onChainTotal.toFixed(6)} JUNO\`\n` +
-      `Difference: \`${result.difference.toFixed(6)} JUNO\`\n\n` +
+      `Internal Ledger Total: \`${escapeNumber(result.internalTotal, 6)} JUNO\`\n` +
+      `User Funds On-Chain: \`${escapeNumber(result.onChainTotal, 6)} JUNO\`\n` +
+      `Difference: \`${escapeNumber(result.difference, 6)} JUNO\`\n\n` +
       `Status: ${result.matched ? ' Balanced' : ' MISMATCH'}`,
       { parse_mode: 'MarkdownV2' }
     );

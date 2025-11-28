@@ -10,6 +10,7 @@ import { Context } from 'telegraf';
 import { get } from '../database';
 import { User } from '../types';
 import { getUserIdentifier } from './commandHelper';
+import { escapeMarkdownV2 } from './markdown';
 
 /**
  * Resolve username or ID string to numeric userId
@@ -166,8 +167,9 @@ export async function resolveUserFromContext(
     if (!user) {
       if (sendError) {
         await ctx.reply(
-          `⚠️ User ID ${numericId} not found in database.\n\n` +
-          `They may not have interacted with the bot yet.`
+          `⚠️ User ID ${escapeMarkdownV2(numericId)} not found in database\\.\n\n` +
+          `They may not have interacted with the bot yet\\.`,
+          { parse_mode: 'MarkdownV2' }
         );
       }
       return null;
@@ -189,9 +191,10 @@ export async function resolveUserFromContext(
   if (!user) {
     if (sendError) {
       await ctx.reply(
-        `❌ User @${cleanIdentifier} not found in database.\n\n` +
-        `They must have interacted with the bot before you can target them.\n` +
-        `Alternatively, use their numeric user ID if you know it.`
+        `❌ User @${escapeMarkdownV2(cleanIdentifier)} not found in database\\.\n\n` +
+        `They must have interacted with the bot before you can target them\\.\n` +
+        `Alternatively, use their numeric user ID if you know it\\.`,
+        { parse_mode: 'MarkdownV2' }
       );
     }
     return null;

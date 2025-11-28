@@ -15,6 +15,7 @@ import { getUnpaidViolations, markViolationPaid, getTotalFines } from '../servic
 import { get, query, execute } from '../database';
 import { Violation, User } from '../types';
 import { logger, StructuredLogger } from '../utils/logger';
+import { escapeMarkdownV2, escapeNumber } from '../utils/markdown';
 
 /**
  * Registers all payment-related commands with the bot.
@@ -79,11 +80,11 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
 
       let message = `*Your Unpaid Fines*\n\n`;
       violations.forEach(v => {
-        message += `• ID ${v.id}: ${v.restriction} - ${v.bailAmount.toFixed(2)} JUNO\n`;
+        message += `• ID ${escapeMarkdownV2(v.id.toString())}: ${escapeMarkdownV2(v.restriction || 'Unknown')} \\- ${escapeNumber(v.bailAmount, 2)} JUNO\n`;
       });
 
-      message += `\n*Total: ${totalFines.toFixed(2)} JUNO*\n`;
-      message += `Your wallet balance: ${balance.toFixed(6)} JUNO\n\n`;
+      message += `\n*Total: ${escapeNumber(totalFines, 2)} JUNO*\n`;
+      message += `Your wallet balance: ${escapeNumber(balance, 6)} JUNO\n\n`;
 
       if (balance >= totalFines) {
         message += ` You have sufficient funds.\n\nUse /payallfines to pay all fines at once.`;
@@ -138,9 +139,10 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
       if (balance < totalFines) {
         return ctx.reply(
           ` Insufficient balance.\n\n` +
-          `Total fines: ${totalFines.toFixed(2)} JUNO\n` +
-          `Your balance: ${balance.toFixed(6)} JUNO\n\n` +
-          `Please deposit more JUNO using /deposit`
+          `Total fines: ${escapeNumber(totalFines, 2)} JUNO\n` +
+          `Your balance: ${escapeNumber(balance, 6)} JUNO\n\n` +
+          `Please deposit more JUNO using /deposit`,
+          { parse_mode: 'MarkdownV2' }
         );
       }
 
@@ -164,11 +166,11 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
         }
 
         await ctx.reply(
-          `*All Fines Paid!*\n\n` +
-          `Violations cleared: ${violations.length}\n` +
-          `Amount paid: ${totalFines.toFixed(2)} JUNO\n` +
-          `New balance: ${result.newBalance?.toFixed(6) || 'N/A'} JUNO\n\n` +
-          `You have been released from jail (if applicable).`,
+          `*All Fines Paid\\!*\n\n` +
+          `Violations cleared: ${escapeMarkdownV2(violations.length.toString())}\n` +
+          `Amount paid: ${escapeNumber(totalFines, 2)} JUNO\n` +
+          `New balance: ${result.newBalance ? escapeNumber(result.newBalance, 6) : escapeMarkdownV2('N/A')} JUNO\n\n` +
+          `You have been released from jail \\(if applicable\\)\\.`,
           { parse_mode: 'MarkdownV2' }
         );
 
@@ -181,7 +183,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
       } else {
         await ctx.reply(
           `*Payment Failed*\n\n` +
-          `Error: ${result.error}`,
+          `Error: ${escapeMarkdownV2(result.error || 'Unknown error')}`,
           { parse_mode: 'MarkdownV2' }
         );
       }
@@ -242,12 +244,12 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
       let message = `*Your Unpaid Fines*\n\n`;
 
       violations.forEach(v => {
-        message += `ID: ${v.id} \\- ${v.restriction} \\- ${v.bailAmount.toFixed(2)} JUNO\n`;
+        message += `ID: ${escapeMarkdownV2(v.id.toString())} \\- ${escapeMarkdownV2(v.restriction || 'Unknown')} \\- ${escapeNumber(v.bailAmount, 2)} JUNO\n`;
       });
 
-      message += `\n*Total: ${totalFines.toFixed(2)} JUNO*\n\n`;
+      message += `\n*Total: ${escapeNumber(totalFines, 2)} JUNO*\n\n`;
       message += `To pay a specific fine:\n/payfine \\<violationId\\>\n\n`;
-      message += `Payment address:\n\`${config.botTreasuryAddress}\`\n\n`;
+      message += `Payment address:\n\`${escapeMarkdownV2(config.botTreasuryAddress || 'N/A')}\`\n\n`;
       message += `After payment, send:\n/verifypayment \\<violationId\\> \\<txHash\\>`;
 
       return ctx.reply(message, { parse_mode: 'MarkdownV2' });
@@ -268,13 +270,13 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
     }
 
     const message = `*Payment Instructions*\n\n` +
-      `Violation ID: ${violation.id}\n` +
-      `Type: ${violation.restriction}\n` +
-      `Amount: ${violation.bailAmount.toFixed(2)} JUNO\n\n` +
-      `Send exactly ${violation.bailAmount.toFixed(2)} JUNO to:\n` +
-      `\`${config.botTreasuryAddress}\`\n\n` +
+      `Violation ID: ${escapeMarkdownV2(violation.id.toString())}\n` +
+      `Type: ${escapeMarkdownV2(violation.restriction || 'Unknown')}\n` +
+      `Amount: ${escapeNumber(violation.bailAmount, 2)} JUNO\n\n` +
+      `Send exactly ${escapeNumber(violation.bailAmount, 2)} JUNO to:\n` +
+      `\`${escapeMarkdownV2(config.botTreasuryAddress || 'N/A')}\`\n\n` +
       `After payment, send:\n` +
-      `/verifypayment ${violation.id} \\<transaction\\_hash\\>`;
+      `/verifypayment ${escapeMarkdownV2(violation.id.toString())} \\<transaction\\_hash\\>`;
 
     await ctx.reply(message, { parse_mode: 'MarkdownV2' });
   });

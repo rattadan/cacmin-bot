@@ -10,6 +10,7 @@ import { Telegraf, Context } from 'telegraf';
 import { query } from '../database';
 import { Violation } from '../types';
 import { StructuredLogger } from '../utils/logger';
+import { escapeMarkdownV2, escapeNumber } from '../utils/markdown';
 
 /**
  * Registers all violation management command handlers with the bot.
@@ -58,12 +59,12 @@ export const registerViolationHandlers = (bot: Telegraf<Context>) => {
       let unpaidCount = 0;
 
       violations.forEach((v) => {
-        const paidStatus = v.paid ? '✅ Paid' : `❌ Unpaid \\(${v.bailAmount.toFixed(2)} JUNO\\)`;
-        message += `\\#${v.id} \\- ${v.restriction}\n`;
+        const paidStatus = v.paid ? '✅ Paid' : `❌ Unpaid \\(${escapeNumber(v.bailAmount, 2)} JUNO\\)`;
+        message += `\\#${escapeMarkdownV2(v.id)} \\- ${escapeMarkdownV2(v.restriction || 'Unknown')}\n`;
         message += `Status: ${paidStatus}\n`;
         if (v.message) {
           // Escape special MarkdownV2 characters in user-provided message
-          const escapedMsg = v.message.substring(0, 50).replace(/([_*\[\]()~`>#+\-=|{}.!\\])/g, '\\$1');
+          const escapedMsg = escapeMarkdownV2(v.message.substring(0, 50));
           message += `Message: \`${escapedMsg}\`\n`;
         }
         message += '\n';

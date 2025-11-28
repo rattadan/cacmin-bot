@@ -8,6 +8,7 @@
 
 import { config } from '../config';
 import { logger } from '../utils/logger';
+import { escapeMarkdownV2, escapeNumber } from '../utils/markdown';
 
 /**
  * Service for generating clear deposit instructions with prominent memo warnings.
@@ -62,8 +63,8 @@ Deposits without the correct memo will go to an unclaimed pool and require manua
 `;
 
     // Markdown formatted version for Telegram
-    const markdown = `Send JUNO to \`${walletAddress}\`
-**MEMO: \`${memo}\`** (required - no memo = no credit)
+    const markdown = `Send JUNO to \`${escapeMarkdownV2(walletAddress)}\`
+**MEMO: \`${escapeMarkdownV2(memo)}\`** \\(required \\- no memo = no credit\\)
 /balance to check deposit`;
 
     return {
@@ -81,7 +82,7 @@ Deposits without the correct memo will go to an unclaimed pool and require manua
    * @returns Short memo reminder message
    */
   static getMemoReminder(userId: number): string {
-    return ` **REMEMBER**: Your memo MUST be \`${userId}\` or funds won't be credited!`;
+    return ` **REMEMBER**: Your memo MUST be \`${escapeMarkdownV2(userId)}\` or funds won't be credited\\!`;
   }
 
   /**
@@ -185,14 +186,14 @@ Always use your user ID as memo to avoid this!
     newBalance: number
   ): string {
     return `
- **Deposit Confirmed!**
+ **Deposit Confirmed\\!**
 
-• Amount: \`${amount.toFixed(6)} JUNO\`
-• From User: \`${userId}\`
-• New Balance: \`${newBalance.toFixed(6)} JUNO\`
-• Transaction: \`${txHash.substring(0, 10)}...\`
+• Amount: \`${escapeNumber(amount, 6)} JUNO\`
+• From User: \`${escapeMarkdownV2(userId)}\`
+• New Balance: \`${escapeNumber(newBalance, 6)} JUNO\`
+• Transaction: \`${escapeMarkdownV2(txHash.substring(0, 10))}\\.\\.\\.\`
 
-Your funds are now available for use!
+Your funds are now available for use\\!
 `;
   }
 
@@ -221,29 +222,29 @@ Your funds are in the unclaimed pool. Contact an admin with your transaction has
 
       case 'wrong_memo':
         return `
- **Deposit Failed - Wrong Memo**
+ **Deposit Failed \\- Wrong Memo**
 
-Your deposit was received but the memo \`${details?.memo}\` doesn't match your user ID \`${details?.userId}\`.
+Your deposit was received but the memo \`${escapeMarkdownV2(details?.memo || 'Unknown')}\` doesn't match your user ID \`${escapeMarkdownV2(details?.userId || 'Unknown')}\`.
 
-Your funds are in the unclaimed pool. Contact an admin to claim them.
+Your funds are in the unclaimed pool\\. Contact an admin to claim them\\.
 `;
 
       case 'wrong_user':
         return `
- **Deposit Failed - User Not Found**
+ **Deposit Failed \\- User Not Found**
 
-A deposit was received with memo \`${details?.memo}\` but this user ID doesn't exist.
+A deposit was received with memo \`${escapeMarkdownV2(details?.memo || 'Unknown')}\` but this user ID doesn't exist\\.
 
-The funds are in the unclaimed pool.
+The funds are in the unclaimed pool\\.
 `;
 
       case 'not_found':
         return `
  **Transaction Not Found**
 
-The transaction hash \`${details?.txHash}\` was not found on the blockchain.
+The transaction hash \`${escapeMarkdownV2(details?.txHash || 'Unknown')}\` was not found on the blockchain\\.
 
-Please verify the transaction hash and try again.
+Please verify the transaction hash and try again\\.
 `;
 
       default:

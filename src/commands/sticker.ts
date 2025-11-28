@@ -7,6 +7,7 @@
 
 import { Telegraf, Context } from 'telegraf';
 import { logger } from '../utils/logger';
+import { escapeMarkdownV2 } from '../utils/markdown';
 
 /**
  * Sticker file IDs from CACGifs pack
@@ -107,11 +108,11 @@ export function registerStickerCommands(bot: Telegraf<Context>): void {
 
       await ctx.reply(
         `📋 *Sticker Information*\n\n` +
-        `File ID: \`${fileId}\`\n` +
-        `Unique ID: \`${fileUniqueId}\`\n` +
-        `Set Name: ${stickerSetName || 'N/A'}\n` +
-        `Emoji: ${emoji || 'N/A'}\n\n` +
-        `Use this file_id to send this sticker programmatically.`,
+        `File ID: \`${escapeMarkdownV2(fileId)}\`\n` +
+        `Unique ID: \`${escapeMarkdownV2(fileUniqueId)}\`\n` +
+        `Set Name: ${escapeMarkdownV2(stickerSetName || 'N/A')}\n` +
+        `Emoji: ${escapeMarkdownV2(emoji || 'N/A')}\n\n` +
+        `Use this file\\_id to send this sticker programmatically\\.`,
         { parse_mode: 'MarkdownV2' }
       );
 
@@ -151,9 +152,9 @@ export function registerStickerCommands(bot: Telegraf<Context>): void {
         // Optionally notify in DM
         if (ctx.chat.type === 'private') {
           await ctx.reply(
-            `✅ CACGifs sticker logged!\n\n` +
-            `File ID: \`${fileId}\`\n` +
-            `Emoji: ${emoji || 'N/A'}`,
+            `✅ CACGifs sticker logged\\!\n\n` +
+            `File ID: \`${escapeMarkdownV2(fileId)}\`\n` +
+            `Emoji: ${escapeMarkdownV2(emoji || 'N/A')}`,
             { parse_mode: 'MarkdownV2' }
           );
         }

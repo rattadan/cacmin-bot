@@ -57,7 +57,7 @@ export async function lockCheckMiddleware(ctx: Context, next: () => Promise<void
         `You have a ${lock.lockType} transaction in progress.\n` +
         `Please wait ${remainingSeconds} seconds for it to complete.\n\n` +
         `If this persists, contact an admin.`,
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
 
       logger.info('User command blocked due to active lock', {

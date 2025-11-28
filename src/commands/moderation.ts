@@ -11,7 +11,7 @@ import { execute, get } from '../database';
 import { User } from '../types';
 import { logger, StructuredLogger } from '../utils/logger';
 import { config } from '../config';
-import { resolveUserId, formatUserIdDisplay } from '../utils/userResolver';
+import { resolveUserId, formatUserIdDisplay, resolveUserFromContext } from '../utils/userResolver';
 import { JailService } from '../services/jailService';
 import { getUserIdentifier, getCommandArgs } from '../utils/commandHelper';
 import { adminOrHigher, ownerOnly } from '../middleware/index';
@@ -77,7 +77,7 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
         '• Reply to a user: `/jail <minutes>`\n' +
         '• Direct: `/jail <@username|userId> <minutes>`\n' +
         '• Alias: `/silence`',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
     }
 
@@ -208,16 +208,11 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
     const adminId = ctx.from?.id;
     if (!adminId) return;
 
-    const userIdentifier = ctx.message && 'text' in ctx.message ? ctx.message.text.split(' ')[1] || '' : '';
-    if (!userIdentifier) {
-      return ctx.reply('Usage: /unjail <@username|userId> or /unsilence <@username|userId>');
-    }
+    // Resolve target user using centralized utility (supports reply-to-message)
+    const target = await resolveUserFromContext(ctx);
+    if (!target) return; // Error message already sent
 
-    // Resolve username or userId to numeric ID
-    const userId = resolveUserId(userIdentifier);
-    if (!userId) {
-      return ctx.reply(' User not found. Please use a valid @username or userId.');
-    }
+    const userId = target.userId;
 
     // Update database
     execute(
@@ -289,17 +284,27 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
     const adminId = ctx.from?.id;
     if (!adminId) return;
 
-    const args = ctx.message?.text.split(' ').slice(1);
-    if (!args || args.length < 2) {
-      return ctx.reply('Usage: /warn <userId> <reason>');
+    // Check if it's a reply-to-message
+    const isReply = ctx.message && 'reply_to_message' in ctx.message && ctx.message.reply_to_message;
+
+    // Get reason from args (if reply, all args are reason; if not, args[1+] are reason)
+    const allArgs = ctx.message?.text.split(' ').slice(1) || [];
+    const reason = isReply ? allArgs.join(' ') : allArgs.slice(1).join(' ');
+
+    if (!reason || reason.trim() === '') {
+      return ctx.reply(
+        'Usage:\n' +
+        '• Reply to message: `/warn <reason>`\n' +
+        '• Direct: `/warn <@username|userId> <reason>`',
+        { parse_mode: 'MarkdownV2' }
+      );
     }
 
-    const userId = parseInt(args[0]);
-    const reason = args.slice(1).join(' ');
+    // Resolve target user using centralized utility (supports reply-to-message and @username)
+    const target = await resolveUserFromContext(ctx);
+    if (!target) return; // Error message already sent
 
-    if (isNaN(userId)) {
-      return ctx.reply(' Invalid user ID');
-    }
+    const userId = target.userId;
 
     // Check if target user is immune to moderation
     if (isImmuneToModeration(userId)) {
@@ -317,7 +322,8 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
       [Math.floor(Date.now() / 1000), userId]
     );
 
-    await ctx.reply(` User ${userId} has been warned.\nReason: ${reason}`);
+    const userDisplay = target.username ? `@${target.username}` : `user ${userId}`;
+    await ctx.reply(` ${userDisplay} has been warned.\nReason: ${reason}`);
 
     // Try to notify the user
     try {
@@ -425,6 +431,6 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
       `Total Bail Revenue: ${stats.totalBailAmount.toFixed(2)} JUNO\n\n` +
       `Active Restrictions: ${stats.activeRestrictions}`;
 
-    await ctx.reply(message, { parse_mode: 'Markdown' });
+    await ctx.reply(message, { parse_mode: 'MarkdownV2' });
   });
 }

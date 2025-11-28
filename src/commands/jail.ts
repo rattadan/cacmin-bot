@@ -149,7 +149,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     message += `Auto-Releases: ${totalAutoReleases}\n`;
     message += `Manual Releases: ${totalManualReleases}\n`;
 
-    await ctx.reply(message, { parse_mode: 'Markdown' });
+    await ctx.reply(message, { parse_mode: 'MarkdownV2' });
   });
 
   /**
@@ -217,7 +217,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
       message += ` No unpaid fines\n`;
     }
 
-    await ctx.reply(message, { parse_mode: 'Markdown' });
+    await ctx.reply(message, { parse_mode: 'MarkdownV2' });
   });
 
   /**

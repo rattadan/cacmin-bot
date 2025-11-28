@@ -6,21 +6,20 @@
 
 import { Context, MiddlewareFn } from 'telegraf';
 import { logger } from '../utils/logger';
-
-const BOT_USERNAME = 'banBabyBot';
+import { config } from '../config';
 
 /**
  * Middleware that filters commands to only respond when explicitly mentioned in group chats.
  * In private chats, all commands are processed. In group/supergroup chats, only commands
- * with @banBabyBot suffix are processed. This prevents conflicts with other bots that may
- * use the same command names (e.g., Rose bot).
+ * with the configured bot username suffix are processed. This prevents conflicts with other
+ * bots that may use the same command names (e.g., Rose bot).
  *
  * @param ctx - Telegraf context object containing message and chat information
  * @param next - Next middleware function to call if command should be processed
  * @returns Promise that resolves when middleware completes
  *
  * @example
- * // In group chat - will be processed
+ * // In group chat - will be processed (assuming BOT_USERNAME=banBabyBot)
  * /mute@banBabyBot @user 60
  *
  * @example
@@ -39,7 +38,7 @@ export const commandFilterMiddleware: MiddlewareFn<Context> = async (ctx, next) 
     return next();
   }
 
-  // Extract command (e.g., "/mute" or "/mute@banBabyBot")
+  // Extract command (e.g., "/mute" or "/mute@botUsername")
   const commandMatch = messageText.match(/^\/([a-zA-Z0-9_]+)(@[a-zA-Z0-9_]+)?/);
 
   if (!commandMatch) {
@@ -52,16 +51,18 @@ export const commandFilterMiddleware: MiddlewareFn<Context> = async (ctx, next) 
   const chatType = ctx.chat?.type;
   const isGroupChat = chatType === 'group' || chatType === 'supergroup';
 
-  // In group chats, only respond to commands with @banBabyBot suffix
+  // In group chats, only respond to commands with our bot's @username suffix
   if (isGroupChat) {
-    const isMentioned = botMention === `@${BOT_USERNAME}`;
+    const isMentioned = botMention === `@${config.botUsername}`;
 
     if (!isMentioned) {
       // Command is not for this bot, ignore it
       logger.debug('Ignoring command without bot mention in group', {
         command: commandName,
         chatId: ctx.chat?.id,
-        chatType
+        chatType,
+        expectedMention: `@${config.botUsername}`,
+        receivedMention: botMention || 'none'
       });
       return; // Don't call next(), stop processing
     }

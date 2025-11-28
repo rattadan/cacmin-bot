@@ -13,6 +13,7 @@ import { UnifiedWalletService } from '../services/unifiedWalletService';
 import { elevatedAdminOnly, ownerOnly } from '../middleware';
 import { logger, StructuredLogger } from '../utils/logger';
 import { checkIsElevated } from '../utils/roles';
+import { resolveUserFromContext } from '../utils/userResolver';
 
 /**
  * Registers all shared account commands
@@ -54,7 +55,7 @@ async function handleCreateShared(ctx: Context): Promise<void> {
         '• Lowercase letters, numbers, and underscores only\n' +
         '• 3-32 characters\n' +
         '• Must be unique',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
       return;
     }
@@ -82,7 +83,7 @@ async function handleCreateShared(ctx: Context): Promise<void> {
       `Balance: ${balance.toFixed(6)} JUNO\n\n` +
       `You have been granted admin permission.\n\n` +
       `Use \`/grantaccess ${name} @username <level>\` to add members.`,
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'MarkdownV2' }
     );
 
     StructuredLogger.logTransaction('Shared account created', {
@@ -117,7 +118,7 @@ async function handleDeleteShared(ctx: Context): Promise<void> {
         ' *Invalid format*\n\n' +
         'Usage: `/deleteshared <account_name>`\n' +
         'Example: `/deleteshared admin_pool`',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
       return;
     }
@@ -136,7 +137,7 @@ async function handleDeleteShared(ctx: Context): Promise<void> {
       await ctx.reply(
         ` *Warning*: This shared account has a balance of ${balance.toFixed(6)} JUNO.\n\n` +
         `Please withdraw all funds before deleting the account.`,
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
       return;
     }
@@ -146,7 +147,7 @@ async function handleDeleteShared(ctx: Context): Promise<void> {
     await ctx.reply(
       ` *Shared Account Deleted*\n\n` +
       `Account '${name}' has been deleted.`,
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'MarkdownV2' }
     );
 
     StructuredLogger.logTransaction('Shared account deleted', {
@@ -185,13 +186,12 @@ async function handleGrantAccess(ctx: Context): Promise<void> {
         '• `/grantaccess admin_pool @alice admin`\n' +
         '• `/grantaccess project_fund 123456 spend 100`\n' +
         '• `/grantaccess event_budget @bob view`',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
       return;
     }
 
     const accountName = args[0];
-    const targetUser = args[1];
     const level = args[2].toLowerCase();
     const spendLimit = args[3] ? parseFloat(args[3]) : undefined;
 
@@ -206,22 +206,11 @@ async function handleGrantAccess(ctx: Context): Promise<void> {
       return;
     }
 
-    // Resolve target user
-    let targetUserId: number;
-    if (targetUser.startsWith('@')) {
-      const user = await UnifiedWalletService.findUserByUsername(targetUser);
-      if (!user) {
-        await ctx.reply(` User ${targetUser} not found. They need to interact with the bot first.`);
-        return;
-      }
-      targetUserId = user.id;
-    } else {
-      targetUserId = parseInt(targetUser);
-      if (isNaN(targetUserId)) {
-        await ctx.reply(` Invalid user ID: ${targetUser}`);
-        return;
-      }
-    }
+    // Resolve target user using centralized utility (arg index 1 since account_name is arg 0)
+    const targetResolved = await resolveUserFromContext(ctx, 1);
+    if (!targetResolved) return; // Error message already sent
+
+    const targetUserId = targetResolved.userId;
 
     await SharedAccountService.grantPermission(
       account.id,
@@ -234,10 +223,10 @@ async function handleGrantAccess(ctx: Context): Promise<void> {
     await ctx.reply(
       ` *Permission Granted*\n\n` +
       `Account: ${account.displayName || accountName}\n` +
-      `User: ${targetUser}\n` +
+      `User: ${targetResolved.username ? '@' + targetResolved.username : targetUserId}\n` +
       `Level: ${level}\n` +
       (spendLimit ? `Spend Limit: ${spendLimit} JUNO\n` : ''),
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'MarkdownV2' }
     );
 
     StructuredLogger.logTransaction('Permission granted', {
@@ -273,13 +262,12 @@ async function handleRevokeAccess(ctx: Context): Promise<void> {
         ' *Invalid format*\n\n' +
         'Usage: `/revokeaccess <account_name> <@username|user_id>`\n' +
         'Example: `/revokeaccess admin_pool @alice`',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
       return;
     }
 
     const accountName = args[0];
-    const targetUser = args[1];
 
     const account = await SharedAccountService.getSharedAccountByName(accountName);
     if (!account) {
@@ -287,31 +275,20 @@ async function handleRevokeAccess(ctx: Context): Promise<void> {
       return;
     }
 
-    // Resolve target user
-    let targetUserId: number;
-    if (targetUser.startsWith('@')) {
-      const user = await UnifiedWalletService.findUserByUsername(targetUser);
-      if (!user) {
-        await ctx.reply(` User ${targetUser} not found.`);
-        return;
-      }
-      targetUserId = user.id;
-    } else {
-      targetUserId = parseInt(targetUser);
-      if (isNaN(targetUserId)) {
-        await ctx.reply(` Invalid user ID: ${targetUser}`);
-        return;
-      }
-    }
+    // Resolve target user using centralized utility (arg index 1 since account_name is arg 0)
+    const targetResolved = await resolveUserFromContext(ctx, 1);
+    if (!targetResolved) return; // Error message already sent
+
+    const targetUserId = targetResolved.userId;
 
     await SharedAccountService.revokePermission(account.id, targetUserId, userId);
 
     await ctx.reply(
       ` *Permission Revoked*\n\n` +
       `Account: ${account.displayName || accountName}\n` +
-      `User: ${targetUser}\n\n` +
+      `User: ${targetResolved.username ? '@' + targetResolved.username : targetUserId}\n\n` +
       `Access has been revoked.`,
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'MarkdownV2' }
     );
 
     StructuredLogger.logTransaction('Permission revoked', {
@@ -346,13 +323,12 @@ async function handleUpdateAccess(ctx: Context): Promise<void> {
         ' *Invalid format*\n\n' +
         'Usage: `/updateaccess <account_name> <@username|user_id> <level> [spend_limit]`\n' +
         'Example: `/updateaccess project_fund @alice spend 500`',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
       return;
     }
 
     const accountName = args[0];
-    const targetUser = args[1];
     const level = args[2].toLowerCase();
     const spendLimit = args[3] ? parseFloat(args[3]) : undefined;
 
@@ -367,22 +343,11 @@ async function handleUpdateAccess(ctx: Context): Promise<void> {
       return;
     }
 
-    // Resolve target user
-    let targetUserId: number;
-    if (targetUser.startsWith('@')) {
-      const user = await UnifiedWalletService.findUserByUsername(targetUser);
-      if (!user) {
-        await ctx.reply(` User ${targetUser} not found.`);
-        return;
-      }
-      targetUserId = user.id;
-    } else {
-      targetUserId = parseInt(targetUser);
-      if (isNaN(targetUserId)) {
-        await ctx.reply(` Invalid user ID: ${targetUser}`);
-        return;
-      }
-    }
+    // Resolve target user using centralized utility (arg index 1 since account_name is arg 0)
+    const targetResolved = await resolveUserFromContext(ctx, 1);
+    if (!targetResolved) return; // Error message already sent
+
+    const targetUserId = targetResolved.userId;
 
     await SharedAccountService.updatePermission(
       account.id,
@@ -395,10 +360,10 @@ async function handleUpdateAccess(ctx: Context): Promise<void> {
     await ctx.reply(
       ` *Permission Updated*\n\n` +
       `Account: ${account.displayName || accountName}\n` +
-      `User: ${targetUser}\n` +
+      `User: ${targetResolved.username ? '@' + targetResolved.username : targetUserId}\n` +
       `New Level: ${level}\n` +
       (spendLimit ? `New Spend Limit: ${spendLimit} JUNO\n` : ''),
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'MarkdownV2' }
     );
 
     StructuredLogger.logTransaction('Permission updated', {
@@ -434,7 +399,7 @@ async function handleSharedBalance(ctx: Context): Promise<void> {
         ' *Invalid format*\n\n' +
         'Usage: `/sharedbalance <account_name>`\n' +
         'Example: `/sharedbalance admin_pool`',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
       return;
     }
@@ -462,7 +427,7 @@ async function handleSharedBalance(ctx: Context): Promise<void> {
       `Your Permission: ${permission.permissionLevel}\n` +
       (permission.spendLimit ? `Your Spend Limit: ${permission.spendLimit} JUNO\n` : '') +
       `Account ID: \`${account.id}\``,
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'MarkdownV2' }
     );
   } catch (error) {
     logger.error('Shared balance check failed', { userId: ctx.from?.id, error });
@@ -488,13 +453,12 @@ async function handleSharedSend(ctx: Context): Promise<void> {
         ' *Invalid format*\n\n' +
         'Usage: `/sharedsend <account_name> <@username|user_id> <amount> [description]`\n' +
         'Example: `/sharedsend admin_pool @alice 50 "Project payment"`',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
       return;
     }
 
     const accountName = args[0];
-    const recipient = args[1];
     const amount = parseFloat(args[2]);
     const description = args.slice(3).join(' ').replace(/^["']|["']$/g, '');
 
@@ -509,22 +473,11 @@ async function handleSharedSend(ctx: Context): Promise<void> {
       return;
     }
 
-    // Resolve recipient
-    let recipientId: number;
-    if (recipient.startsWith('@')) {
-      const user = await UnifiedWalletService.findUserByUsername(recipient);
-      if (!user) {
-        await ctx.reply(` User ${recipient} not found. They need to interact with the bot first.`);
-        return;
-      }
-      recipientId = user.id;
-    } else {
-      recipientId = parseInt(recipient);
-      if (isNaN(recipientId)) {
-        await ctx.reply(` Invalid user ID: ${recipient}`);
-        return;
-      }
-    }
+    // Resolve recipient using centralized utility (arg index 1 since account_name is arg 0)
+    const recipientResolved = await resolveUserFromContext(ctx, 1);
+    if (!recipientResolved) return; // Error message already sent
+
+    const recipientId = recipientResolved.userId;
 
     await ctx.reply(' Processing transaction...');
 
@@ -544,10 +497,10 @@ async function handleSharedSend(ctx: Context): Promise<void> {
     await ctx.reply(
       ` *Transaction Successful*\n\n` +
       `From: ${account.displayName || accountName}\n` +
-      `To: ${recipient}\n` +
+      `To: ${recipientResolved.username ? '@' + recipientResolved.username : recipientId}\n` +
       `Amount: \`${amount.toFixed(6)} JUNO\`\n` +
       `New Account Balance: \`${result.sharedBalance?.toFixed(6)} JUNO\``,
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'MarkdownV2' }
     );
 
     StructuredLogger.logTransaction('Shared account send', {
@@ -581,7 +534,7 @@ async function handleSharedDeposit(ctx: Context): Promise<void> {
         ' *Invalid format*\n\n' +
         'Usage: `/shareddeposit <account_name> <amount>`\n' +
         'Example: `/shareddeposit event_budget 100`',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
       return;
     }
@@ -619,7 +572,7 @@ async function handleSharedDeposit(ctx: Context): Promise<void> {
       `Amount: \`${amount.toFixed(6)} JUNO\`\n` +
       `Your New Balance: \`${result.userBalance?.toFixed(6)} JUNO\`\n` +
       `Account Balance: \`${result.sharedBalance?.toFixed(6)} JUNO\``,
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'MarkdownV2' }
     );
 
     StructuredLogger.logTransaction('Shared account deposit', {
@@ -672,7 +625,7 @@ async function handleMyShared(ctx: Context): Promise<void> {
       message += '\n';
     }
 
-    await ctx.reply(message, { parse_mode: 'Markdown' });
+    await ctx.reply(message, { parse_mode: 'MarkdownV2' });
   } catch (error) {
     logger.error('My shared accounts failed', { userId: ctx.from?.id, error });
     await ctx.reply('Failed to list accounts');
@@ -697,7 +650,7 @@ async function handleSharedInfo(ctx: Context): Promise<void> {
         ' *Invalid format*\n\n' +
         'Usage: `/sharedinfo <account_name>`\n' +
         'Example: `/sharedinfo admin_pool`',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
       return;
     }
@@ -741,7 +694,7 @@ async function handleSharedInfo(ctx: Context): Promise<void> {
       message += '\n';
     }
 
-    await ctx.reply(message, { parse_mode: 'Markdown' });
+    await ctx.reply(message, { parse_mode: 'MarkdownV2' });
   } catch (error) {
     logger.error('Shared info failed', { userId: ctx.from?.id, error });
     await ctx.reply('Failed to get account info');
@@ -766,7 +719,7 @@ async function handleSharedHistory(ctx: Context): Promise<void> {
         ' *Invalid format*\n\n' +
         'Usage: `/sharedhistory <account_name> [limit]`\n' +
         'Example: `/sharedhistory admin_pool 20`',
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
       return;
     }
@@ -790,7 +743,7 @@ async function handleSharedHistory(ctx: Context): Promise<void> {
 
     if (transactions.length === 0) {
       await ctx.reply(` *Transaction History*\n\nNo transactions yet for ${account.displayName || accountName}.`, {
-        parse_mode: 'Markdown'
+        parse_mode: 'MarkdownV2'
       });
       return;
     }
@@ -812,7 +765,7 @@ async function handleSharedHistory(ctx: Context): Promise<void> {
       message += '\n\n';
     }
 
-    await ctx.reply(message, { parse_mode: 'Markdown' });
+    await ctx.reply(message, { parse_mode: 'MarkdownV2' });
   } catch (error) {
     logger.error('Shared history failed', { userId: ctx.from?.id, error });
     await ctx.reply('Failed to get history');
@@ -849,7 +802,7 @@ async function handleListShared(ctx: Context): Promise<void> {
       message += `└─ Members: ${permissions.length}\n\n`;
     }
 
-    await ctx.reply(message, { parse_mode: 'Markdown' });
+    await ctx.reply(message, { parse_mode: 'MarkdownV2' });
   } catch (error) {
     logger.error('List shared accounts failed', { userId: ctx.from?.id, error });
     await ctx.reply('Failed to list accounts');

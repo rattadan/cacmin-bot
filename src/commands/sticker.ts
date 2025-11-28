@@ -37,23 +37,48 @@ export function registerStickerCommands(bot: Telegraf<Context>): void {
       const args = ctx.message?.text.split(' ').slice(1);
       const stickerName = args?.[0] || 'first';
 
-      // For now, send a message with the sticker pack link
-      // Once we have the file_id, we can send the actual sticker
-      await ctx.reply(
-        '🎨 *CACGifs Sticker Pack*\n\n' +
-        'To send stickers from this pack, I need the sticker file_id.\n\n' +
-        'Pack link: https://t.me/addstickers/CACGifs\n\n' +
-        'To get the file_id:\n' +
-        '1. Send me any sticker from this pack in a DM\n' +
-        '2. I will log the file_id\n' +
-        '3. Update the code with the file_id\n' +
-        '4. Then I can send stickers directly!',
-        { parse_mode: 'Markdown' }
-      );
+      // Check if the requested sticker exists
+      if (stickerName !== 'first') {
+        return ctx.reply(
+          '⚠️ *Available stickers:*\n' +
+          '• `first` - 🛰 Satellite sticker\n\n' +
+          'Usage: `/sendsticker first`\n\n' +
+          'Pack: https://t.me/addstickers/CACGifs',
+          { parse_mode: 'MarkdownV2' }
+        );
+      }
+
+      // Check if we have the file_id configured
+      const fileId = STICKER_PACK.cacgifs[stickerName];
+      if (!fileId) {
+        return ctx.reply(
+          '⚠️ *Sticker not configured*\n\n' +
+          'The sticker file_id needs to be set up.\n' +
+          'Use `/getsticker` (reply to a sticker) to get file_ids.\n\n' +
+          'Pack: https://t.me/addstickers/CACGifs',
+          { parse_mode: 'MarkdownV2' }
+        );
+      }
+
+      // Send the sticker
+      await ctx.replyWithSticker(fileId);
+
+      logger.info('Sticker sent', {
+        stickerName,
+        fileId,
+        userId: ctx.from?.id,
+        username: ctx.from?.username
+      });
 
     } catch (error) {
       logger.error('Error sending sticker', { error });
-      await ctx.reply('❌ Failed to send sticker.');
+      await ctx.reply(
+        '❌ *Failed to send sticker*\n\n' +
+        'The sticker file_id may be invalid or expired.\n' +
+        'Use `/getsticker` to get a fresh file_id from the pack:\n' +
+        'https://t.me/addstickers/CACGifs',
+        { parse_mode: 'MarkdownV2' }
+      );
     }
   });
 
@@ -87,7 +112,7 @@ export function registerStickerCommands(bot: Telegraf<Context>): void {
         `Set Name: ${stickerSetName || 'N/A'}\n` +
         `Emoji: ${emoji || 'N/A'}\n\n` +
         `Use this file_id to send this sticker programmatically.`,
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
 
       logger.info('Sticker file_id retrieved', {
@@ -129,7 +154,7 @@ export function registerStickerCommands(bot: Telegraf<Context>): void {
             `✅ CACGifs sticker logged!\n\n` +
             `File ID: \`${fileId}\`\n` +
             `Emoji: ${emoji || 'N/A'}`,
-            { parse_mode: 'Markdown' }
+            { parse_mode: 'MarkdownV2' }
           );
         }
       }
@@ -149,20 +174,35 @@ export function registerStickerCommands(bot: Telegraf<Context>): void {
   bot.command('cac', async (ctx) => {
     try {
       // Check if we have the file_id
-      if (!STICKER_PACK.cacgifs.first) {
+      const fileId = STICKER_PACK.cacgifs.first;
+      if (!fileId) {
         return ctx.reply(
-          '⚠️ Sticker not configured yet!\n\n' +
-          'Please send me the first sticker from https://t.me/addstickers/CACGifs\n' +
-          'in a DM, and I will save it for this command.'
+          '⚠️ *Sticker not configured*\n\n' +
+          'The CAC sticker file_id needs to be set up.\n' +
+          'Use `/getsticker` (reply to a sticker) to get the file_id.\n\n' +
+          'Pack: https://t.me/addstickers/CACGifs',
+          { parse_mode: 'MarkdownV2' }
         );
       }
 
       // Send the sticker
-      await ctx.replyWithSticker(STICKER_PACK.cacgifs.first);
+      await ctx.replyWithSticker(fileId);
+
+      logger.info('CAC sticker sent', {
+        fileId,
+        userId: ctx.from?.id,
+        username: ctx.from?.username
+      });
 
     } catch (error) {
       logger.error('Error sending CAC sticker', { error });
-      await ctx.reply('❌ Failed to send sticker.');
+      await ctx.reply(
+        '❌ *Failed to send sticker*\n\n' +
+        'The sticker file_id may be invalid or expired.\n' +
+        'Use `/getsticker` to get a fresh file_id from the pack:\n' +
+        'https://t.me/addstickers/CACGifs',
+        { parse_mode: 'MarkdownV2' }
+      );
     }
   });
 }

@@ -157,7 +157,7 @@ export function registerWalletCommands(bot: Telegraf<Context>): void {
       `• Withdrawals are locked to prevent double-spending\n` +
       `• Internal transfers are instant and free\n` +
       `• External transfers incur network fees`,
-      { parse_mode: 'Markdown' }
+      { parse_mode: 'MarkdownV2' }
     );
   });
 }

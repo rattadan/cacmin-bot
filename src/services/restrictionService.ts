@@ -350,7 +350,7 @@ export class RestrictionService {
         `3. Pay your bail: \`/paybail\`\n\n` +
         `Otherwise, you will be automatically released after ${Math.round(duration / 1440)} days.\n\n` +
         `View your violations: \`/violations\``,
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
 
       logger.warn('Auto-jail applied for spam', {
@@ -421,7 +421,7 @@ export class RestrictionService {
         `2. Deposit JUNO if needed: \`/deposit\`\n` +
         `3. Pay your bail: \`/paybail\`\n\n` +
         `View your violations: \`/violations\``,
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
 
       logger.info('Immediate jail applied', { userId, restriction: restriction.restriction });
@@ -472,7 +472,7 @@ export class RestrictionService {
         `You will not be able to send messages until the mute expires.\n\n` +
         `⚠️ **Warning:** Continued violations will result in automatic jail with a fine that can only be removed by paying in JUNO.\n\n` +
         `View your violations: \`/violations\``,
-        { parse_mode: 'Markdown' }
+        { parse_mode: 'MarkdownV2' }
       );
 
       logger.info('Temporary mute applied', { userId, duration });

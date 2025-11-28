@@ -92,7 +92,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
         message += `Use /deposit to get your wallet address.`;
       }
 
-      await ctx.reply(message, { parse_mode: 'Markdown' });
+      await ctx.reply(message, { parse_mode: 'MarkdownV2' });
     } catch (error) {
       logger.error('Error showing fines', { userId, error });
       await ctx.reply(' Error fetching fines.');
@@ -169,7 +169,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
           `Amount paid: ${totalFines.toFixed(2)} JUNO\n` +
           `New balance: ${result.newBalance?.toFixed(6) || 'N/A'} JUNO\n\n` +
           `You have been released from jail (if applicable).`,
-          { parse_mode: 'Markdown' }
+          { parse_mode: 'MarkdownV2' }
         );
 
         StructuredLogger.logTransaction('User paid all fines from internal balance', {
@@ -182,7 +182,7 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
         await ctx.reply(
           `*Payment Failed*\n\n` +
           `Error: ${result.error}`,
-          { parse_mode: 'Markdown' }
+          { parse_mode: 'MarkdownV2' }
         );
       }
     } catch (error) {

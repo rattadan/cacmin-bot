@@ -52,7 +52,7 @@ yarn install
 
 # Configure .env
 cp .env.example .env
-# Edit .env with: BOT_TOKEN, OWNER_ID, ADMIN_ID, BOT_TREASURY_ADDRESS, BOT_TREASURY_MNEMONIC, JUNO_RPC_URL
+# Edit .env with: BOT_TOKEN, BOT_USERNAME, OWNER_ID, ADMIN_ID, BOT_TREASURY_ADDRESS, BOT_TREASURY_MNEMONIC, JUNO_RPC_URL
 
 # Initialize and run
 yarn setup-db

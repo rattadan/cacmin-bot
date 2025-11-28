@@ -8,6 +8,7 @@
 import { Context } from 'telegraf';
 import { TransactionLockService } from '../services/transactionLock';
 import { logger } from '../utils/logger';
+import { escapeMarkdownV2 } from '../utils/markdown';
 
 /**
  * Middleware that checks if a user has an active transaction lock.
@@ -54,8 +55,8 @@ export async function lockCheckMiddleware(ctx: Context, next: () => Promise<void
 
       await ctx.reply(
         ` *Transaction in Progress*\n\n` +
-        `You have a ${lock.lockType} transaction in progress.\n` +
-        `Please wait ${remainingSeconds} seconds for it to complete.\n\n` +
+        `You have a ${escapeMarkdownV2(lock.lockType)} transaction in progress.\n` +
+        `Please wait ${escapeMarkdownV2(remainingSeconds)} seconds for it to complete.\n\n` +
         `If this persists, contact an admin.`,
         { parse_mode: 'MarkdownV2' }
       );

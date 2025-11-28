@@ -8,6 +8,7 @@
 import { Telegraf } from 'telegraf';
 import { config } from '../config';
 import { logger } from './logger';
+import { escapeMarkdownV2 } from './markdown';
 
 let botInstance: Telegraf | null = null;
 
@@ -61,7 +62,7 @@ export async function notifyAdmin(message: string): Promise<void> {
   try {
     await botInstance.telegram.sendMessage(
       config.adminChatId,
-      ` *Admin Alert*\n\n${message}`,
+      ` *Admin Alert*\n\n${escapeMarkdownV2(message)}`,
       { parse_mode: 'MarkdownV2' }
     );
   } catch (error) {

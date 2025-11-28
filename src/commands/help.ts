@@ -20,6 +20,7 @@ import { get } from '../database';
 import { User } from '../types';
 import { ensureUserExists } from '../services/userService';
 import { logger } from '../utils/logger';
+import { escapeMarkdownV2 } from '../utils/markdown';
 
 /**
  * Registers the help command with the bot.
@@ -74,7 +75,7 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
     // Only allow help command in DMs (private chats)
     if (ctx.chat?.type !== 'private') {
       const botInfo = await ctx.telegram.getMe();
-      return ctx.reply(` The /help command is only available via direct message. Please DM me @${botInfo.username}`);
+      return ctx.reply(` The /help command is only available via direct message\\. Please DM me @${escapeMarkdownV2(botInfo.username)}`, { parse_mode: 'MarkdownV2' });
     }
 
     try {
@@ -88,7 +89,7 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
       const keyboard: InlineKeyboardMarkup = buildHelpMenu(role);
 
       await ctx.reply(
-        `*CAC Admin Bot*\n\nRole: \`${role}\`\n\nSelect a category to view commands:`,
+        `*CAC Admin Bot*\n\nRole: \`${escapeMarkdownV2(role)}\`\n\nSelect a category to view commands:`,
         {
           parse_mode: 'MarkdownV2',
           reply_markup: keyboard
@@ -112,7 +113,7 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
       const keyboard: InlineKeyboardMarkup = buildHelpMenu(role);
 
       await ctx.editMessageText(
-        `*CAC Admin Bot*\n\nRole: \`${role}\`\n\nSelect a category to view commands:`,
+        `*CAC Admin Bot*\n\nRole: \`${escapeMarkdownV2(role)}\`\n\nSelect a category to view commands:`,
         {
           parse_mode: 'MarkdownV2',
           reply_markup: keyboard

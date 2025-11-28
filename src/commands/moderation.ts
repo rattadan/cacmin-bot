@@ -16,6 +16,7 @@ import { JailService } from '../services/jailService';
 import { getUserIdentifier, getCommandArgs } from '../utils/commandHelper';
 import { adminOrHigher, ownerOnly } from '../middleware/index';
 import { isImmuneToModeration } from '../utils/roles';
+import { escapeMarkdownV2, escapeNumber } from '../utils/markdown';
 
 /**
  * Registers all moderation commands with the bot.
@@ -415,21 +416,21 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
       totalBailAmount: get<{total: number}>('SELECT SUM(bail_amount) as total FROM jail_events WHERE event_type = ?', ['bail_paid'])?.total || 0,
     };
 
-    const message = ` *Bot Statistics*\n\n` +
+    const message = `📊 *Bot Statistics*\n\n` +
       `*Users*\n` +
-      `Total: ${stats.totalUsers}\n` +
-      `Blacklisted: ${stats.blacklisted}\n` +
-      `Whitelisted: ${stats.whitelisted}\n\n` +
+      `Total: ${escapeMarkdownV2(stats.totalUsers)}\n` +
+      `Blacklisted: ${escapeMarkdownV2(stats.blacklisted)}\n` +
+      `Whitelisted: ${escapeMarkdownV2(stats.whitelisted)}\n\n` +
       `*Violations*\n` +
-      `Total: ${stats.totalViolations}\n` +
-      `Unpaid Fines: ${stats.unpaidFines.toFixed(2)} JUNO\n` +
-      `Paid Fines: ${stats.paidFines.toFixed(2)} JUNO\n\n` +
+      `Total: ${escapeMarkdownV2(stats.totalViolations)}\n` +
+      `Unpaid Fines: ${escapeNumber(stats.unpaidFines, 2)} JUNO\n` +
+      `Paid Fines: ${escapeNumber(stats.paidFines, 2)} JUNO\n\n` +
       `*Jails*\n` +
-      `Currently Jailed: ${stats.activeJails}\n` +
-      `Total Jail Events: ${stats.totalJailEvents}\n` +
-      `Bails Paid: ${stats.totalBailsPaid}\n` +
-      `Total Bail Revenue: ${stats.totalBailAmount.toFixed(2)} JUNO\n\n` +
-      `Active Restrictions: ${stats.activeRestrictions}`;
+      `Currently Jailed: ${escapeMarkdownV2(stats.activeJails)}\n` +
+      `Total Jail Events: ${escapeMarkdownV2(stats.totalJailEvents)}\n` +
+      `Bails Paid: ${escapeMarkdownV2(stats.totalBailsPaid)}\n` +
+      `Total Bail Revenue: ${escapeNumber(stats.totalBailAmount, 2)} JUNO\n\n` +
+      `Active Restrictions: ${escapeMarkdownV2(stats.activeRestrictions)}`;
 
     await ctx.reply(message, { parse_mode: 'MarkdownV2' });
   });

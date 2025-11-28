@@ -12,6 +12,7 @@ import { addUserRestriction, removeUserRestriction, getUserRestrictions } from '
 import { logger, StructuredLogger } from '../utils/logger';
 import { adminOrHigher, elevatedOrHigher } from '../middleware';
 import { restrictionTypeKeyboard, durationKeyboard } from '../utils/keyboards';
+import { escapeMarkdownV2, escapeNumber } from '../utils/markdown';
 
 /**
  * Registers all restriction management command handlers with the bot.
@@ -89,7 +90,7 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
 
       // Check if target user is immune to moderation
       if (isImmuneToModeration(targetUserId)) {
-        return ctx.reply(` Cannot restrict user ${targetUserId} - admins and owners are immune to moderation actions.`);
+        return ctx.reply(` Cannot restrict user ${escapeMarkdownV2(targetUserId)} - admins and owners are immune to moderation actions.`);
       }
 
       const untilTimestamp = restrictedUntil && restrictedUntil !== '-' ? parseInt(restrictedUntil, 10) : undefined;
@@ -129,9 +130,9 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
         autoJailFine: jailFine
       });
 
-      let reply = `Restriction '${restriction}' added for user ${userId}.\n`;
-      reply += `Severity: ${severityLevel}\n`;
-      reply += `Auto-jail after ${threshold} violations in 60 minutes (${jailDuration} min jail, ${jailFine} JUNO fine)`;
+      let reply = `Restriction '${escapeMarkdownV2(restriction)}' added for user ${escapeMarkdownV2(userId)}.\n`;
+      reply += `Severity: ${escapeMarkdownV2(severityLevel)}\n`;
+      reply += `Auto-jail after ${escapeMarkdownV2(threshold)} violations in 60 minutes (${escapeMarkdownV2(jailDuration)} min jail, ${escapeNumber(jailFine, 1)} JUNO fine)`;
 
       await ctx.reply(reply);
     } catch (error) {
@@ -168,7 +169,7 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
         operation: 'remove_restriction',
         restriction
       });
-      await ctx.reply(`Restriction '${restriction}' removed for user ${userId}.`);
+      await ctx.reply(`Restriction '${escapeMarkdownV2(restriction)}' removed for user ${escapeMarkdownV2(userId)}.`);
     } catch (error) {
       StructuredLogger.logError(error as Error, { adminId, userId: parseInt(userId, 10), operation: 'remove_restriction', restriction });
       await ctx.reply('An error occurred while removing the restriction.');
@@ -198,24 +199,24 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
     try {
       const restrictions = getUserRestrictions(parseInt(userId, 10));
       if (restrictions.length === 0) {
-        return ctx.reply(`No restrictions found for user ${userId}.`);
+        return ctx.reply(`No restrictions found for user ${escapeMarkdownV2(userId)}.`);
       }
 
       const message = restrictions
         .map((r) => {
           const lines = [
-            `**Type:** ${r.restriction}`,
-            `**Action:** ${r.restrictedAction || 'N/A'}`,
-            `**Severity:** ${r.severity || 'delete'}`,
-            `**Threshold:** ${r.violationThreshold || 5} violations in 60 min`,
-            `**Auto-jail:** ${r.autoJailDuration || 2880} min (${Math.round((r.autoJailDuration || 2880) / 1440)} days)`,
-            `**Fine:** ${r.autoJailFine || 10.0} JUNO`,
-            `**Expires:** ${r.restrictedUntil ? new Date(r.restrictedUntil * 1000).toLocaleString() : 'Never (Permanent)'}`
+            `**Type:** ${escapeMarkdownV2(r.restriction || 'Unknown')}`,
+            `**Action:** ${escapeMarkdownV2(r.restrictedAction || 'N/A')}`,
+            `**Severity:** ${escapeMarkdownV2(r.severity || 'delete')}`,
+            `**Threshold:** ${escapeMarkdownV2(r.violationThreshold || 5)} violations in 60 min`,
+            `**Auto-jail:** ${escapeMarkdownV2(r.autoJailDuration || 2880)} min \\(${escapeMarkdownV2(Math.round((r.autoJailDuration || 2880) / 1440))} days\\)`,
+            `**Fine:** ${escapeNumber(r.autoJailFine || 10.0, 1)} JUNO`,
+            `**Expires:** ${escapeMarkdownV2(r.restrictedUntil ? new Date(r.restrictedUntil * 1000).toLocaleString() : 'Never (Permanent)')}`
           ];
           return lines.join('\n');
         })
         .join('\n\n━━━━━━━━━━━━━━\n\n');
-      await ctx.reply(`*Restrictions for user ${userId}:*\n\n${message}`, { parse_mode: 'MarkdownV2' });
+      await ctx.reply(`*Restrictions for user ${escapeMarkdownV2(userId)}:*\n\n${message}`, { parse_mode: 'MarkdownV2' });
 
       StructuredLogger.logUserAction('Restrictions queried', {
         adminId,

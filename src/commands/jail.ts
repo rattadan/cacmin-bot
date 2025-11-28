@@ -16,6 +16,7 @@ import { JunoService } from '../services/junoService';
 import { getUnpaidViolations, getTotalFines } from '../services/violationService';
 import { formatUserIdDisplay, resolveUserId } from '../utils/userResolver';
 import { elevatedOrHigher } from '../middleware/index';
+import { escapeMarkdownV2, escapeNumber } from '../utils/markdown';
 
 /**
  * Formats a duration in seconds into a human-readable time string.
@@ -128,7 +129,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     )?.count || 0;
 
     let message = `*Jail System Statistics*\n\n`;
-    message += `*Currently Active Jails:* ${activeJails.length}\n\n`;
+    message += `*Currently Active Jails:* ${escapeMarkdownV2(activeJails.length)}\n\n`;
 
     if (activeJails.length > 0) {
       message += `*Active Prisoners:*\n`;
@@ -136,18 +137,18 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
         const timeRemaining = formatTimeRemaining(jail.timeRemaining);
         const userDisplay = formatUserIdDisplay(jail.id);
         const bailAmount = JailService.calculateBailAmount(Math.ceil(jail.timeRemaining / 60));
-        message += `${index + 1}. ${userDisplay} - ${timeRemaining} (${bailAmount.toFixed(2)} JUNO)\n`;
+        message += `${escapeMarkdownV2(index + 1)}. ${userDisplay} - ${escapeMarkdownV2(timeRemaining)} (${escapeNumber(bailAmount, 2)} JUNO)\n`;
       });
       message += `\n`;
     }
 
     message += `*All-Time Statistics:*\n`;
-    message += `Total Jail Events: ${totalJailEvents}\n`;
-    message += `Unique Users Jailed: ${totalJailed}\n`;
-    message += `Bails Paid: ${totalBailsPaid}\n`;
-    message += `Total Bail Revenue: ${totalBailAmount.toFixed(2)} JUNO\n`;
-    message += `Auto-Releases: ${totalAutoReleases}\n`;
-    message += `Manual Releases: ${totalManualReleases}\n`;
+    message += `Total Jail Events: ${escapeMarkdownV2(totalJailEvents)}\n`;
+    message += `Unique Users Jailed: ${escapeMarkdownV2(totalJailed)}\n`;
+    message += `Bails Paid: ${escapeMarkdownV2(totalBailsPaid)}\n`;
+    message += `Total Bail Revenue: ${escapeNumber(totalBailAmount, 2)} JUNO\n`;
+    message += `Auto-Releases: ${escapeMarkdownV2(totalAutoReleases)}\n`;
+    message += `Manual Releases: ${escapeMarkdownV2(totalManualReleases)}\n`;
 
     await ctx.reply(message, { parse_mode: 'MarkdownV2' });
   });
@@ -188,8 +189,8 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     const now = Math.floor(Date.now() / 1000);
     let message = `*Your Status*\n\n`;
     message += `User: ${formatUserIdDisplay(userId)}\n`;
-    message += `Role: ${user.role}\n`;
-    message += `Warnings: ${user.warning_count}\n\n`;
+    message += `Role: ${escapeMarkdownV2(user.role)}\n`;
+    message += `Warnings: ${escapeMarkdownV2(user.warning_count)}\n\n`;
 
     // Check if jailed
     if (user.muted_until && user.muted_until > now) {
@@ -197,8 +198,8 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
       const bailAmount = JailService.calculateBailAmount(Math.ceil(timeRemaining / 60));
 
       message += `*Currently Jailed*\n`;
-      message += `Time remaining: ${formatTimeRemaining(timeRemaining)}\n`;
-      message += `Bail amount: ${bailAmount.toFixed(2)} JUNO\n\n`;
+      message += `Time remaining: ${escapeMarkdownV2(formatTimeRemaining(timeRemaining))}\n`;
+      message += `Bail amount: ${escapeNumber(bailAmount, 2)} JUNO\n\n`;
       message += `To pay bail: /paybail\n\n`;
     } else {
       message += ` Not currently jailed\n\n`;
@@ -209,8 +210,8 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     if (violations.length > 0) {
       const totalFines = getTotalFines(userId);
       message += `*Unpaid Fines*\n`;
-      message += `Count: ${violations.length}\n`;
-      message += `Total: ${totalFines.toFixed(2)} JUNO\n\n`;
+      message += `Count: ${escapeMarkdownV2(violations.length)}\n`;
+      message += `Total: ${escapeNumber(totalFines, 2)} JUNO\n\n`;
       message += `View details: /violations\n`;
       message += `Pay fines: /payfine\n`;
     } else {
@@ -245,17 +246,17 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
       return ctx.reply(' No users currently jailed.');
     }
 
-    let message = `*Active Jails* (${activeJails.length})\n\n`;
+    let message = `*Active Jails* (${escapeMarkdownV2(activeJails.length)})\n\n`;
 
     activeJails.forEach((jail, index) => {
       const bailAmount = JailService.calculateBailAmount(Math.ceil(jail.timeRemaining / 60));
       const timeRemaining = formatTimeRemaining(jail.timeRemaining);
       const userDisplay = formatUserIdDisplay(jail.id);
 
-      message += `${index + 1}\\. ${userDisplay}\n`;
-      message += `   Time: ${timeRemaining}\n`;
-      message += `   Bail: ${bailAmount.toFixed(2)} JUNO\n`;
-      message += `   Pay: /paybailfor ${jail.id}\n\n`;
+      message += `${escapeMarkdownV2(index + 1)}\\. ${userDisplay}\n`;
+      message += `   Time: ${escapeMarkdownV2(timeRemaining)}\n`;
+      message += `   Bail: ${escapeNumber(bailAmount, 2)} JUNO\n`;
+      message += `   Pay: /paybailfor ${escapeMarkdownV2(jail.id)}\n\n`;
     });
 
     message += `Anyone can pay bail for any user using /paybailfor <userId>`;
@@ -302,10 +303,10 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     const bailAmount = JailService.calculateBailAmount(Math.ceil(timeRemaining / 60));
 
     const message = `*Pay Your Bail*\n\n` +
-      `Current jail time remaining: ${formatTimeRemaining(timeRemaining)}\n` +
-      `Bail amount: ${bailAmount.toFixed(2)} JUNO\n\n` +
-      `Send exactly ${bailAmount.toFixed(2)} JUNO to:\n` +
-      `\`${JunoService.getPaymentAddress()}\`\n\n` +
+      `Current jail time remaining: ${escapeMarkdownV2(formatTimeRemaining(timeRemaining))}\n` +
+      `Bail amount: ${escapeNumber(bailAmount, 2)} JUNO\n\n` +
+      `Send exactly ${escapeNumber(bailAmount, 2)} JUNO to:\n` +
+      `\`${escapeMarkdownV2(JunoService.getPaymentAddress())}\`\n\n` +
       `After payment, send:\n` +
       `/verifybail \\<transaction\\_hash\\>\n\n` +
       `Payment will release you from jail immediately\\!`;
@@ -362,12 +363,12 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     const bailAmount = JailService.calculateBailAmount(Math.ceil(timeRemaining / 60));
 
     const message = `*Pay Bail For ${formatUserIdDisplay(targetUserId)}*\n\n` +
-      `Current jail time remaining: ${formatTimeRemaining(timeRemaining)}\n` +
-      `Bail amount: ${bailAmount.toFixed(2)} JUNO\n\n` +
-      `Send exactly ${bailAmount.toFixed(2)} JUNO to:\n` +
-      `\`${JunoService.getPaymentAddress()}\`\n\n` +
+      `Current jail time remaining: ${escapeMarkdownV2(formatTimeRemaining(timeRemaining))}\n` +
+      `Bail amount: ${escapeNumber(bailAmount, 2)} JUNO\n\n` +
+      `Send exactly ${escapeNumber(bailAmount, 2)} JUNO to:\n` +
+      `\`${escapeMarkdownV2(JunoService.getPaymentAddress())}\`\n\n` +
       `After payment, send:\n` +
-      `/verifybailfor ${targetUserId} \\<transaction\\_hash\\>\n\n` +
+      `/verifybailfor ${escapeMarkdownV2(targetUserId)} \\<transaction\\_hash\\>\n\n` +
       `Payment will release them from jail immediately\\!`;
 
     await ctx.reply(message, { parse_mode: 'MarkdownV2' });
@@ -461,7 +462,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
     await ctx.reply(
       `*Bail Payment Verified\\!*\n\n` +
       `You have been released from jail\\.\n` +
-      `Transaction: \`${txHash}\``,
+      `Transaction: \`${escapeMarkdownV2(txHash)}\``,
       { parse_mode: 'MarkdownV2' }
     );
 
@@ -581,7 +582,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
       `*Bail Payment Verified\\!*\n\n` +
       `${formatUserIdDisplay(targetUserId)} has been released from jail\\.\n` +
       `Paid by: ${formatUserIdDisplay(payerId)}\n` +
-      `Transaction: \`${txHash}\``,
+      `Transaction: \`${escapeMarkdownV2(txHash)}\``,
       { parse_mode: 'MarkdownV2' }
     );
 

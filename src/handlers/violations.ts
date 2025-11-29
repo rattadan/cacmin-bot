@@ -10,6 +10,7 @@ import type { Context, Telegraf } from "telegraf";
 import { query } from "../database";
 import type { Violation } from "../types";
 import { StructuredLogger } from "../utils/logger";
+import { escapeMarkdownV2, escapeNumber } from "../utils/markdown";
 
 /**
  * Registers all violation management command handlers with the bot.
@@ -65,11 +66,11 @@ export const registerViolationHandlers = (bot: Telegraf<Context>) => {
 			for (const v of violations) {
 				const paidStatus = v.paid
 					? " Paid"
-					: ` Unpaid \\(${v.bailAmount.toFixed(2)} JUNO\\)`;
-				message += `\\#${v.id} \\- ${v.restriction}\n`;
+					: ` Unpaid \\(${escapeNumber(v.bailAmount, 2)} JUNO\\)`;
+				message += `\\#${escapeMarkdownV2(v.id)} \\- ${escapeMarkdownV2(v.restriction)}\n`;
 				message += `Status: ${paidStatus}\n`;
 				if (v.message) {
-					message += `Message: \`${v.message.substring(0, 50)}\`\n`;
+					message += `Message: \`${escapeMarkdownV2(v.message.substring(0, 50))}\`\n`;
 				}
 				message += "\n";
 

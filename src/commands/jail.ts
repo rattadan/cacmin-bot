@@ -18,6 +18,7 @@ import {
 } from "../services/violationService";
 import type { User } from "../types";
 import { logger, StructuredLogger } from "../utils/logger";
+import { escapeMarkdownV2, escapeNumber } from "../utils/markdown";
 import { formatUserIdDisplay, resolveUserId } from "../utils/userResolver";
 
 /**
@@ -258,7 +259,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 			return ctx.reply(" No users currently jailed.");
 		}
 
-		let message = `*Active Jails* (${activeJails.length})\n\n`;
+		let message = `*Active Jails* (${escapeMarkdownV2(activeJails.length)})\n\n`;
 
 		for (let index = 0; index < activeJails.length; index++) {
 			const jail = activeJails[index];
@@ -268,10 +269,10 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 			const timeRemaining = formatTimeRemaining(jail.timeRemaining);
 			const userDisplay = formatUserIdDisplay(jail.id);
 
-			message += `${index + 1}\\. ${userDisplay}\n`;
-			message += `   Time: ${timeRemaining}\n`;
-			message += `   Bail: ${bailAmount.toFixed(2)} JUNO\n`;
-			message += `   Pay: /paybailfor ${jail.id}\n\n`;
+			message += `${escapeMarkdownV2(index + 1)}\\. ${escapeMarkdownV2(userDisplay)}\n`;
+			message += `   Time: ${escapeMarkdownV2(timeRemaining)}\n`;
+			message += `   Bail: ${escapeNumber(bailAmount, 2)} JUNO\n`;
+			message += `   Pay: /paybailfor ${escapeMarkdownV2(jail.id)}\n\n`;
 		}
 
 		message += `Anyone can pay bail for any user using /paybailfor <userId>`;
@@ -321,10 +322,10 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 
 		const message =
 			`*Pay Your Bail*\n\n` +
-			`Current jail time remaining: ${formatTimeRemaining(timeRemaining)}\n` +
-			`Bail amount: ${bailAmount.toFixed(2)} JUNO\n\n` +
-			`Send exactly ${bailAmount.toFixed(2)} JUNO to:\n` +
-			`\`${JunoService.getPaymentAddress()}\`\n\n` +
+			`Current jail time remaining: ${escapeMarkdownV2(formatTimeRemaining(timeRemaining))}\n` +
+			`Bail amount: ${escapeNumber(bailAmount, 2)} JUNO\n\n` +
+			`Send exactly ${escapeNumber(bailAmount, 2)} JUNO to:\n` +
+			`\`${escapeMarkdownV2(JunoService.getPaymentAddress())}\`\n\n` +
 			`After payment, send:\n` +
 			`/verifybail \\<transaction\\_hash\\>\n\n` +
 			`Payment will release you from jail immediately\\!`;
@@ -387,13 +388,13 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 		);
 
 		const message =
-			`*Pay Bail For ${formatUserIdDisplay(targetUserId)}*\n\n` +
-			`Current jail time remaining: ${formatTimeRemaining(timeRemaining)}\n` +
-			`Bail amount: ${bailAmount.toFixed(2)} JUNO\n\n` +
-			`Send exactly ${bailAmount.toFixed(2)} JUNO to:\n` +
-			`\`${JunoService.getPaymentAddress()}\`\n\n` +
+			`*Pay Bail For ${escapeMarkdownV2(formatUserIdDisplay(targetUserId))}*\n\n` +
+			`Current jail time remaining: ${escapeMarkdownV2(formatTimeRemaining(timeRemaining))}\n` +
+			`Bail amount: ${escapeNumber(bailAmount, 2)} JUNO\n\n` +
+			`Send exactly ${escapeNumber(bailAmount, 2)} JUNO to:\n` +
+			`\`${escapeMarkdownV2(JunoService.getPaymentAddress())}\`\n\n` +
 			`After payment, send:\n` +
-			`/verifybailfor ${targetUserId} \\<transaction\\_hash\\>\n\n` +
+			`/verifybailfor ${escapeMarkdownV2(targetUserId)} \\<transaction\\_hash\\>\n\n` +
 			`Payment will release them from jail immediately\\!`;
 
 		await ctx.reply(message, { parse_mode: "MarkdownV2" });
@@ -504,7 +505,7 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 		await ctx.reply(
 			`*Bail Payment Verified\\!*\n\n` +
 				`You have been released from jail\\.\n` +
-				`Transaction: \`${txHash}\``,
+				`Transaction: \`${escapeMarkdownV2(txHash)}\``,
 			{ parse_mode: "MarkdownV2" },
 		);
 
@@ -651,9 +652,9 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 
 		await ctx.reply(
 			`*Bail Payment Verified\\!*\n\n` +
-				`${formatUserIdDisplay(targetUserId)} has been released from jail\\.\n` +
-				`Paid by: ${formatUserIdDisplay(payerId)}\n` +
-				`Transaction: \`${txHash}\``,
+				`${escapeMarkdownV2(formatUserIdDisplay(targetUserId))} has been released from jail\\.\n` +
+				`Paid by: ${escapeMarkdownV2(formatUserIdDisplay(payerId))}\n` +
+				`Transaction: \`${escapeMarkdownV2(txHash)}\``,
 			{ parse_mode: "MarkdownV2" },
 		);
 

@@ -520,28 +520,8 @@ export class UnifiedWalletService {
 			return;
 		}
 
-		// Record deposit as processing
-		execute(
-			`INSERT INTO processed_deposits (
-        tx_hash, user_id, amount, from_address, memo, height, processed, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, 0, ?)`,
-			[
-				deposit.txHash,
-				deposit.userId ?? null,
-				deposit.amount,
-				deposit.fromAddress,
-				deposit.memo,
-				deposit.height,
-				deposit.timestamp,
-			],
-		);
-
-		// Update last checked height
-		if (deposit.height > UnifiedWalletService.lastCheckedHeight) {
-			UnifiedWalletService.lastCheckedHeight = deposit.height;
-		}
-
-		// Determine target user
+		// Determine target user FIRST (before inserting into processed_deposits)
+		// This ensures the user exists before we reference them with a foreign key
 		let targetUserId = deposit.userId;
 
 		if (!targetUserId) {
@@ -578,6 +558,27 @@ export class UnifiedWalletService {
 					memo: deposit.memo,
 				});
 			}
+		}
+
+		// Record deposit as processing (user now guaranteed to exist)
+		execute(
+			`INSERT INTO processed_deposits (
+        tx_hash, user_id, amount, from_address, memo, height, processed, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, 0, ?)`,
+			[
+				deposit.txHash,
+				targetUserId, // Use resolved targetUserId, not deposit.userId
+				deposit.amount,
+				deposit.fromAddress,
+				deposit.memo,
+				deposit.height,
+				deposit.timestamp,
+			],
+		);
+
+		// Update last checked height
+		if (deposit.height > UnifiedWalletService.lastCheckedHeight) {
+			UnifiedWalletService.lastCheckedHeight = deposit.height;
 		}
 
 		// Process deposit in ledger

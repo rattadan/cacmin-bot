@@ -20,6 +20,7 @@ import { get } from "../database";
 import { ensureUserExists } from "../services/userService";
 import type { User } from "../types";
 import { logger } from "../utils/logger";
+import { escapeMarkdownV2 } from "../utils/markdown";
 
 /**
  * Registers the help command with the bot.
@@ -90,7 +91,7 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
 			const keyboard: InlineKeyboardMarkup = buildHelpMenu(role);
 
 			await ctx.reply(
-				`*CAC Admin Bot*\n\nRole: \`${role}\`\n\nSelect a category to view commands:`,
+				`*CAC Admin Bot*\n\nRole: \`${escapeMarkdownV2(role)}\`\n\nSelect a category to view commands:`,
 				{
 					parse_mode: "MarkdownV2",
 					reply_markup: keyboard,
@@ -114,7 +115,7 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
 			const keyboard: InlineKeyboardMarkup = buildHelpMenu(role);
 
 			await ctx.editMessageText(
-				`*CAC Admin Bot*\n\nRole: \`${role}\`\n\nSelect a category to view commands:`,
+				`*CAC Admin Bot*\n\nRole: \`${escapeMarkdownV2(role)}\`\n\nSelect a category to view commands:`,
 				{
 					parse_mode: "MarkdownV2",
 					reply_markup: keyboard,

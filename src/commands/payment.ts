@@ -18,6 +18,7 @@ import {
 } from "../services/violationService";
 import type { User, Violation } from "../types";
 import { logger, StructuredLogger } from "../utils/logger";
+import { escapeMarkdownV2, escapeNumber } from "../utils/markdown";
 
 /**
  * Registers all payment-related commands with the bot.
@@ -250,12 +251,12 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
 			let message = `*Your Unpaid Fines*\n\n`;
 
 			for (const v of violations) {
-				message += `ID: ${v.id} \\- ${v.restriction} \\- ${v.bailAmount.toFixed(2)} JUNO\n`;
+				message += `ID: ${escapeMarkdownV2(v.id)} \\- ${escapeMarkdownV2(v.restriction)} \\- ${escapeNumber(v.bailAmount, 2)} JUNO\n`;
 			}
 
-			message += `\n*Total: ${totalFines.toFixed(2)} JUNO*\n\n`;
+			message += `\n*Total: ${escapeNumber(totalFines, 2)} JUNO*\n\n`;
 			message += `To pay a specific fine:\n/payfine \\<violationId\\>\n\n`;
-			message += `Payment address:\n\`${config.botTreasuryAddress}\`\n\n`;
+			message += `Payment address:\n\`${escapeMarkdownV2(config.botTreasuryAddress || "N/A")}\`\n\n`;
 			message += `After payment, send:\n/verifypayment \\<violationId\\> \\<txHash\\>`;
 
 			return ctx.reply(message, { parse_mode: "MarkdownV2" });
@@ -277,13 +278,13 @@ export function registerPaymentCommands(bot: Telegraf<Context>): void {
 
 		const message =
 			`*Payment Instructions*\n\n` +
-			`Violation ID: ${violation.id}\n` +
-			`Type: ${violation.restriction}\n` +
-			`Amount: ${violation.bailAmount.toFixed(2)} JUNO\n\n` +
-			`Send exactly ${violation.bailAmount.toFixed(2)} JUNO to:\n` +
-			`\`${config.botTreasuryAddress}\`\n\n` +
+			`Violation ID: ${escapeMarkdownV2(violation.id)}\n` +
+			`Type: ${escapeMarkdownV2(violation.restriction)}\n` +
+			`Amount: ${escapeNumber(violation.bailAmount, 2)} JUNO\n\n` +
+			`Send exactly ${escapeNumber(violation.bailAmount, 2)} JUNO to:\n` +
+			`\`${escapeMarkdownV2(config.botTreasuryAddress || "N/A")}\`\n\n` +
 			`After payment, send:\n` +
-			`/verifypayment ${violation.id} \\<transaction\\_hash\\>`;
+			`/verifypayment ${escapeMarkdownV2(violation.id)} \\<transaction\\_hash\\>`;
 
 		await ctx.reply(message, { parse_mode: "MarkdownV2" });
 	});

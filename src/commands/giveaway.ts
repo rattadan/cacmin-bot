@@ -232,21 +232,20 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
 			const totalUserBalances = internalBalances[0]?.total || 0;
 
 			await ctx.reply(
-				` *Treasury & Ledger Status*\n\n` +
-					`* On-Chain Treasury Wallet:*\n` +
-					`Address: \`${treasuryAddress}\`\n` +
-					`Balance: *${treasuryBalance?.toFixed(6) || "0"} JUNO*\n` +
+				`📊 Treasury & Ledger Status\n\n` +
+					`🏦 On-Chain Treasury Wallet:\n` +
+					`Address: ${treasuryAddress}\n` +
+					`Balance: ${treasuryBalance?.toFixed(6) || "0"} JUNO\n` +
 					`Purpose: Receives bail/fine payments via on-chain transfers\n\n` +
-					`* Internal Ledger System:*\n` +
-					`Total User Balances: \`${totalUserBalances.toFixed(6)} JUNO\`\n` +
-					`Fines Collected: \`${totalFines.toFixed(6)} JUNO\` (deducted from users)\n` +
-					`Bail Collected: \`${totalBail.toFixed(6)} JUNO\` (deducted from users)\n\n` +
-					`*Note:* Treasury and ledger are separate systems.\n` +
+					`📒 Internal Ledger System:\n` +
+					`Total User Balances: ${totalUserBalances.toFixed(6)} JUNO\n` +
+					`Fines Collected: ${totalFines.toFixed(6)} JUNO - deducted from users\n` +
+					`Bail Collected: ${totalBail.toFixed(6)} JUNO - deducted from users\n\n` +
+					`Note: Treasury and ledger are separate systems.\n` +
 					`• Treasury: On-chain wallet for direct payments\n` +
 					`• Ledger: Internal accounting for user balances\n\n` +
 					`Use /giveaway to distribute funds\n` +
 					`Use /walletstats for detailed reconciliation`,
-				{ parse_mode: "Markdown" },
 			);
 		} catch (error) {
 			logger.error("Error fetching treasury info", error);

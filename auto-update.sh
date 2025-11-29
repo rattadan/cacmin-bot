@@ -142,27 +142,34 @@ if [ -d "$INSTALL_DIR" ]; then
     echo -e "${GREEN}✓ Backup created${NC}"
 fi
 
-# Extract new version (preserving .env, data, and node_modules)
+# Extract new version (in-place update to preserve directory inode)
 echo -e "\n${YELLOW}Installing new version...${NC}"
 
-# Preserve .env, data directory, and node_modules
-if [ -d "$INSTALL_DIR" ]; then
-    mv "$INSTALL_DIR/.env" /tmp/cacmin-bot.env.bak 2>/dev/null || true
-    mv "$INSTALL_DIR/data" /tmp/cacmin-bot.data.bak 2>/dev/null || true
-    mv "$INSTALL_DIR/node_modules" /tmp/cacmin-bot.node_modules.bak 2>/dev/null || true
-fi
-
-# Remove old installation (except preserved files)
-rm -rf "$INSTALL_DIR"
+# Ensure install directory exists
 mkdir -p "$INSTALL_DIR"
 
-# Extract new version
-tar -xzf cacmin-bot-dist.tar.gz -C "$INSTALL_DIR/"
+# Extract to temp location first
+EXTRACT_DIR="/tmp/cacmin-bot-extract-$$"
+mkdir -p "$EXTRACT_DIR"
+tar -xzf cacmin-bot-dist.tar.gz -C "$EXTRACT_DIR/"
 
-# Restore .env, data, and node_modules
-[ -f /tmp/cacmin-bot.env.bak ] && mv /tmp/cacmin-bot.env.bak "$INSTALL_DIR/.env"
-[ -d /tmp/cacmin-bot.data.bak ] && mv /tmp/cacmin-bot.data.bak "$INSTALL_DIR/data"
-[ -d /tmp/cacmin-bot.node_modules.bak ] && mv /tmp/cacmin-bot.node_modules.bak "$INSTALL_DIR/node_modules"
+# Remove old files EXCEPT .env, data, node_modules, logs, .yarn, .cache
+# This preserves the directory inode so shells don't lose their cwd
+find "$INSTALL_DIR" -mindepth 1 -maxdepth 1 \
+    ! -name '.env' \
+    ! -name 'data' \
+    ! -name 'node_modules' \
+    ! -name 'logs' \
+    ! -name '.yarn' \
+    ! -name '.cache' \
+    ! -name '.yarn-installed' \
+    -exec rm -rf {} + 2>/dev/null || true
+
+# Copy new files into existing directory (preserving inode)
+cp -r "$EXTRACT_DIR"/* "$INSTALL_DIR/"
+
+# Cleanup extract dir
+rm -rf "$EXTRACT_DIR"
 
 # Create data directory if it doesn't exist
 mkdir -p "$INSTALL_DIR/data"

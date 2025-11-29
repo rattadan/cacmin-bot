@@ -522,13 +522,47 @@ export class UnifiedWalletService {
 	private static async processDeposit(deposit: DepositCheck): Promise<void> {
 		const { createUser, userExists } = await import("./userService");
 
-		// Check if already processed
+		// Check if already processed in processed_deposits table
 		const existing = get<any>(
 			"SELECT * FROM processed_deposits WHERE tx_hash = ?",
 			[deposit.txHash],
 		);
 
 		if (existing) {
+			return;
+		}
+
+		// SAFEGUARD: Also check transactions table for this tx_hash
+		// This prevents double-crediting if processed_deposits was missing an entry
+		const existingTx = get<any>(
+			"SELECT * FROM transactions WHERE tx_hash = ? AND transaction_type = 'deposit'",
+			[deposit.txHash],
+		);
+
+		if (existingTx) {
+			logger.warn("Deposit tx_hash already exists in transactions table, skipping to prevent duplicate credit", {
+				txHash: deposit.txHash,
+				existingToUser: existingTx.to_user_id,
+				existingAmount: existingTx.amount,
+				attemptedUserId: deposit.userId,
+				attemptedAmount: deposit.amount,
+			});
+			// Add to processed_deposits to prevent future attempts
+			execute(
+				`INSERT OR IGNORE INTO processed_deposits (
+					tx_hash, user_id, amount, from_address, memo, height, processed, created_at, error
+				) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+				[
+					deposit.txHash,
+					existingTx.to_user_id,
+					existingTx.amount,
+					deposit.fromAddress,
+					deposit.memo,
+					deposit.height,
+					Math.floor(Date.now() / 1000),
+					"Retroactively added - tx already in ledger",
+				],
+			);
 			return;
 		}
 
@@ -844,6 +878,28 @@ export class UnifiedWalletService {
 					"completed" as any,
 					result.transactionHash,
 				);
+			}
+
+			// Record gas fee in ledger to keep internal total accurate
+			// Gas is paid from the on-chain wallet but not yet tracked in ledger
+			if (result.gasUsed) {
+				const gasUsedNum = Number(result.gasUsed);
+				const gasFeeUjuno = gasUsedNum * 0.075; // gas price is 0.075ujuno
+				const gasFeeJuno = gasFeeUjuno / 1_000_000;
+				if (gasFeeJuno > 0.000001) {
+					// Debit from SYSTEM_RESERVE to track the gas cost
+					await LedgerService.processAdjustment(
+						SYSTEM_USER_IDS.SYSTEM_RESERVE,
+						-gasFeeJuno,
+						`Gas fee for withdrawal ${result.transactionHash.slice(0, 16)}...`,
+					);
+					logger.info("Gas fee recorded in ledger", {
+						userId,
+						txHash: result.transactionHash,
+						gasUsed: gasUsedNum,
+						gasFeeJuno,
+					});
+				}
 			}
 
 			// Attempt to verify and release lock
@@ -1170,6 +1226,27 @@ export class UnifiedWalletService {
 			return {
 				success: false,
 				error: "Deposit not found or not unclaimed",
+			};
+		}
+
+		// SAFEGUARD: Check if this deposit was already claimed (transfer from UNCLAIMED exists)
+		const existingClaim = get<any>(
+			`SELECT * FROM transactions
+			 WHERE transaction_type = 'transfer'
+			 AND from_user_id = ?
+			 AND description LIKE ?`,
+			[SYSTEM_USER_IDS.UNCLAIMED, `%${txHash}%`],
+		);
+
+		if (existingClaim) {
+			logger.warn("Deposit already claimed, preventing duplicate claim", {
+				txHash,
+				previousClaimUserId: existingClaim.to_user_id,
+				attemptedUserId: userId,
+			});
+			return {
+				success: false,
+				error: `Deposit already claimed by user ${existingClaim.to_user_id}`,
 			};
 		}
 

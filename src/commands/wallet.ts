@@ -8,6 +8,7 @@
 
 import type { Context, Telegraf } from "telegraf";
 import {
+	handleAdjustBalance,
 	handleBalance,
 	handleCheckDeposit,
 	handleReconcile,
@@ -99,11 +100,22 @@ export function registerWalletCommands(bot: Telegraf<Context>): void {
 	/**
 	 * Command: /reconcile
 	 * Check internal ledger balance against on-chain balance (owner only).
+	 * Shows mismatch details and provides correction commands.
 	 *
 	 * Permission: Owner only
 	 * Syntax: /reconcile
 	 */
 	bot.command("reconcile", ownerOnly, handleReconcile);
+
+	/**
+	 * Command: /adjustbalance
+	 * Manually adjust the internal ledger to correct discrepancies.
+	 * Uses SYSTEM_RESERVE account for audit trail.
+	 *
+	 * Permission: Owner only
+	 * Syntax: /adjustbalance <amount> <debit|credit> [reason]
+	 */
+	bot.command("adjustbalance", ownerOnly, handleAdjustBalance);
 
 	/**
 	 * Command: /checkdeposit (alias: /checktx)
@@ -125,7 +137,7 @@ export function registerWalletCommands(bot: Telegraf<Context>): void {
 	 */
 	bot.command("wallethelp", async (ctx) => {
 		await ctx.reply(
-			` *Wallet Commands*\n\n` +
+			`*Wallet Commands*\n\n` +
 				`*Basic Commands:*\n` +
 				`/balance - Check your balance\n` +
 				`/deposit - Get deposit instructions\n` +
@@ -134,18 +146,19 @@ export function registerWalletCommands(bot: Telegraf<Context>): void {
 				`/transactions - View transaction history\n` +
 				`/checkdeposit <tx_hash> - Check a specific deposit\n\n` +
 				`*Send Recipients:*\n` +
-				`• @username - Send to another user\n` +
-				`• User ID - Send to user by ID\n` +
-				`• juno1... - Send to external wallet\n\n` +
+				`- @username - Send to another user\n` +
+				`- User ID - Send to user by ID\n` +
+				`- juno1... - Send to external wallet\n\n` +
 				`*Owner Commands:*\n` +
 				`/walletstats - System statistics\n` +
 				`/giveaway <@user|id> <amount> - Send giveaway to user\n` +
-				`/reconcile - Check internal ledger vs on-chain balance\n\n` +
+				`/reconcile - Check internal ledger vs on-chain balance\n` +
+				`/adjustbalance <amt> <debit|credit> - Fix ledger discrepancies\n\n` +
 				`*Important:*\n` +
-				`• Always include your user ID (${ctx.from?.id}) as memo when depositing\n` +
-				`• Withdrawals are locked to prevent double-spending\n` +
-				`• Internal transfers are instant and free\n` +
-				`• External transfers incur network fees`,
+				`- Always include your user ID (${ctx.from?.id}) as memo when depositing\n` +
+				`- Withdrawals are locked to prevent double-spending\n` +
+				`- Internal transfers are instant and free\n` +
+				`- External transfers incur network fees`,
 			{ parse_mode: "Markdown" },
 		);
 	});

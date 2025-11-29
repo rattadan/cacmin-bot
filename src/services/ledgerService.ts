@@ -691,4 +691,61 @@ export class LedgerService {
 
 		return result;
 	}
+
+	/**
+	 * Process a balance adjustment for reconciliation purposes.
+	 * Used to correct discrepancies between internal ledger and on-chain balance.
+	 * Typically applied to SYSTEM_RESERVE account.
+	 *
+	 * @param userId - Target user ID (usually SYSTEM_RESERVE = -2)
+	 * @param amount - Positive to credit, negative to debit
+	 * @param description - Reason for adjustment
+	 */
+	static async processAdjustment(
+		userId: number,
+		amount: number,
+		description: string,
+	): Promise<{ success: boolean; newBalance: number }> {
+		try {
+			await LedgerService.ensureUserBalance(userId);
+			const currentBalance = await LedgerService.getUserBalance(userId);
+			const newBalance = currentBalance + amount;
+
+			// Update balance (can go negative for SYSTEM_RESERVE to represent deficit)
+			await LedgerService.updateBalance(userId, newBalance);
+
+			// Record transaction with special adjustment type
+			await LedgerService.recordTransaction({
+				transactionType:
+					amount >= 0 ? TransactionType.GIVEAWAY : TransactionType.FINE,
+				fromUserId: amount < 0 ? userId : undefined,
+				toUserId: amount >= 0 ? userId : undefined,
+				amount: Math.abs(amount),
+				balanceAfter: newBalance,
+				description,
+				status: TransactionStatus.COMPLETED,
+				metadata: JSON.stringify({
+					type: "reconciliation_adjustment",
+					direction: amount >= 0 ? "credit" : "debit",
+					previousBalance: currentBalance,
+				}),
+			});
+
+			logger.info("Balance adjustment processed", {
+				userId,
+				amount,
+				previousBalance: currentBalance,
+				newBalance,
+				description,
+			});
+
+			return { success: true, newBalance };
+		} catch (error) {
+			logger.error("Failed to process adjustment", { userId, amount, error });
+			return {
+				success: false,
+				newBalance: await LedgerService.getUserBalance(userId),
+			};
+		}
+	}
 }

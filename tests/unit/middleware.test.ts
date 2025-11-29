@@ -309,8 +309,8 @@ describe('Middleware and Utilities Test Suite', () => {
         expect(elevatedUserOnly).toBe(elevatedOrHigher);
       });
 
-      it('elevatedAdminOnly should be alias for adminOrHigher', () => {
-        expect(elevatedAdminOnly).toBe(adminOrHigher);
+      it('elevatedAdminOnly should be alias for elevatedOrHigher', () => {
+        expect(elevatedAdminOnly).toBe(elevatedOrHigher);
       });
     });
   });

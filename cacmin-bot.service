@@ -3,6 +3,8 @@ Description=CAC Admin Telegram Bot
 Documentation=https://github.com/Cordtus/cacmin-bot
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -19,8 +21,6 @@ ExecStart=/usr/bin/yarn start
 # Restart configuration
 Restart=always
 RestartSec=10
-StartLimitIntervalSec=300
-StartLimitBurst=5
 
 # Environment
 Environment=NODE_ENV=production

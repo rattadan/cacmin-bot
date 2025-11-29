@@ -84,7 +84,7 @@ export function registerCallbackHandlers(bot: Telegraf<Context>): void {
 			// Handle cancel
 			if (data === "cancel") {
 				clearSession(userId);
-				await ctx.editMessageText("❌ Action cancelled.");
+				await ctx.editMessageText("Action cancelled.");
 				return;
 			}
 
@@ -114,7 +114,7 @@ export function registerCallbackHandlers(bot: Telegraf<Context>): void {
 			}
 		} catch (error) {
 			logger.error("Error handling callback query", { userId, data, error });
-			await ctx.answerCbQuery("❌ An error occurred. Please try again.");
+			await ctx.answerCbQuery("An error occurred. Please try again.");
 		}
 	});
 }
@@ -133,7 +133,7 @@ async function handleRestrictionCallback(
 	setSession(userId, "add_restriction", 1, { restrictionType });
 
 	await ctx.editMessageText(
-		`🎯 *Add Restriction: ${restrictionType}*\n\n` +
+		`*Add Restriction: ${restrictionType}*\n\n` +
 			`Please reply with the user ID or @username to restrict.\n\n` +
 			`Format: \`userId\` or \`@username\``,
 		{ parse_mode: "Markdown" },
@@ -151,7 +151,7 @@ async function handleJailCallback(
 	if (data === "jail_custom") {
 		setSession(userId, "jail", 1, {});
 		await ctx.editMessageText(
-			"⏱️ *Custom Jail Duration*\n\n" +
+			"*Custom Jail Duration*\n\n" +
 				"Please reply with:\n" +
 				"1. User ID or @username\n" +
 				"2. Duration in minutes\n\n" +
@@ -165,7 +165,7 @@ async function handleJailCallback(
 	setSession(userId, "jail", 1, { minutes });
 
 	await ctx.editMessageText(
-		`⏱️ *Jail User for ${minutes} minutes*\n\n` +
+		`*Jail User for ${minutes} minutes*\n\n` +
 			`Please reply with the user ID or @username to jail.\n\n` +
 			`Format: \`userId\` or \`@username\``,
 		{ parse_mode: "Markdown" },
@@ -182,7 +182,7 @@ async function handleDurationCallback(
 ): Promise<void> {
 	const session = getSession(userId);
 	if (!session) {
-		await ctx.editMessageText("❌ Session expired. Please start over.");
+		await ctx.editMessageText("Session expired. Please start over.");
 		return;
 	}
 
@@ -198,7 +198,7 @@ async function handleDurationCallback(
 
 	const durationText = duration ? `${duration / 3600} hours` : "permanent";
 	await ctx.editMessageText(
-		`✅ Duration set to: ${durationText}\n\n` +
+		`Duration set to: ${durationText}\n\n` +
 			`Restriction will be applied. Use /listrestrictions <userId> to verify.`,
 		{ parse_mode: "Markdown" },
 	);
@@ -218,7 +218,7 @@ async function handleGiveawayCallback(
 	if (data === "give_custom") {
 		setSession(userId, "giveaway", 1, {});
 		await ctx.editMessageText(
-			"💰 *Custom Giveaway Amount*\n\n" +
+			"*Custom Giveaway Amount*\n\n" +
 				"Please reply with:\n" +
 				"1. User ID or @username\n" +
 				"2. Amount in JUNO\n\n" +
@@ -232,7 +232,7 @@ async function handleGiveawayCallback(
 	setSession(userId, "giveaway", 1, { amount });
 
 	await ctx.editMessageText(
-		`💰 *Giveaway: ${amount} JUNO*\n\n` +
+		`*Giveaway: ${amount} JUNO*\n\n` +
 			`Please reply with the user ID or @username to receive the giveaway.\n\n` +
 			`Format: \`userId\` or \`@username\``,
 		{ parse_mode: "Markdown" },
@@ -252,7 +252,7 @@ async function handleGlobalActionCallback(
 	setSession(userId, "add_global_action", 1, { actionType });
 
 	await ctx.editMessageText(
-		`🌐 *Add Global Action: ${actionType}*\n\n` +
+		`*Add Global Action: ${actionType}*\n\n` +
 			`This will restrict ALL users from: ${actionType}\n\n` +
 			`Optionally, reply with a specific action to restrict (e.g., specific sticker pack name, domain, etc.)\n` +
 			`Or type "apply" to apply globally.`,
@@ -275,13 +275,13 @@ async function handleRoleCallback(
 	let message = "";
 	if (roleAction === "admin") {
 		message =
-			"👑 *Make Admin*\n\nPlease reply with the user ID or @username to promote to admin.";
+			"*Make Admin*\n\nPlease reply with the user ID or @username to promote to admin.";
 	} else if (roleAction === "elevated") {
 		message =
-			"⭐ *Elevate User*\n\nPlease reply with the user ID or @username to elevate.";
+			"*Elevate User*\n\nPlease reply with the user ID or @username to elevate.";
 	} else if (roleAction === "revoke") {
 		message =
-			"🔽 *Revoke Role*\n\nPlease reply with the user ID or @username to demote.";
+			"*Revoke Role*\n\nPlease reply with the user ID or @username to demote.";
 	}
 
 	await ctx.editMessageText(
@@ -331,7 +331,7 @@ async function handleListCallback(
 	setSession(userId, `list_${action}`, 1, {});
 
 	await ctx.editMessageText(
-		`📋 *List Management*\n\n` +
+		`*List Management*\n\n` +
 			`Action: ${action}\n\n` +
 			`Please reply with the user ID or @username.\n\n` +
 			`Format: \`@username\` or \`userId\``,
@@ -351,7 +351,7 @@ async function handlePermissionCallback(
 	const session = getSession(userId);
 
 	if (!session) {
-		await ctx.editMessageText("❌ Session expired. Please start over.");
+		await ctx.editMessageText("Session expired. Please start over.");
 		return;
 	}
 
@@ -359,7 +359,7 @@ async function handlePermissionCallback(
 	setSession(userId, session.action, session.step + 1, session.data);
 
 	await ctx.editMessageText(
-		`✅ Permission level set to: ${permission}\n\n` +
+		`Permission level set to: ${permission}\n\n` +
 			`Access will be granted when you confirm.`,
 	);
 }
@@ -376,12 +376,12 @@ async function handleConfirmationCallback(
 	const session = getSession(userId);
 
 	if (!session) {
-		await ctx.editMessageText("❌ Session expired. Please start over.");
+		await ctx.editMessageText("Session expired. Please start over.");
 		return;
 	}
 
 	// Execute the confirmed action
-	await ctx.editMessageText(`✅ ${action} confirmed and executed!`);
+	await ctx.editMessageText(`${action} confirmed and executed!`);
 	clearSession(userId);
 }
 
@@ -399,31 +399,31 @@ async function handleMenuCallback(
 	switch (menuItem) {
 		case "wallet":
 			message =
-				"💰 *Wallet Commands*\n\n/balance - Check balance\n/deposit - Get deposit instructions\n/withdraw - Withdraw funds\n/send - Send funds\n/transactions - View history";
+				"*Wallet Commands*\n\n/balance - Check balance\n/deposit - Get deposit instructions\n/withdraw - Withdraw funds\n/send - Send funds\n/transactions - View history";
 			break;
 		case "shared":
 			message =
-				"👥 *Shared Account Commands*\n\n/myshared - View your shared accounts\n/createshared - Create new shared account\n/sharedbalance - Check shared balance";
+				"*Shared Account Commands*\n\n/myshared - View your shared accounts\n/createshared - Create new shared account\n/sharedbalance - Check shared balance";
 			break;
 		case "moderation":
 			message =
-				"🔨 *Moderation Commands*\n\n/jail - Jail user\n/unjail - Release user\n/warn - Issue warning\n/addrestriction - Add restriction";
+				"*Moderation Commands*\n\n/jail - Jail user\n/unjail - Release user\n/warn - Issue warning\n/addrestriction - Add restriction";
 			break;
 		case "lists":
 			message =
-				"📋 *List Management*\n\n/viewwhitelist - View whitelist\n/viewblacklist - View blacklist\n/addwhitelist - Add to whitelist\n/addblacklist - Add to blacklist";
+				"*List Management*\n\n/viewwhitelist - View whitelist\n/viewblacklist - View blacklist\n/addwhitelist - Add to whitelist\n/addblacklist - Add to blacklist";
 			break;
 		case "roles":
 			message =
-				"👑 *Role Management*\n\n/makeadmin - Promote to admin\n/elevate - Elevate user\n/revoke - Revoke privileges\n/listadmins - List all admins";
+				"*Role Management*\n\n/makeadmin - Promote to admin\n/elevate - Elevate user\n/revoke - Revoke privileges\n/listadmins - List all admins";
 			break;
 		case "stats":
 			message =
-				"📊 *Statistics*\n\n/stats - Bot statistics\n/jailstats - Jail statistics\n/walletstats - Wallet statistics";
+				"*Statistics*\n\n/stats - Bot statistics\n/jailstats - Jail statistics\n/walletstats - Wallet statistics";
 			break;
 		case "help":
 			message =
-				"❓ *Help*\n\nUse /help in a DM for comprehensive command reference.";
+				"*Help*\n\nUse /help in a DM for comprehensive command reference.";
 			break;
 	}
 
@@ -445,7 +445,7 @@ async function handleUserSelectionCallback(
 	const session = getSession(userId);
 
 	if (!session) {
-		await ctx.editMessageText("❌ Session expired. Please start over.");
+		await ctx.editMessageText("Session expired. Please start over.");
 		return;
 	}
 
@@ -453,6 +453,6 @@ async function handleUserSelectionCallback(
 	setSession(userId, session.action, session.step + 1, session.data);
 
 	await ctx.editMessageText(
-		`✅ User ${selectedUserId} selected. Proceeding with ${session.action}...`,
+		`User ${selectedUserId} selected. Proceeding with ${session.action}...`,
 	);
 }

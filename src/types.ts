@@ -21,15 +21,6 @@ export interface GlobalAction {
 	createdAt: number;
 }
 
-export interface Rule {
-	id: number;
-	type: "whitelist" | "blacklist" | "restriction";
-	description: string;
-	specificAction?: string;
-	severity: number; // 1-10 scale, affects bail amount
-	createdAt: number;
-}
-
 export interface Violation {
 	id: number;
 	userId: number;

@@ -10,7 +10,6 @@ import type { Context, Telegraf } from "telegraf";
 import {
 	handleBalance,
 	handleCheckDeposit,
-	handleGiveaway,
 	handleReconcile,
 	handleSend,
 	handleTransactions,
@@ -29,9 +28,8 @@ import { financialLockCheck } from "../middleware/lockCheck";
  * - /withdraw - Withdraw to external wallet (with locking)
  * - /send (alias: /transfer) - Send to user or external wallet (with locking)
  * - /transactions (alias: /history) - View transaction history
- * - /walletstats - System statistics (admin only)
- * - /giveaway - Distribute tokens (admin only)
- * - /reconcile - Check ledger vs on-chain balance (admin only)
+ * - /walletstats - System statistics (owner only)
+ * - /reconcile - Check ledger vs on-chain balance (owner only)
  * - /checkdeposit - Check specific deposit by transaction hash
  * - /wallethelp - Display wallet command help
  *
@@ -99,15 +97,6 @@ export function registerWalletCommands(bot: Telegraf<Context>): void {
 	bot.command("walletstats", ownerOnly, handleWalletStats);
 
 	/**
-	 * Command: /giveaway
-	 * Distribute tokens to users (owner only).
-	 *
-	 * Permission: Owner only
-	 * Syntax: /giveaway <amount> <@user1> <@user2> ...
-	 */
-	bot.command("giveaway", ownerOnly, handleGiveaway);
-
-	/**
 	 * Command: /reconcile
 	 * Check internal ledger balance against on-chain balance (owner only).
 	 *
@@ -148,11 +137,11 @@ export function registerWalletCommands(bot: Telegraf<Context>): void {
 				`• @username - Send to another user\n` +
 				`• User ID - Send to user by ID\n` +
 				`• juno1... - Send to external wallet\n\n` +
-				`*Admin Commands:*\n` +
+				`*Owner Commands:*\n` +
 				`/walletstats - System statistics\n` +
-				`/giveaway <amount> <@user1> <@user2> - Distribute tokens\n` +
+				`/giveaway <@user|id> <amount> - Send giveaway to user\n` +
 				`/reconcile - Check internal ledger vs on-chain balance\n\n` +
-				` *Important:*\n` +
+				`*Important:*\n` +
 				`• Always include your user ID (${ctx.from?.id}) as memo when depositing\n` +
 				`• Withdrawals are locked to prevent double-spending\n` +
 				`• Internal transfers are instant and free\n` +

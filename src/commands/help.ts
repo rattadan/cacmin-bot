@@ -171,26 +171,26 @@ export function registerHelpCommand(bot: Telegraf<Context>): void {
 function buildHelpMenu(role: string): InlineKeyboardMarkup {
 	const buttons = [
 		[
-			{ text: "💰 Wallet", callback_data: "help_wallet" },
-			{ text: "👥 Shared Accounts", callback_data: "help_shared" },
+			{ text: "Wallet", callback_data: "help_wallet" },
+			{ text: "Shared Accounts", callback_data: "help_shared" },
 		],
 		[
-			{ text: "👤 User", callback_data: "help_user" },
-			{ text: "💳 Payments", callback_data: "help_payments" },
+			{ text: "User", callback_data: "help_user" },
+			{ text: "Payments", callback_data: "help_payments" },
 		],
 	];
 
 	// Add elevated, admin, owner buttons based on role
 	if (role === "elevated" || role === "admin" || role === "owner") {
-		buttons.push([{ text: "⭐ Elevated", callback_data: "help_elevated" }]);
+		buttons.push([{ text: "Elevated", callback_data: "help_elevated" }]);
 	}
 
 	if (role === "admin" || role === "owner") {
-		buttons.push([{ text: "🔨 Admin", callback_data: "help_admin" }]);
+		buttons.push([{ text: "Admin", callback_data: "help_admin" }]);
 	}
 
 	if (role === "owner") {
-		buttons.push([{ text: "👑 Owner", callback_data: "help_owner" }]);
+		buttons.push([{ text: "Owner", callback_data: "help_owner" }]);
 	}
 
 	return { inline_keyboard: buttons };

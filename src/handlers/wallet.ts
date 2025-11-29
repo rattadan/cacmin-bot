@@ -857,9 +857,9 @@ export async function handleCheckDeposit(ctx: Context): Promise<void> {
 /**
  * Handles the /reconcile command.
  * Manually triggers a balance reconciliation check between the internal ledger
- * and on-chain wallet balances. Alerts if there's a mismatch.
+ * and on-chain wallet balances. Alerts if there's a mismatch and provides guidance.
  *
- * Permission: Elevated users only (admin/owner)
+ * Permission: Owner only
  *
  * @param ctx - Telegraf context
  *
@@ -868,20 +868,48 @@ export async function handleCheckDeposit(ctx: Context): Promise<void> {
  */
 export async function handleReconcile(ctx: Context): Promise<void> {
 	try {
-		await ctx.reply(" Running balance reconciliation...");
+		await ctx.reply("Running balance reconciliation...");
 
-		// Import LedgerService here to avoid circular dependencies
 		const { LedgerService } = await import("../services/ledgerService");
 		const result = await LedgerService.reconcileAndAlert();
 
-		await ctx.reply(
-			` *Balance Reconciliation Results*\n\n` +
-				`Internal Ledger Total: \`${result.internalTotal.toFixed(6)} JUNO\`\n` +
-				`User Funds On-Chain: \`${result.onChainTotal.toFixed(6)} JUNO\`\n` +
-				`Difference: \`${result.difference.toFixed(6)} JUNO\`\n\n` +
-				`Status: ${result.matched ? " Balanced" : " MISMATCH"}`,
-			{ parse_mode: "Markdown" },
-		);
+		let message =
+			`*Balance Reconciliation Results*\n\n` +
+			`Internal Ledger Total: \`${result.internalTotal.toFixed(6)} JUNO\`\n` +
+			`On-Chain Balance: \`${result.onChainTotal.toFixed(6)} JUNO\`\n` +
+			`Difference: \`${result.difference.toFixed(6)} JUNO\`\n\n` +
+			`Status: ${result.matched ? "Balanced" : "MISMATCH"}\n`;
+
+		if (!result.matched) {
+			const direction =
+				result.internalTotal > result.onChainTotal ? "debit" : "credit";
+			const correctionAmount = result.difference.toFixed(6);
+
+			message +=
+				`\n*Correction Required:*\n` +
+				`The internal ledger is ${direction === "debit" ? "higher" : "lower"} than on-chain.\n\n`;
+
+			if (direction === "debit") {
+				message +=
+					`*Likely Causes:*\n` +
+					`- Gas fees from withdrawals not deducted from ledger\n` +
+					`- Failed withdrawal refunds that over-credited\n` +
+					`- Manual on-chain transfers from the wallet\n\n` +
+					`*To Fix:*\n` +
+					`\`/adjustbalance ${correctionAmount} debit\`\n` +
+					`This will debit ${correctionAmount} JUNO from SYSTEM_RESERVE to account for the discrepancy.`;
+			} else {
+				message +=
+					`*Likely Causes:*\n` +
+					`- Deposits not credited to ledger\n` +
+					`- Manual deposits to the wallet\n\n` +
+					`*To Fix:*\n` +
+					`\`/adjustbalance ${correctionAmount} credit\`\n` +
+					`This will credit ${correctionAmount} JUNO to SYSTEM_RESERVE to account for the excess.`;
+			}
+		}
+
+		await ctx.reply(message, { parse_mode: "Markdown" });
 
 		StructuredLogger.logUserAction("Balance reconciliation triggered", {
 			userId: ctx.from?.id,
@@ -906,6 +934,144 @@ export async function handleReconcile(ctx: Context): Promise<void> {
 			userId: ctx.from?.id,
 			operation: "reconcile_balances",
 		});
-		await ctx.reply(" Failed to run reconciliation.");
+		await ctx.reply("Failed to run reconciliation.");
+	}
+}
+
+/**
+ * Handles the /adjustbalance command.
+ * Allows owners to manually adjust the ledger to match on-chain reality.
+ * Uses SYSTEM_RESERVE account for corrections to maintain audit trail.
+ *
+ * Permission: Owner only
+ *
+ * @param ctx - Telegraf context
+ *
+ * @example
+ * Usage: /adjustbalance <amount> <debit|credit> [reason]
+ * Example: /adjustbalance 1.009172 debit Gas fees from withdrawals
+ */
+export async function handleAdjustBalance(ctx: Context): Promise<void> {
+	try {
+		const userId = ctx.from?.id;
+		if (!userId) return;
+
+		const text = (ctx.message as any)?.text || "";
+		const args = text.split(" ").slice(1);
+
+		if (args.length < 2) {
+			await ctx.reply(
+				`*Adjust Balance - Manual Ledger Correction*\n\n` +
+					`Usage: \`/adjustbalance <amount> <debit|credit> [reason]\`\n\n` +
+					`*Examples:*\n` +
+					`\`/adjustbalance 1.009 debit Gas fees\` - Reduce internal total\n` +
+					`\`/adjustbalance 0.5 credit Missed deposit\` - Increase internal total\n\n` +
+					`*How it works:*\n` +
+					`- \`debit\`: Removes amount from SYSTEM_RESERVE (reduces internal total)\n` +
+					`- \`credit\`: Adds amount to SYSTEM_RESERVE (increases internal total)\n\n` +
+					`*When to use:*\n` +
+					`- After \`/reconcile\` shows a mismatch\n` +
+					`- To account for gas fees, missed deposits, or manual transfers\n\n` +
+					`Run \`/reconcile\` first to see the current discrepancy.`,
+				{ parse_mode: "Markdown" },
+			);
+			return;
+		}
+
+		const amount = parseFloat(args[0]);
+		const direction = args[1].toLowerCase();
+		const reason = args.slice(2).join(" ") || "Manual ledger adjustment";
+
+		if (Number.isNaN(amount) || amount <= 0) {
+			await ctx.reply("Invalid amount. Please enter a positive number.");
+			return;
+		}
+
+		if (direction !== "debit" && direction !== "credit") {
+			await ctx.reply(
+				"Invalid direction. Use 'debit' to reduce internal total or 'credit' to increase it.",
+			);
+			return;
+		}
+
+		// Get current reconciliation state
+		const { LedgerService } = await import("../services/ledgerService");
+		const beforeState = await LedgerService.reconcileBalances();
+
+		// Import SYSTEM_USER_IDS
+		const { SYSTEM_USER_IDS } = await import(
+			"../services/unifiedWalletService"
+		);
+
+		// Ensure SYSTEM_RESERVE has a balance entry
+		await LedgerService.ensureUserBalance(SYSTEM_USER_IDS.SYSTEM_RESERVE);
+
+		let result: { success: boolean; newBalance: number };
+
+		if (direction === "debit") {
+			// Debit from SYSTEM_RESERVE (will go negative, representing owed amount)
+			result = await LedgerService.processAdjustment(
+				SYSTEM_USER_IDS.SYSTEM_RESERVE,
+				-amount,
+				`[DEBIT] ${reason} (Reconciliation adjustment by user ${userId})`,
+			);
+		} else {
+			// Credit to SYSTEM_RESERVE
+			result = await LedgerService.processAdjustment(
+				SYSTEM_USER_IDS.SYSTEM_RESERVE,
+				amount,
+				`[CREDIT] ${reason} (Reconciliation adjustment by user ${userId})`,
+			);
+		}
+
+		if (!result.success) {
+			await ctx.reply("Failed to process adjustment. Check logs for details.");
+			return;
+		}
+
+		// Get new reconciliation state
+		const afterState = await LedgerService.reconcileBalances();
+
+		await ctx.reply(
+			`*Ledger Adjustment Complete*\n\n` +
+				`*Operation:* ${direction.toUpperCase()} ${amount.toFixed(6)} JUNO\n` +
+				`*Reason:* ${reason}\n` +
+				`*SYSTEM_RESERVE Balance:* ${result.newBalance.toFixed(6)} JUNO\n\n` +
+				`*Before:*\n` +
+				`Internal: ${beforeState.internalTotal.toFixed(6)} JUNO\n` +
+				`On-chain: ${beforeState.onChainTotal.toFixed(6)} JUNO\n` +
+				`Difference: ${beforeState.difference.toFixed(6)} JUNO\n\n` +
+				`*After:*\n` +
+				`Internal: ${afterState.internalTotal.toFixed(6)} JUNO\n` +
+				`On-chain: ${afterState.onChainTotal.toFixed(6)} JUNO\n` +
+				`Difference: ${afterState.difference.toFixed(6)} JUNO\n\n` +
+				`Status: ${afterState.matched ? "BALANCED" : "Still mismatched"}`,
+			{ parse_mode: "Markdown" },
+		);
+
+		StructuredLogger.logTransaction("Manual ledger adjustment", {
+			userId,
+			operation: "adjust_balance",
+			direction,
+			amount: amount.toFixed(6),
+			reason,
+			beforeDifference: beforeState.difference.toFixed(6),
+			afterDifference: afterState.difference.toFixed(6),
+			reserveBalance: result.newBalance.toFixed(6),
+		});
+
+		StructuredLogger.logSecurityEvent("Manual ledger adjustment performed", {
+			userId,
+			operation: "adjust_balance",
+			direction,
+			amount: amount.toFixed(6),
+			reason,
+		});
+	} catch (error) {
+		StructuredLogger.logError(error as Error, {
+			userId: ctx.from?.id,
+			operation: "adjust_balance",
+		});
+		await ctx.reply("Failed to adjust balance.");
 	}
 }

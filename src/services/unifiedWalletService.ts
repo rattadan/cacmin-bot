@@ -118,6 +118,18 @@ export class UnifiedWalletService {
 			logger.info("Created bot treasury user in ledger");
 		}
 
+		// Ensure system reserve user exists (for reconciliation adjustments)
+		if (!userExists(SYSTEM_USER_IDS.SYSTEM_RESERVE)) {
+			createUser(
+				SYSTEM_USER_IDS.SYSTEM_RESERVE,
+				"SYSTEM_RESERVE",
+				"system",
+				"system_initialization",
+			);
+			await LedgerService.ensureUserBalance(SYSTEM_USER_IDS.SYSTEM_RESERVE);
+			logger.info("Created system reserve user in ledger");
+		}
+
 		// Ensure unclaimed deposits user exists
 		if (!userExists(SYSTEM_USER_IDS.UNCLAIMED)) {
 			createUser(

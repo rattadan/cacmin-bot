@@ -892,20 +892,20 @@ export async function handleReconcile(ctx: Context): Promise<void> {
 			if (direction === "debit") {
 				message +=
 					`*Likely Causes:*\n` +
-					`- Gas fees from withdrawals not deducted from ledger\n` +
-					`- Failed withdrawal refunds that over-credited\n` +
-					`- Manual on-chain transfers from the wallet\n\n` +
+					`- Gas fees from withdrawals not deducted\n` +
+					`- Failed withdrawal refunds over-credited\n` +
+					`- Manual on-chain transfers from wallet\n\n` +
 					`*To Fix:*\n` +
-					`\`/adjustbalance ${correctionAmount} debit\`\n` +
-					`This will debit ${correctionAmount} JUNO from SYSTEM_RESERVE to account for the discrepancy.`;
+					`/adjustbalance ${correctionAmount} debit\n` +
+					`This debits ${correctionAmount} JUNO from reserve.`;
 			} else {
 				message +=
 					`*Likely Causes:*\n` +
 					`- Deposits not credited to ledger\n` +
 					`- Manual deposits to the wallet\n\n` +
 					`*To Fix:*\n` +
-					`\`/adjustbalance ${correctionAmount} credit\`\n` +
-					`This will credit ${correctionAmount} JUNO to SYSTEM_RESERVE to account for the excess.`;
+					`/adjustbalance ${correctionAmount} credit\n` +
+					`This credits ${correctionAmount} JUNO to reserve.`;
 			}
 		}
 

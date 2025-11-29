@@ -1,3 +1,4 @@
+import { vi, Mock } from 'vitest';
 /**
  * Test database utilities
  */
@@ -7,10 +8,11 @@ import { join } from 'path';
 import { existsSync, unlinkSync, mkdirSync } from 'fs';
 
 let testDb: Database.Database | null = null;
-const TEST_DB_PATH = join(__dirname, '../test-data/test.db');
+let testDbPath: string | null = null;
 
 /**
  * Initialize test database with schema
+ * Uses unique path per invocation to avoid conflicts
  */
 export function initTestDatabase(): Database.Database {
   // Create test-data directory if it doesn't exist
@@ -19,13 +21,16 @@ export function initTestDatabase(): Database.Database {
     mkdirSync(testDataDir, { recursive: true });
   }
 
-  // Remove existing test database
-  if (existsSync(TEST_DB_PATH)) {
-    unlinkSync(TEST_DB_PATH);
+  // Generate unique path using process id and timestamp
+  testDbPath = join(testDataDir, `test-${process.pid}-${Date.now()}.db`);
+
+  // Remove existing test database if any
+  if (existsSync(testDbPath)) {
+    unlinkSync(testDbPath);
   }
 
   // Create new database
-  testDb = new Database(TEST_DB_PATH);
+  testDb = new Database(testDbPath);
 
   // Create schema
   testDb.exec(`
@@ -62,8 +67,12 @@ export function initTestDatabase(): Database.Database {
       user_id INTEGER NOT NULL,
       restriction TEXT NOT NULL,
       restricted_action TEXT,
-      restricted_until INTEGER,
       metadata TEXT,
+      restricted_until INTEGER,
+      severity TEXT DEFAULT 'delete',
+      violation_threshold INTEGER DEFAULT 5,
+      auto_jail_duration INTEGER DEFAULT 2880,
+      auto_jail_fine REAL DEFAULT 10.0,
       created_at INTEGER DEFAULT (strftime('%s', 'now')),
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
@@ -117,7 +126,16 @@ export function initTestDatabase(): Database.Database {
 
     CREATE TABLE IF NOT EXISTS processed_deposits (
       tx_hash TEXT PRIMARY KEY,
-      processed_at INTEGER DEFAULT (strftime('%s', 'now'))
+      user_id INTEGER,
+      amount REAL,
+      from_address TEXT,
+      memo TEXT,
+      height INTEGER,
+      processed INTEGER DEFAULT 0,
+      error TEXT,
+      processed_at INTEGER,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      FOREIGN KEY (user_id) REFERENCES users(id)
     );
 
     CREATE TABLE IF NOT EXISTS user_locks (
@@ -171,7 +189,10 @@ export function initTestDatabase(): Database.Database {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       lock_type TEXT NOT NULL,
-      expires_at INTEGER NOT NULL,
+      locked_at INTEGER DEFAULT (strftime('%s', 'now')),
+      expires_at INTEGER,
+      amount REAL DEFAULT 0,
+      tx_hash TEXT,
       metadata TEXT,
       created_at INTEGER DEFAULT (strftime('%s', 'now')),
       FOREIGN KEY (user_id) REFERENCES users(id)
@@ -190,6 +211,41 @@ export function initTestDatabase(): Database.Database {
       created_at INTEGER DEFAULT (strftime('%s', 'now')),
       FOREIGN KEY (user_id) REFERENCES users(id),
       FOREIGN KEY (jailed_by) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS price_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      price_usd REAL NOT NULL,
+      timestamp INTEGER DEFAULT (strftime('%s', 'now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS fine_config (
+      fine_type TEXT PRIMARY KEY,
+      amount_usd REAL NOT NULL,
+      description TEXT,
+      updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+      updated_by INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_price_history_timestamp ON price_history(timestamp);
+
+    CREATE TABLE IF NOT EXISTS shared_accounts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      balance REAL DEFAULT 0,
+      created_by INTEGER NOT NULL,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      FOREIGN KEY (created_by) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS shared_account_members (
+      account_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      role TEXT DEFAULT 'member',
+      added_at INTEGER DEFAULT (strftime('%s', 'now')),
+      PRIMARY KEY (account_id, user_id),
+      FOREIGN KEY (account_id) REFERENCES shared_accounts(id),
+      FOREIGN KEY (user_id) REFERENCES users(id)
     );
   `);
 
@@ -213,6 +269,7 @@ export function cleanTestDatabase(): void {
   if (!testDb) return;
 
   testDb.exec(`
+    DELETE FROM transaction_locks;
     DELETE FROM user_locks;
     DELETE FROM processed_deposits;
     DELETE FROM transactions;
@@ -238,8 +295,13 @@ export function closeTestDatabase(): void {
   }
 
   // Clean up test database file
-  if (existsSync(TEST_DB_PATH)) {
-    unlinkSync(TEST_DB_PATH);
+  if (testDbPath && existsSync(testDbPath)) {
+    try {
+      unlinkSync(testDbPath);
+    } catch {
+      // Ignore cleanup errors
+    }
+    testDbPath = null;
   }
 }
 

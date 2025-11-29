@@ -1,3 +1,4 @@
+import { vi, Mock } from 'vitest';
 /**
  * Mock Telegraf Context for testing
  */
@@ -71,17 +72,17 @@ export function createMockContext(options: MockContextOptions = {}): Partial<Con
     message: mockMessage,
   };
 
-  const replySpy = jest.fn().mockResolvedValue({
+  const replySpy = vi.fn().mockResolvedValue({
     message_id: messageId + 1,
     date: Math.floor(Date.now() / 1000),
     chat: mockChat,
     text: 'Mock reply',
   });
 
-  const deleteMessageSpy = jest.fn().mockResolvedValue(true);
-  const restrictChatMemberSpy = jest.fn().mockResolvedValue(true);
-  const banChatMemberSpy = jest.fn().mockResolvedValue(true);
-  const unbanChatMemberSpy = jest.fn().mockResolvedValue(true);
+  const deleteMessageSpy = vi.fn().mockResolvedValue(true);
+  const restrictChatMemberSpy = vi.fn().mockResolvedValue(true);
+  const banChatMemberSpy = vi.fn().mockResolvedValue(true);
+  const unbanChatMemberSpy = vi.fn().mockResolvedValue(true);
 
   const mockContext: Partial<Context> = {
     update: mockUpdate,
@@ -154,7 +155,7 @@ export function createPlebContext(options: MockContextOptions = {}): Partial<Con
  * Extracts reply text from a mock context
  */
 export function getReplyText(ctx: Partial<Context>): string {
-  const replyMock = ctx.reply as jest.Mock;
+  const replyMock = ctx.reply as Mock;
   if (!replyMock || replyMock.mock.calls.length === 0) {
     return '';
   }
@@ -165,7 +166,7 @@ export function getReplyText(ctx: Partial<Context>): string {
  * Gets all reply calls from a mock context
  */
 export function getAllReplies(ctx: Partial<Context>): string[] {
-  const replyMock = ctx.reply as jest.Mock;
+  const replyMock = ctx.reply as Mock;
   if (!replyMock) {
     return [];
   }

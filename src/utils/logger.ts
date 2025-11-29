@@ -6,19 +6,19 @@
  * @module utils/logger
  */
 
-import * as winston from 'winston';
-import * as path from 'path';
-import * as fs from 'fs';
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as winston from "winston";
 
 /**
  * Directory path for log files.
  * Logs are stored in the 'logs' directory at the project root.
  */
-const logDir = path.join(__dirname, '../../logs');
+const logDir = path.join(__dirname, "../../logs");
 
 // Ensure log directory exists
 if (!fs.existsSync(logDir)) {
-  fs.mkdirSync(logDir, { recursive: true });
+	fs.mkdirSync(logDir, { recursive: true });
 }
 
 /**
@@ -26,17 +26,17 @@ if (!fs.existsSync(logDir)) {
  * Combines timestamp, error stack traces, and metadata into a readable format.
  */
 const logFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.errors({ stack: true }),
-  winston.format.printf(({ timestamp, level, message, ...meta }) => {
-    let msg = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
-    if (Object.keys(meta).length > 0 && meta.stack) {
-      msg += `\n${meta.stack}`;
-    } else if (Object.keys(meta).length > 0) {
-      msg += ` ${JSON.stringify(meta)}`;
-    }
-    return msg;
-  })
+	winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
+	winston.format.errors({ stack: true }),
+	winston.format.printf(({ timestamp, level, message, ...meta }) => {
+		let msg = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+		if (Object.keys(meta).length > 0 && meta.stack) {
+			msg += `\n${meta.stack}`;
+		} else if (Object.keys(meta).length > 0) {
+			msg += ` ${JSON.stringify(meta)}`;
+		}
+		return msg;
+	}),
 );
 
 /**
@@ -46,7 +46,7 @@ const logFormat = winston.format.combine(
  * @returns The log level (error, warn, info, debug) - defaults to 'info'
  */
 const getLogLevel = (): string => {
-  return process.env.LOG_LEVEL || 'info';
+	return process.env.LOG_LEVEL || "info";
 };
 
 /**
@@ -67,46 +67,43 @@ const getLogLevel = (): string => {
  * ```
  */
 export const logger = winston.createLogger({
-  level: getLogLevel(),
-  format: logFormat,
-  transports: [
-    // Console output
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        logFormat
-      )
-    }),
-    // Combined log file with rotation
-    new winston.transports.File({
-      filename: path.join(logDir, 'combined.log'),
-      maxsize: 10485760, // 10MB
-      maxFiles: 5,
-      tailable: true
-    }),
-    // Error log file with rotation
-    new winston.transports.File({
-      filename: path.join(logDir, 'error.log'),
-      level: 'error',
-      maxsize: 10485760, // 10MB
-      maxFiles: 5,
-      tailable: true
-    })
-  ],
-  exceptionHandlers: [
-    new winston.transports.File({
-      filename: path.join(logDir, 'exceptions.log'),
-      maxsize: 10485760, // 10MB
-      maxFiles: 3
-    })
-  ],
-  rejectionHandlers: [
-    new winston.transports.File({
-      filename: path.join(logDir, 'rejections.log'),
-      maxsize: 10485760, // 10MB
-      maxFiles: 3
-    })
-  ]
+	level: getLogLevel(),
+	format: logFormat,
+	transports: [
+		// Console output
+		new winston.transports.Console({
+			format: winston.format.combine(winston.format.colorize(), logFormat),
+		}),
+		// Combined log file with rotation
+		new winston.transports.File({
+			filename: path.join(logDir, "combined.log"),
+			maxsize: 10485760, // 10MB
+			maxFiles: 5,
+			tailable: true,
+		}),
+		// Error log file with rotation
+		new winston.transports.File({
+			filename: path.join(logDir, "error.log"),
+			level: "error",
+			maxsize: 10485760, // 10MB
+			maxFiles: 5,
+			tailable: true,
+		}),
+	],
+	exceptionHandlers: [
+		new winston.transports.File({
+			filename: path.join(logDir, "exceptions.log"),
+			maxsize: 10485760, // 10MB
+			maxFiles: 3,
+		}),
+	],
+	rejectionHandlers: [
+		new winston.transports.File({
+			filename: path.join(logDir, "rejections.log"),
+			maxsize: 10485760, // 10MB
+			maxFiles: 3,
+		}),
+	],
 });
 
 /**
@@ -121,7 +118,7 @@ export const logger = winston.createLogger({
  * ```
  */
 export const updateLogLevel = (level: string): void => {
-  logger.level = level;
+	logger.level = level;
 };
 
 /**
@@ -129,29 +126,29 @@ export const updateLogLevel = (level: string): void => {
  * Redirects HTTP middleware logs to Winston.
  */
 export const logStream = {
-  write: (message: string) => {
-    logger.info(message.trim());
-  }
+	write: (message: string) => {
+		logger.info(message.trim());
+	},
 };
 
 /**
  * Context metadata for structured logging.
  */
 export interface LogContext {
-  /** Telegram user ID */
-  userId?: number;
-  /** Username */
-  username?: string;
-  /** Transaction ID */
-  txId?: string;
-  /** Transaction hash */
-  txHash?: string;
-  /** Amount involved */
-  amount?: string;
-  /** Operation type */
-  operation?: string;
-  /** Additional metadata */
-  [key: string]: unknown;
+	/** Telegram user ID */
+	userId?: number;
+	/** Username */
+	username?: string;
+	/** Transaction ID */
+	txId?: string;
+	/** Transaction hash */
+	txHash?: string;
+	/** Amount involved */
+	amount?: string;
+	/** Operation type */
+	operation?: string;
+	/** Additional metadata */
+	[key: string]: unknown;
 }
 
 /**
@@ -159,118 +156,133 @@ export interface LogContext {
  * Provides domain-specific logging methods for common operations.
  */
 export class StructuredLogger {
-  /**
-   * Logs a user action with context.
-   *
-   * @param action - Description of the action
-   * @param context - User and operation context
-   *
-   * @example
-   * ```typescript
-   * StructuredLogger.logUserAction('Wallet deposit initiated', {
-   *   userId: 12345,
-   *   username: 'alice',
-   *   amount: '100',
-   *   operation: 'deposit'
-   * });
-   * ```
-   */
-  static logUserAction(action: string, context: LogContext): void {
-    logger.info(action, this.sanitizeContext(context));
-  }
+	/**
+	 * Logs a user action with context.
+	 *
+	 * @param action - Description of the action
+	 * @param context - User and operation context
+	 *
+	 * @example
+	 * ```typescript
+	 * StructuredLogger.logUserAction('Wallet deposit initiated', {
+	 *   userId: 12345,
+	 *   username: 'alice',
+	 *   amount: '100',
+	 *   operation: 'deposit'
+	 * });
+	 * ```
+	 */
+	static logUserAction(action: string, context: LogContext): void {
+		logger.info(action, StructuredLogger.sanitizeContext(context));
+	}
 
-  /**
-   * Logs a transaction event with context.
-   *
-   * @param event - Transaction event description
-   * @param context - Transaction context including txId, amount, etc.
-   *
-   * @example
-   * ```typescript
-   * StructuredLogger.logTransaction('Deposit confirmed', {
-   *   txId: 'tx123',
-   *   txHash: '0xabc...',
-   *   amount: '50',
-   *   userId: 12345
-   * });
-   * ```
-   */
-  static logTransaction(event: string, context: LogContext): void {
-    logger.info(`[TRANSACTION] ${event}`, this.sanitizeContext(context));
-  }
+	/**
+	 * Logs a transaction event with context.
+	 *
+	 * @param event - Transaction event description
+	 * @param context - Transaction context including txId, amount, etc.
+	 *
+	 * @example
+	 * ```typescript
+	 * StructuredLogger.logTransaction('Deposit confirmed', {
+	 *   txId: 'tx123',
+	 *   txHash: '0xabc...',
+	 *   amount: '50',
+	 *   userId: 12345
+	 * });
+	 * ```
+	 */
+	static logTransaction(event: string, context: LogContext): void {
+		logger.info(
+			`[TRANSACTION] ${event}`,
+			StructuredLogger.sanitizeContext(context),
+		);
+	}
 
-  /**
-   * Logs a security event (violations, restrictions, bans).
-   *
-   * @param event - Security event description
-   * @param context - Security context
-   *
-   * @example
-   * ```typescript
-   * StructuredLogger.logSecurityEvent('User restricted', {
-   *   userId: 12345,
-   *   username: 'badactor',
-   *   operation: 'add_restriction',
-   *   reason: 'spam'
-   * });
-   * ```
-   */
-  static logSecurityEvent(event: string, context: LogContext): void {
-    logger.warn(`[SECURITY] ${event}`, this.sanitizeContext(context));
-  }
+	/**
+	 * Logs a security event (violations, restrictions, bans).
+	 *
+	 * @param event - Security event description
+	 * @param context - Security context
+	 *
+	 * @example
+	 * ```typescript
+	 * StructuredLogger.logSecurityEvent('User restricted', {
+	 *   userId: 12345,
+	 *   username: 'badactor',
+	 *   operation: 'add_restriction',
+	 *   reason: 'spam'
+	 * });
+	 * ```
+	 */
+	static logSecurityEvent(event: string, context: LogContext): void {
+		logger.warn(
+			`[SECURITY] ${event}`,
+			StructuredLogger.sanitizeContext(context),
+		);
+	}
 
-  /**
-   * Logs an error with full context and stack trace.
-   *
-   * @param error - Error object or message
-   * @param context - Error context
-   *
-   * @example
-   * ```typescript
-   * StructuredLogger.logError(error, {
-   *   userId: 12345,
-   *   operation: 'withdrawal',
-   *   txId: 'tx456'
-   * });
-   * ```
-   */
-  static logError(error: Error | string, context: LogContext = {}): void {
-    if (error instanceof Error) {
-      logger.error(error.message, { ...this.sanitizeContext(context), stack: error.stack });
-    } else {
-      logger.error(error, this.sanitizeContext(context));
-    }
-  }
+	/**
+	 * Logs an error with full context and stack trace.
+	 *
+	 * @param error - Error object or message
+	 * @param context - Error context
+	 *
+	 * @example
+	 * ```typescript
+	 * StructuredLogger.logError(error, {
+	 *   userId: 12345,
+	 *   operation: 'withdrawal',
+	 *   txId: 'tx456'
+	 * });
+	 * ```
+	 */
+	static logError(error: Error | string, context: LogContext = {}): void {
+		if (error instanceof Error) {
+			logger.error(error.message, {
+				...StructuredLogger.sanitizeContext(context),
+				stack: error.stack,
+			});
+		} else {
+			logger.error(error, StructuredLogger.sanitizeContext(context));
+		}
+	}
 
-  /**
-   * Logs a debug message (only in debug log level).
-   *
-   * @param message - Debug message
-   * @param context - Debug context
-   */
-  static logDebug(message: string, context: LogContext = {}): void {
-    logger.debug(message, this.sanitizeContext(context));
-  }
+	/**
+	 * Logs a debug message (only in debug log level).
+	 *
+	 * @param message - Debug message
+	 * @param context - Debug context
+	 */
+	static logDebug(message: string, context: LogContext = {}): void {
+		logger.debug(message, StructuredLogger.sanitizeContext(context));
+	}
 
-  /**
-   * Sanitizes context to prevent logging sensitive data.
-   * Removes or masks sensitive fields like mnemonics, private keys, etc.
-   *
-   * @param context - Raw context object
-   * @returns Sanitized context safe for logging
-   */
-  private static sanitizeContext(context: LogContext): LogContext {
-    const sanitized = { ...context };
+	/**
+	 * Sanitizes context to prevent logging sensitive data.
+	 * Removes or masks sensitive fields like mnemonics, private keys, etc.
+	 *
+	 * @param context - Raw context object
+	 * @returns Sanitized context safe for logging
+	 */
+	private static sanitizeContext(context: LogContext): LogContext {
+		const sanitized = { ...context };
 
-    // List of sensitive keys to redact
-    const sensitiveKeys = ['mnemonic', 'privateKey', 'password', 'token', 'secret'];
+		// List of sensitive keys to redact
+		const sensitiveKeys = [
+			"mnemonic",
+			"privateKey",
+			"password",
+			"token",
+			"secret",
+		];
 
-    for (const key of sensitiveKeys) {
-      if (key in sanitized) {
-        sanitized[key] = '[REDACTED]';
-      }
-    }
+		for (const key of sensitiveKeys) {
+			if (key in sanitized) {
+				sanitized[key] = "[REDACTED]";
+			}
+		}
 
-    return sanitized;
-  }
+		return sanitized;
+	}
 }

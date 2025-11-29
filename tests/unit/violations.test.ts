@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, Mock } from 'vitest';
 /**
  * Unit tests for violation and payment commands
  * Tests violation listing, fine payment, and blockchain verification
@@ -6,7 +7,7 @@
 import { Telegraf, Context } from 'telegraf';
 import { registerViolationHandlers } from '../../src/handlers/violations';
 import { registerPaymentCommands } from '../../src/commands/payment';
-import { WalletServiceV2 } from '../../src/services/walletServiceV2';
+import { UnifiedWalletService } from '../../src/services/unifiedWalletService';
 import { JunoService } from '../../src/services/junoService';
 import { LedgerService } from '../../src/services/ledgerService';
 import * as violationService from '../../src/services/violationService';
@@ -26,30 +27,36 @@ import {
 import { Violation } from '../../src/types';
 
 // Mock the database module to use test database
-jest.mock('../../src/database', () => {
-  const testDb = require('../helpers/testDatabase');
+vi.mock('../../src/database', async () => {
+  const testDb = await import('../helpers/testDatabase');
   return {
-    query: jest.fn((sql: string, params: any[] = []) => {
+    query: vi.fn((sql: string, params: any[] = []) => {
       const db = testDb.getTestDatabase();
       return db.prepare(sql).all(...params);
     }),
-    get: jest.fn((sql: string, params: any[] = []) => {
+    get: vi.fn((sql: string, params: any[] = []) => {
       const db = testDb.getTestDatabase();
       return db.prepare(sql).get(...params);
     }),
-    execute: jest.fn((sql: string, params: any[] = []) => {
+    execute: vi.fn((sql: string, params: any[] = []) => {
       const db = testDb.getTestDatabase();
       return db.prepare(sql).run(...params);
     }),
-    initDb: jest.fn()
+    initDb: vi.fn()
   };
 });
 
 // Mock services
-jest.mock('../../src/services/walletServiceV2');
-jest.mock('../../src/services/junoService');
-jest.mock('../../src/services/jailService');
-jest.mock('../../src/utils/logger');
+vi.mock('../../src/services/unifiedWalletService', () => ({
+  UnifiedWalletService: {
+    initialize: vi.fn(),
+    getBalance: vi.fn(),
+    payFine: vi.fn(),
+  }
+}));
+vi.mock('../../src/services/junoService');
+vi.mock('../../src/services/jailService');
+vi.mock('../../src/utils/logger');
 
 describe('Violation and Payment Commands', () => {
   let bot: Telegraf<Context>;
@@ -71,7 +78,7 @@ describe('Violation and Payment Commands', () => {
     registerPaymentCommands(bot);
 
     // Clear all mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterAll(() => {
@@ -134,8 +141,8 @@ describe('Violation and Payment Commands', () => {
 
   describe('/payfines - Show unpaid fines', () => {
     beforeEach(() => {
-      // Mock WalletServiceV2.getUserBalance
-      (WalletServiceV2.getUserBalance as jest.Mock).mockResolvedValue(100.0);
+      // Mock UnifiedWalletService.getBalance
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(100.0);
     });
 
     it('should only work in private messages', async () => {
@@ -184,9 +191,9 @@ describe('Violation and Payment Commands', () => {
       createTestUser(userId, 'testuser', 'pleb');
 
       createTestViolation(userId, 'no_stickers', 25.0, 0);
-      (WalletServiceV2.getUserBalance as jest.Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(100.0);
 
-      const balance = await WalletServiceV2.getUserBalance(userId);
+      const balance = await UnifiedWalletService.getBalance(userId);
       const totalFines = violationService.getTotalFines(userId);
 
       expect(balance).toBeGreaterThanOrEqual(totalFines);
@@ -197,9 +204,9 @@ describe('Violation and Payment Commands', () => {
       createTestUser(userId, 'testuser', 'pleb');
 
       createTestViolation(userId, 'blacklist', 100.0, 0);
-      (WalletServiceV2.getUserBalance as jest.Mock).mockResolvedValue(50.0);
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(50.0);
 
-      const balance = await WalletServiceV2.getUserBalance(userId);
+      const balance = await UnifiedWalletService.getBalance(userId);
       const totalFines = violationService.getTotalFines(userId);
 
       expect(balance).toBeLessThan(totalFines);
@@ -208,8 +215,8 @@ describe('Violation and Payment Commands', () => {
 
   describe('/payallfines - Pay all outstanding fines', () => {
     beforeEach(() => {
-      (WalletServiceV2.getUserBalance as jest.Mock).mockResolvedValue(100.0);
-      (WalletServiceV2.payFine as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.payFine as Mock).mockResolvedValue({
         success: true,
         newBalance: 40.0
       });
@@ -239,9 +246,9 @@ describe('Violation and Payment Commands', () => {
       createTestUser(userId, 'testuser', 'pleb');
 
       createTestViolation(userId, 'blacklist', 100.0, 0);
-      (WalletServiceV2.getUserBalance as jest.Mock).mockResolvedValue(50.0);
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(50.0);
 
-      const balance = await WalletServiceV2.getUserBalance(userId);
+      const balance = await UnifiedWalletService.getBalance(userId);
       const totalFines = violationService.getTotalFines(userId);
 
       expect(balance).toBeLessThan(totalFines);
@@ -254,21 +261,20 @@ describe('Violation and Payment Commands', () => {
       const v1 = createTestViolation(userId, 'no_stickers', 10.0, 0);
       const v2 = createTestViolation(userId, 'no_urls', 5.0, 0);
 
-      (WalletServiceV2.getUserBalance as jest.Mock).mockResolvedValue(100.0);
-      (WalletServiceV2.payFine as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.payFine as Mock).mockResolvedValue({
         success: true,
         newBalance: 85.0
       });
 
       const totalFines = violationService.getTotalFines(userId);
-      const result = await WalletServiceV2.payFine(userId, totalFines, undefined, 'Test payment');
+      const result = await UnifiedWalletService.payFine(userId, totalFines, 'Test payment');
 
       expect(result.success).toBe(true);
       expect(result.newBalance).toBe(85.0);
-      expect(WalletServiceV2.payFine).toHaveBeenCalledWith(
+      expect(UnifiedWalletService.payFine).toHaveBeenCalledWith(
         userId,
         15.0,
-        undefined,
         'Test payment'
       );
     });
@@ -322,14 +328,14 @@ describe('Violation and Payment Commands', () => {
 
       createTestViolation(userId, 'no_stickers', 10.0, 0);
 
-      (WalletServiceV2.getUserBalance as jest.Mock).mockResolvedValue(100.0);
-      (WalletServiceV2.payFine as jest.Mock).mockResolvedValue({
+      (UnifiedWalletService.getBalance as Mock).mockResolvedValue(100.0);
+      (UnifiedWalletService.payFine as Mock).mockResolvedValue({
         success: false,
         newBalance: 100.0,
         error: 'Payment processing failed'
       });
 
-      const result = await WalletServiceV2.payFine(userId, 10.0);
+      const result = await UnifiedWalletService.payFine(userId, 10.0);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Payment processing failed');
@@ -338,7 +344,7 @@ describe('Violation and Payment Commands', () => {
 
   describe('/payfine - Pay specific violation (on-chain)', () => {
     beforeEach(() => {
-      (JunoService.getPaymentAddress as jest.Mock).mockReturnValue('juno1testaddress');
+      (JunoService.getPaymentAddress as Mock).mockReturnValue('juno1testaddress');
     });
 
     it('should show all unpaid fines when no violation ID provided', async () => {
@@ -404,7 +410,7 @@ describe('Violation and Payment Commands', () => {
 
   describe('/verifypayment - Verify blockchain payment', () => {
     beforeEach(() => {
-      (JunoService.verifyPayment as jest.Mock).mockResolvedValue(true);
+      (JunoService.verifyPayment as Mock).mockResolvedValue(true);
     });
 
     it('should require violation ID and transaction hash', async () => {
@@ -425,7 +431,7 @@ describe('Violation and Payment Commands', () => {
       const violationId = createTestViolation(userId, 'no_stickers', 25.0, 0);
       const txHash = 'ABC123VALIDTXHASH';
 
-      (JunoService.verifyPayment as jest.Mock).mockResolvedValue(true);
+      (JunoService.verifyPayment as Mock).mockResolvedValue(true);
 
       const verified = await JunoService.verifyPayment(txHash, 25.0);
       expect(verified).toBe(true);
@@ -459,7 +465,7 @@ describe('Violation and Payment Commands', () => {
       const violationId = createTestViolation(userId, 'no_stickers', 25.0, 0);
       const invalidTxHash = 'INVALIDHASH';
 
-      (JunoService.verifyPayment as jest.Mock).mockResolvedValue(false);
+      (JunoService.verifyPayment as Mock).mockResolvedValue(false);
 
       const verified = await JunoService.verifyPayment(invalidTxHash, 25.0);
       expect(verified).toBe(false);
@@ -473,7 +479,7 @@ describe('Violation and Payment Commands', () => {
       const txHash = 'ABC123VALIDTXHASH';
 
       // Verify with wrong amount
-      (JunoService.verifyPayment as jest.Mock).mockResolvedValue(false);
+      (JunoService.verifyPayment as Mock).mockResolvedValue(false);
 
       const verified = await JunoService.verifyPayment(txHash, 10.0); // wrong amount
       expect(verified).toBe(false);
@@ -586,8 +592,8 @@ describe('Violation and Payment Commands', () => {
       createTestUser(userId, 'testuser', 'pleb');
 
       // Mock LedgerService
-      jest.spyOn(LedgerService, 'getUserBalance').mockResolvedValue(100.0);
-      jest.spyOn(LedgerService, 'processFine').mockResolvedValue({
+      vi.spyOn(LedgerService, 'getUserBalance').mockResolvedValue(100.0);
+      vi.spyOn(LedgerService, 'processFine').mockResolvedValue({
         success: true,
         newBalance: 75.0
       });
@@ -603,8 +609,8 @@ describe('Violation and Payment Commands', () => {
       const userId = 444444444;
       createTestUser(userId, 'testuser', 'pleb');
 
-      jest.spyOn(LedgerService, 'getUserBalance').mockResolvedValue(10.0);
-      jest.spyOn(LedgerService, 'processFine').mockResolvedValue({
+      vi.spyOn(LedgerService, 'getUserBalance').mockResolvedValue(10.0);
+      vi.spyOn(LedgerService, 'processFine').mockResolvedValue({
         success: false,
         newBalance: 10.0,
         error: 'Insufficient balance for fine payment'
@@ -620,7 +626,7 @@ describe('Violation and Payment Commands', () => {
       const userId = 444444444;
       createTestUser(userId, 'testuser', 'pleb');
 
-      jest.spyOn(LedgerService, 'processFine').mockResolvedValue({
+      vi.spyOn(LedgerService, 'processFine').mockResolvedValue({
         success: true,
         newBalance: 75.0
       });
@@ -647,8 +653,8 @@ describe('Violation and Payment Commands', () => {
       const totalFines = violationService.getTotalFines(userId);
       expect(totalFines).toBe(65.0);
 
-      jest.spyOn(LedgerService, 'getUserBalance').mockResolvedValue(100.0);
-      jest.spyOn(LedgerService, 'processFine').mockResolvedValue({
+      vi.spyOn(LedgerService, 'getUserBalance').mockResolvedValue(100.0);
+      vi.spyOn(LedgerService, 'processFine').mockResolvedValue({
         success: true,
         newBalance: 35.0
       });
@@ -665,7 +671,7 @@ describe('Violation and Payment Commands', () => {
       const txHash = 'ABCD1234567890';
       const amount = 25.5;
 
-      (JunoService.verifyPayment as jest.Mock).mockResolvedValue(true);
+      (JunoService.verifyPayment as Mock).mockResolvedValue(true);
 
       const verified = await JunoService.verifyPayment(txHash, amount);
 
@@ -677,7 +683,7 @@ describe('Violation and Payment Commands', () => {
       const txHash = 'INVALID';
       const amount = 25.5;
 
-      (JunoService.verifyPayment as jest.Mock).mockRejectedValue(
+      (JunoService.verifyPayment as Mock).mockRejectedValue(
         new Error('RPC endpoint unavailable')
       );
 
@@ -690,8 +696,8 @@ describe('Violation and Payment Commands', () => {
       const txHash = 'ABCD1234567890';
       const amount = 25.5;
 
-      (JunoService.getPaymentAddress as jest.Mock).mockReturnValue('juno1testtreasury');
-      (JunoService.verifyPayment as jest.Mock).mockResolvedValue(true);
+      (JunoService.getPaymentAddress as Mock).mockReturnValue('juno1testtreasury');
+      (JunoService.verifyPayment as Mock).mockResolvedValue(true);
 
       const address = JunoService.getPaymentAddress();
       const verified = await JunoService.verifyPayment(txHash, amount);
@@ -704,7 +710,7 @@ describe('Violation and Payment Commands', () => {
       const txHash = 'ABCD1234567890';
 
       // The verification logic in JunoService allows 0.01 JUNO difference
-      (JunoService.verifyPayment as jest.Mock).mockResolvedValue(true);
+      (JunoService.verifyPayment as Mock).mockResolvedValue(true);
 
       // Verify with amount close to expected (within tolerance)
       const verified = await JunoService.verifyPayment(txHash, 25.00);
@@ -714,7 +720,7 @@ describe('Violation and Payment Commands', () => {
     it('should reject payment with amount outside tolerance', async () => {
       const txHash = 'ABCD1234567890';
 
-      (JunoService.verifyPayment as jest.Mock).mockResolvedValue(false);
+      (JunoService.verifyPayment as Mock).mockResolvedValue(false);
 
       const verified = await JunoService.verifyPayment(txHash, 10.0); // Significantly different
       expect(verified).toBe(false);
@@ -838,7 +844,7 @@ describe('Violation and Payment Commands', () => {
       const userId = 444444444;
       createTestUser(userId, 'testuser', 'pleb');
 
-      jest.spyOn(LedgerService, 'processFine').mockResolvedValue({
+      vi.spyOn(LedgerService, 'processFine').mockResolvedValue({
         success: true,
         newBalance: 75.0
       });

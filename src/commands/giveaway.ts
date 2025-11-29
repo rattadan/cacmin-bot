@@ -6,13 +6,11 @@
  * @module commands/giveaway
  */
 
-import { Telegraf, Context } from 'telegraf';
-import { UnifiedWalletService } from '../services/unifiedWalletService';
-import { config } from '../config';
-import { adminOrHigher, ownerOnly } from '../middleware/index';
-import { logger, StructuredLogger } from '../utils/logger';
-import { resolveUserFromContext } from '../utils/userResolver';
-import { escapeMarkdownV2, escapeNumber } from '../utils/markdown';
+import type { Context, Telegraf } from "telegraf";
+import { config } from "../config";
+import { ownerOnly } from "../middleware/index";
+import { UnifiedWalletService } from "../services/unifiedWalletService";
+import { logger, StructuredLogger } from "../utils/logger";
 
 /**
  * Registers all giveaway-related commands with the bot.
@@ -34,205 +32,224 @@ import { escapeMarkdownV2, escapeNumber } from '../utils/markdown';
  * ```
  */
 export function registerGiveawayCommands(bot: Telegraf<Context>): void {
-  /**
-   * Command: /botbalance
-   * Check the bot's on-chain wallet balance.
-   *
-   * Permission: Owner only
-   * Syntax: /botbalance
-   *
-   * @example
-   * User: /botbalance
-   * Bot: Bot Wallet Balance
-   *      Address: `juno1...`
-   *      Balance: *123.456789 JUNO*
-   */
-  bot.command('botbalance', ownerOnly, async (ctx) => {
-    try {
-      const balance = await UnifiedWalletService.getBotBalance();
+	/**
+	 * Command: /botbalance
+	 * Check the bot's on-chain wallet balance.
+	 *
+	 * Permission: Owner only
+	 * Syntax: /botbalance
+	 *
+	 * @example
+	 * User: /botbalance
+	 * Bot: Bot Wallet Balance
+	 *      Address: `juno1...`
+	 *      Balance: *123.456789 JUNO*
+	 */
+	bot.command("botbalance", ownerOnly, async (ctx) => {
+		try {
+			const balance = await UnifiedWalletService.getBotBalance();
 
-      if (!balance) {
-        return ctx.reply(' Unable to fetch wallet balance.');
-      }
+			if (!balance) {
+				return ctx.reply(" Unable to fetch wallet balance.");
+			}
 
-      await ctx.reply(
-        ` *Bot Wallet Balance*\n\n` +
-        `Address: \`${escapeMarkdownV2(config.botTreasuryAddress || 'N/A')}\`\n` +
-        `Balance: *${escapeNumber(balance, 6)} JUNO*`,
-        { parse_mode: 'MarkdownV2' }
-      );
-    } catch (error) {
-      logger.error('Error fetching balance', error);
-      await ctx.reply(' Error fetching wallet balance.');
-    }
-  });
+			await ctx.reply(
+				` *Bot Wallet Balance*\n\n` +
+					`Address: \`${config.botTreasuryAddress}\`\n` +
+					`Balance: *${balance.toFixed(6)} JUNO*`,
+				{ parse_mode: "Markdown" },
+			);
+		} catch (error) {
+			logger.error("Error fetching balance", error);
+			await ctx.reply(" Error fetching wallet balance.");
+		}
+	});
 
-  /**
-   * Command: /giveaway
-   * Distribute JUNO tokens to a user's internal balance.
-   *
-   * Permission: Admin or higher
-   * Syntax: /giveaway <@username|userId> <amount>
-   *
-   * Note: This credits the user's internal ledger balance. The bot treasury
-   * (on-chain balance) is separate and used for backing withdrawals.
-   *
-   * @example
-   * User: /giveaway @alice 10.5
-   * Bot: Giveaway Sent!
-   *      Recipient: @alice (123456)
-   *      Amount: 10.500000 JUNO
-   *      Tokens have been credited to the user's internal balance.
-   *
-   * @example
-   * User: /giveaway 123456789 5
-   * Bot: Giveaway Sent!
-   *      Recipient: 123456789 (123456789)
-   *      Amount: 5.000000 JUNO
-   */
-  bot.command('giveaway', ownerOnly, async (ctx) => {
-    const args = ctx.message?.text.split(' ').slice(1);
+	/**
+	 * Command: /giveaway
+	 * Distribute JUNO tokens to a user's internal balance.
+	 *
+	 * Permission: Admin or higher
+	 * Syntax: /giveaway <@username|userId> <amount>
+	 *
+	 * Note: This credits the user's internal ledger balance. The bot treasury
+	 * (on-chain balance) is separate and used for backing withdrawals.
+	 *
+	 * @example
+	 * User: /giveaway @alice 10.5
+	 * Bot: Giveaway Sent!
+	 *      Recipient: @alice (123456)
+	 *      Amount: 10.500000 JUNO
+	 *      Tokens have been credited to the user's internal balance.
+	 *
+	 * @example
+	 * User: /giveaway 123456789 5
+	 * Bot: Giveaway Sent!
+	 *      Recipient: 123456789 (123456789)
+	 *      Amount: 5.000000 JUNO
+	 */
+	bot.command("giveaway", ownerOnly, async (ctx) => {
+		const args = ctx.message?.text.split(" ").slice(1);
 
-    if (!args || args.length < 2) {
-      return ctx.reply(
-        ' *Giveaway Command*\n\n' +
-        'Usage: `/giveaway <@username|userId> <amount>`\n\n' +
-        'Example: `/giveaway @alice 10.5`\n' +
-        'Example: `/giveaway 123456789 5`',
-        { parse_mode: 'MarkdownV2' }
-      );
-    }
+		if (!args || args.length < 2) {
+			return ctx.reply(
+				" *Giveaway Command*\n\n" +
+					"Usage: `/giveaway <@username|userId> <amount>`\n\n" +
+					"Example: `/giveaway @alice 10.5`\n" +
+					"Example: `/giveaway 123456789 5`",
+				{ parse_mode: "Markdown" },
+			);
+		}
 
-    const amount = parseFloat(args[1]);
+		const identifier = args[0];
+		const amount = parseFloat(args[1]);
 
-    if (isNaN(amount) || amount <= 0) {
-      return ctx.reply(' Invalid amount. Must be a positive number.');
-    }
+		if (Number.isNaN(amount) || amount <= 0) {
+			return ctx.reply(" Invalid amount. Must be a positive number.");
+		}
 
-    try {
-      // Resolve target user using centralized utility
-      const target = await resolveUserFromContext(ctx);
-      if (!target) return; // Error message already sent
+		try {
+			// Resolve userId from identifier
+			let targetUserId: number;
+			if (/^\d+$/.test(identifier)) {
+				// Direct userId
+				targetUserId = parseInt(identifier, 10);
+			} else {
+				// Username lookup
+				const username = identifier.startsWith("@")
+					? identifier.substring(1)
+					: identifier;
+				const { query } = await import("../database");
+				type UserRecord = { id: number };
+				const user = query<UserRecord>(
+					"SELECT id FROM users WHERE username = ?",
+					[username],
+				)[0];
 
-      const targetUserId = target.userId;
+				if (!user) {
+					return ctx.reply(
+						` User ${identifier} not found. They must have interacted with the bot first.`,
+					);
+				}
+				targetUserId = user.id;
+			}
 
-      // NOTE: This credits the user's internal balance in the ledger system.
-      // The bot treasury (on-chain balance) is separate and used for backing withdrawals.
-      // Future enhancement: Transfer from treasury to userFunds wallet to back these credits.
+			// NOTE: This credits the user's internal balance in the ledger system.
+			// The bot treasury (on-chain balance) is separate and used for backing withdrawals.
+			// Future enhancement: Transfer from treasury to userFunds wallet to back these credits.
 
-      // Distribute giveaway using internal ledger
-      const result = await UnifiedWalletService.distributeGiveaway(
-        [targetUserId],
-        amount,
-        `Giveaway from admin ${ctx.from?.username || ctx.from?.id}`
-      );
+			// Distribute giveaway using internal ledger
+			const result = await UnifiedWalletService.distributeGiveaway(
+				[targetUserId],
+				amount,
+				`Giveaway from admin ${ctx.from?.username || ctx.from?.id}`,
+			);
 
-      if (result.succeeded.length > 0) {
-        await ctx.reply(
-          ` *Giveaway Sent!*\n\n` +
-          `Recipient: ${target.username ? escapeMarkdownV2('@' + target.username) : targetUserId} (${targetUserId})\n` +
-          `Amount: ${escapeNumber(amount, 6)} JUNO\n\n` +
-          ` Tokens have been credited to the user's internal balance\\.\n` +
-          `They can check their balance with /mybalance`,
-          { parse_mode: 'MarkdownV2' }
-        );
+			if (result.succeeded.length > 0) {
+				await ctx.reply(
+					` *Giveaway Sent!*\n\n` +
+						`Recipient: ${identifier} (${targetUserId})\n` +
+						`Amount: ${amount.toFixed(6)} JUNO\n\n` +
+						` Tokens have been credited to the user's internal balance.\n` +
+						`They can check their balance with /mybalance`,
+					{ parse_mode: "Markdown" },
+				);
 
-        StructuredLogger.logUserAction('Giveaway completed', {
-          userId: ctx.from?.id,
-          username: ctx.from?.username,
-          operation: 'giveaway',
-          targetUserId: targetUserId,
-          amount: amount.toString(),
-          recipient: target.username ? '@' + target.username : targetUserId.toString()
-        });
-      } else {
-        await ctx.reply(
-          ` *Giveaway Failed*\n\n` +
-          `Unable to credit user ${target.username ? escapeMarkdownV2('@' + target.username) : targetUserId} (${targetUserId})\n\n` +
-          `Please check logs or try again later\\.`,
-          { parse_mode: 'MarkdownV2' }
-        );
-      }
-    } catch (error) {
-      logger.error('Error processing giveaway', error);
-      await ctx.reply(' Error processing giveaway.');
-    }
-  });
+				StructuredLogger.logUserAction("Giveaway completed", {
+					userId: ctx.from?.id,
+					username: ctx.from?.username,
+					operation: "giveaway",
+					targetUserId: targetUserId,
+					amount: amount.toString(),
+					recipient: identifier,
+				});
+			} else {
+				await ctx.reply(
+					` *Giveaway Failed*\n\n` +
+						`Unable to credit user ${identifier} (${targetUserId})\n\n` +
+						`Please check logs or try again later.`,
+					{ parse_mode: "Markdown" },
+				);
+			}
+		} catch (error) {
+			logger.error("Error processing giveaway", error);
+			await ctx.reply(" Error processing giveaway.");
+		}
+	});
 
-  /**
-   * Command: /treasury
-   * View comprehensive treasury and internal ledger status.
-   *
-   * Permission: Admin or higher
-   * Syntax: /treasury
-   *
-   * Displays:
-   * - On-chain treasury wallet address and balance
-   * - Internal ledger statistics (user balances, fines, bail collected)
-   * - Explanation of dual system (treasury vs ledger)
-   *
-   * @example
-   * User: /treasury
-   * Bot: Treasury & Ledger Status
-   *
-   *      On-Chain Treasury Wallet:
-   *      Address: `juno1...`
-   *      Balance: *1000.000000 JUNO*
-   *      Purpose: Receives bail/fine payments via on-chain transfers
-   *
-   *      Internal Ledger System:
-   *      Total User Balances: `500.000000 JUNO`
-   *      Fines Collected: `50.000000 JUNO`
-   *      Bail Collected: `100.000000 JUNO`
-   */
-  bot.command('treasury', ownerOnly, async (ctx) => {
-    try {
-      // On-chain treasury balance
-      const treasuryBalance = await UnifiedWalletService.getBotBalance();
-      const treasuryAddress = config.botTreasuryAddress;
+	/**
+	 * Command: /treasury
+	 * View comprehensive treasury and internal ledger status.
+	 *
+	 * Permission: Admin or higher
+	 * Syntax: /treasury
+	 *
+	 * Displays:
+	 * - On-chain treasury wallet address and balance
+	 * - Internal ledger statistics (user balances, fines, bail collected)
+	 * - Explanation of dual system (treasury vs ledger)
+	 *
+	 * @example
+	 * User: /treasury
+	 * Bot: Treasury & Ledger Status
+	 *
+	 *      On-Chain Treasury Wallet:
+	 *      Address: `juno1...`
+	 *      Balance: *1000.000000 JUNO*
+	 *      Purpose: Receives bail/fine payments via on-chain transfers
+	 *
+	 *      Internal Ledger System:
+	 *      Total User Balances: `500.000000 JUNO`
+	 *      Fines Collected: `50.000000 JUNO`
+	 *      Bail Collected: `100.000000 JUNO`
+	 */
+	bot.command("treasury", ownerOnly, async (ctx) => {
+		try {
+			// On-chain treasury balance
+			const treasuryBalance = await UnifiedWalletService.getBotBalance();
+			const treasuryAddress = config.botTreasuryAddress;
 
-      // Internal ledger statistics
-      const { query } = await import('../database');
-      type CollectedTotal = { total: number | null };
+			// Internal ledger statistics
+			const { query } = await import("../database");
+			type CollectedTotal = { total: number | null };
 
-      const finesResult = query<CollectedTotal>(
-        'SELECT SUM(amount) as total FROM transactions WHERE transaction_type = ? AND status = ?',
-        ['fine', 'completed']
-      );
-      const totalFines = finesResult[0]?.total || 0;
+			const finesResult = query<CollectedTotal>(
+				"SELECT SUM(amount) as total FROM transactions WHERE transaction_type = ? AND status = ?",
+				["fine", "completed"],
+			);
+			const totalFines = finesResult[0]?.total || 0;
 
-      const bailResult = query<CollectedTotal>(
-        'SELECT SUM(amount) as total FROM transactions WHERE transaction_type = ? AND status = ?',
-        ['bail', 'completed']
-      );
-      const totalBail = bailResult[0]?.total || 0;
+			const bailResult = query<CollectedTotal>(
+				"SELECT SUM(amount) as total FROM transactions WHERE transaction_type = ? AND status = ?",
+				["bail", "completed"],
+			);
+			const totalBail = bailResult[0]?.total || 0;
 
-      // Get internal ledger total (all user balances)
-      const internalBalances = query<{ total: number | null }>(
-        'SELECT SUM(balance) as total FROM user_balances'
-      );
-      const totalUserBalances = internalBalances[0]?.total || 0;
+			// Get internal ledger total (all user balances)
+			const internalBalances = query<{ total: number | null }>(
+				"SELECT SUM(balance) as total FROM user_balances",
+			);
+			const totalUserBalances = internalBalances[0]?.total || 0;
 
-      await ctx.reply(
-        ` *Treasury & Ledger Status*\n\n` +
-        `*On\\-Chain Treasury Wallet:*\n` +
-        `Address: \`${escapeMarkdownV2(treasuryAddress || 'N/A')}\`\n` +
-        `Balance: *${escapeNumber(treasuryBalance || 0, 6)} JUNO*\n` +
-        `Purpose: Receives bail/fine payments via on\\-chain transfers\n\n` +
-        `*Internal Ledger System:*\n` +
-        `Total User Balances: \`${escapeNumber(totalUserBalances, 6)} JUNO\`\n` +
-        `Fines Collected: \`${escapeNumber(totalFines, 6)} JUNO\` (deducted from users)\n` +
-        `Bail Collected: \`${escapeNumber(totalBail, 6)} JUNO\` (deducted from users)\n\n` +
-        `*Note:* Treasury and ledger are separate systems\\.\n` +
-        `• Treasury: On\\-chain wallet for direct payments\n` +
-        `• Ledger: Internal accounting for user balances\n\n` +
-        `Use /giveaway to distribute funds\n` +
-        `Use /walletstats for detailed reconciliation`,
-        { parse_mode: 'MarkdownV2' }
-      );
-    } catch (error) {
-      logger.error('Error fetching treasury info', error);
-      await ctx.reply(' Error fetching treasury information.');
-    }
-  });
+			await ctx.reply(
+				`📊 Treasury & Ledger Status\n\n` +
+					`🏦 On-Chain Treasury Wallet:\n` +
+					`Address: ${treasuryAddress}\n` +
+					`Balance: ${treasuryBalance?.toFixed(6) || "0"} JUNO\n` +
+					`Purpose: Receives bail/fine payments via on-chain transfers\n\n` +
+					`📒 Internal Ledger System:\n` +
+					`Total User Balances: ${totalUserBalances.toFixed(6)} JUNO\n` +
+					`Fines Collected: ${totalFines.toFixed(6)} JUNO - deducted from users\n` +
+					`Bail Collected: ${totalBail.toFixed(6)} JUNO - deducted from users\n\n` +
+					`Note: Treasury and ledger are separate systems.\n` +
+					`• Treasury: On-chain wallet for direct payments\n` +
+					`• Ledger: Internal accounting for user balances\n\n` +
+					`Use /giveaway to distribute funds\n` +
+					`Use /walletstats for detailed reconciliation`,
+			);
+		} catch (error) {
+			logger.error("Error fetching treasury info", error);
+			await ctx.reply(" Error fetching treasury information.");
+		}
+	});
 }

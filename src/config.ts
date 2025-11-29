@@ -6,12 +6,12 @@
  * @module config
  */
 
-import * as dotenv from 'dotenv';
-import { resolve } from 'path';
-import { logger } from './utils/logger';
+import { resolve } from "node:path";
+import * as dotenv from "dotenv";
+import { logger } from "./utils/logger";
 
 // Load environment variables from .env file
-dotenv.config({ path: resolve(__dirname, '../.env') });
+dotenv.config({ path: resolve(__dirname, "../.env") });
 
 /**
  * Configuration interface defining all bot settings.
@@ -19,66 +19,68 @@ dotenv.config({ path: resolve(__dirname, '../.env') });
  * @interface Config
  */
 interface Config {
-  /** Telegram bot API token from BotFather */
-  botToken: string;
+	/** Telegram bot API token from BotFather */
+	botToken: string;
 
-  /** Telegram bot username (without @) from BotFather */
-  botUsername: string;
+	/** Juno blockchain RPC endpoint URL */
+	junoRpcUrl: string;
 
-  /** Juno blockchain RPC endpoint URL */
-  junoRpcUrl: string;
+	/** Juno blockchain REST API endpoint URL (optional) */
+	junoApiUrl?: string;
 
-  /** Juno blockchain REST API endpoint URL (optional) */
-  junoApiUrl?: string;
+	/** Telegram chat ID for admin notifications */
+	adminChatId: number;
 
-  /** Telegram chat ID for admin notifications */
-  adminChatId: number;
+	/** Telegram group chat ID where bot operates (optional) */
+	groupChatId?: number;
 
-  /** Telegram group chat ID where bot operates (optional) */
-  groupChatId?: number;
+	/** Telegram user ID(s) of the bot owner(s) - supports multiple via comma-separated list */
+	ownerIds: number[];
 
-  /** Telegram user ID(s) of the bot owner(s) - supports multiple via comma-separated list */
-  ownerIds: number[];
+	/** Telegram user ID(s) of pre-configured admin(s) - supports multiple via comma-separated list */
+	adminIds: number[];
 
-  /** Telegram user ID(s) of pre-configured admin(s) - supports multiple via comma-separated list */
-  adminIds: number[];
+	/** Juno wallet address for user fund operations (optional) */
+	userFundsAddress?: string;
 
-  /** Juno wallet address for user fund operations (optional) */
-  userFundsAddress?: string;
+	/** BIP39 mnemonic for signing withdrawal transactions (optional) */
+	userFundsMnemonic?: string;
 
-  /** BIP39 mnemonic for signing withdrawal transactions (optional) */
-  userFundsMnemonic?: string;
+	/** Bot treasury Juno wallet address (optional, defaults to userFundsAddress) */
+	botTreasuryAddress?: string;
 
-  /** Bot treasury Juno wallet address (optional, defaults to userFundsAddress) */
-  botTreasuryAddress?: string;
+	/** File path to SQLite database */
+	databasePath: string;
 
-  /** File path to SQLite database */
-  databasePath: string;
+	/** Logging level (error, warn, info, debug) */
+	logLevel: string;
 
-  /** Logging level (error, warn, info, debug) */
-  logLevel: string;
+	/**
+	 * Legacy fine amounts in JUNO tokens (fallback values).
+	 * Actual fines are now calculated using USD amounts from the database
+	 * converted to JUNO via the PriceService using CoinGecko rolling averages.
+	 * Use /setfine to configure USD-based fine amounts.
+	 */
+	fineAmounts: {
+		/** Fine for sending restricted stickers */
+		sticker: number;
+		/** Fine for posting restricted URLs */
+		url: number;
+		/** Fine for matching restricted regex patterns */
+		regex: number;
+		/** Fine for blacklisted actions */
+		blacklist: number;
+	};
 
-  /** Fine amounts in JUNO tokens for different violation types */
-  fineAmounts: {
-    /** Fine for sending restricted stickers */
-    sticker: number;
-    /** Fine for posting restricted URLs */
-    url: number;
-    /** Fine for matching restricted regex patterns */
-    regex: number;
-    /** Fine for blacklisted actions */
-    blacklist: number;
-  };
-
-  /** Duration settings for various restriction types */
-  restrictionDurations: {
-    /** Warning duration in milliseconds */
-    warning: number;
-    /** Mute duration in milliseconds */
-    mute: number;
-    /** Temporary ban duration in milliseconds */
-    tempBan: number;
-  };
+	/** Duration settings for various restriction types */
+	restrictionDurations: {
+		/** Warning duration in milliseconds */
+		warning: number;
+		/** Mute duration in milliseconds */
+		mute: number;
+		/** Temporary ban duration in milliseconds */
+		tempBan: number;
+	};
 }
 
 /**
@@ -89,30 +91,38 @@ interface Config {
  * @type {Config}
  */
 export const config: Config = {
-  botToken: process.env.BOT_TOKEN || '',
-  botUsername: process.env.BOT_USERNAME || '',
-  junoRpcUrl: process.env.JUNO_RPC_URL || 'https://rpc.juno.basementnodes.ca',
-  junoApiUrl: process.env.JUNO_API_URL || 'https://api.juno.basementnodes.ca',
-  adminChatId: parseInt(process.env.ADMIN_CHAT_ID || '0'),
-  groupChatId: process.env.GROUP_CHAT_ID ? parseInt(process.env.GROUP_CHAT_ID) : undefined,
-  ownerIds: (process.env.OWNER_ID || '').split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)),
-  adminIds: (process.env.ADMIN_ID || '').split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id)),
-  userFundsAddress: process.env.USER_FUNDS_ADDRESS,
-  userFundsMnemonic: process.env.USER_FUNDS_MNEMONIC,
-  botTreasuryAddress: process.env.BOT_TREASURY_ADDRESS || process.env.USER_FUNDS_ADDRESS,
-  databasePath: process.env.DATABASE_PATH || './data/bot.db',
-  logLevel: process.env.LOG_LEVEL || 'info',
-  fineAmounts: {
-    sticker: 1.0,
-    url: 2.0,
-    regex: 1.5,
-    blacklist: 5.0
-  },
-  restrictionDurations: {
-    warning: 24 * 60 * 60 * 1000, // 24 hours
-    mute: 60 * 60 * 1000, // 1 hour
-    tempBan: 7 * 24 * 60 * 60 * 1000 // 7 days
-  }
+	botToken: process.env.BOT_TOKEN || "",
+	junoRpcUrl: process.env.JUNO_RPC_URL || "https://rpc.juno.basementnodes.ca",
+	junoApiUrl: process.env.JUNO_API_URL || "https://api.juno.basementnodes.ca",
+	adminChatId: parseInt(process.env.ADMIN_CHAT_ID || "0", 10),
+	groupChatId: process.env.GROUP_CHAT_ID
+		? parseInt(process.env.GROUP_CHAT_ID, 10)
+		: undefined,
+	ownerIds: (process.env.OWNER_ID || "")
+		.split(",")
+		.map((id) => parseInt(id.trim(), 10))
+		.filter((id) => !Number.isNaN(id)),
+	adminIds: (process.env.ADMIN_ID || "")
+		.split(",")
+		.map((id) => parseInt(id.trim(), 10))
+		.filter((id) => !Number.isNaN(id)),
+	userFundsAddress: process.env.USER_FUNDS_ADDRESS,
+	userFundsMnemonic: process.env.USER_FUNDS_MNEMONIC,
+	botTreasuryAddress:
+		process.env.BOT_TREASURY_ADDRESS || process.env.USER_FUNDS_ADDRESS,
+	databasePath: process.env.DATABASE_PATH || "./data/bot.db",
+	logLevel: process.env.LOG_LEVEL || "info",
+	fineAmounts: {
+		sticker: 1.0,
+		url: 2.0,
+		regex: 1.5,
+		blacklist: 5.0,
+	},
+	restrictionDurations: {
+		warning: 24 * 60 * 60 * 1000, // 24 hours
+		mute: 60 * 60 * 1000, // 1 hour
+		tempBan: 7 * 24 * 60 * 60 * 1000, // 7 days
+	},
 };
 
 /**
@@ -136,18 +146,19 @@ export const config: Config = {
  * ```
  */
 export function validateConfig(): void {
-  if (!config.botToken) {
-    throw new Error('BOT_TOKEN is required in environment variables');
-  }
-  if (!config.botUsername) {
-    throw new Error('BOT_USERNAME is required in environment variables');
-  }
-  if (!config.ownerIds || config.ownerIds.length === 0) {
-    throw new Error('OWNER_ID is required in environment variables (comma-separated for multiple owners)');
-  }
+	if (!config.botToken) {
+		throw new Error("BOT_TOKEN is required in environment variables");
+	}
+	if (!config.ownerIds || config.ownerIds.length === 0) {
+		throw new Error(
+			"OWNER_ID is required in environment variables (comma-separated for multiple owners)",
+		);
+	}
 
-  // Warn about ledger system configuration
-  if (!config.userFundsAddress || !config.userFundsMnemonic) {
-    logger.warn('User funds wallet not fully configured - deposit/withdrawal features will be limited');
-  }
+	// Warn about ledger system configuration
+	if (!config.userFundsAddress || !config.userFundsMnemonic) {
+		logger.warn(
+			"User funds wallet not fully configured - deposit/withdrawal features will be limited",
+		);
+	}
 }

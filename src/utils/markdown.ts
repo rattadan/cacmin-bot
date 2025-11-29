@@ -10,7 +10,7 @@
 /**
  * Characters that must be escaped in MarkdownV2.
  */
-const MARKDOWN_V2_SPECIAL_CHARS = /([_*\[\]()~`>#+\-=|{}.!\\])/g;
+const MARKDOWN_V2_SPECIAL_CHARS = /([_*[\]()~`>#+\-=|{}.!\\])/g;
 
 /**
  * Escapes special characters for Telegram MarkdownV2 format.
@@ -25,7 +25,7 @@ const MARKDOWN_V2_SPECIAL_CHARS = /([_*\[\]()~`>#+\-=|{}.!\\])/g;
  * ```
  */
 export function escapeMarkdownV2(text: string | number): string {
-  return String(text).replace(MARKDOWN_V2_SPECIAL_CHARS, '\\$1');
+	return String(text).replace(MARKDOWN_V2_SPECIAL_CHARS, "\\$1");
 }
 
 /**
@@ -42,8 +42,8 @@ export function escapeMarkdownV2(text: string | number): string {
  * // Returns: '123\\.46'
  * ```
  */
-export function escapeNumber(value: number, decimals: number = 2): string {
-  return escapeMarkdownV2(value.toFixed(decimals));
+export function escapeNumber(value: number, decimals = 2): string {
+	return escapeMarkdownV2(value.toFixed(decimals));
 }
 
 /**
@@ -59,6 +59,6 @@ export function escapeNumber(value: number, decimals: number = 2): string {
  * // Returns: '1\\.500000 JUNO'
  * ```
  */
-export function formatJunoAmount(amount: number, decimals: number = 6): string {
-  return `${escapeNumber(amount, decimals)} JUNO`;
+export function formatJunoAmount(amount: number, decimals = 6): string {
+	return `${escapeNumber(amount, decimals)} JUNO`;
 }

@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, Mock } from 'vitest';
 import { Telegraf } from 'telegraf';
 import {
   initTestDatabase,
@@ -7,11 +8,11 @@ import {
 } from '../helpers';
 
 // Mock the database module to use test database
-jest.mock('../../src/database', () => {
+vi.mock('../../src/database', () => {
   let testDb: any = null;
 
   return {
-    query: jest.fn((sql: string, params: unknown[] = []) => {
+    query: vi.fn((sql: string, params: unknown[] = []) => {
       if (!testDb) {
         const { getTestDatabase } = require('../helpers/testDatabase');
         testDb = getTestDatabase();
@@ -19,7 +20,7 @@ jest.mock('../../src/database', () => {
       const stmt = testDb.prepare(sql);
       return stmt.all(params);
     }),
-    execute: jest.fn((sql: string, params: unknown[] = []) => {
+    execute: vi.fn((sql: string, params: unknown[] = []) => {
       if (!testDb) {
         const { getTestDatabase } = require('../helpers/testDatabase');
         testDb = getTestDatabase();
@@ -27,7 +28,7 @@ jest.mock('../../src/database', () => {
       const stmt = testDb.prepare(sql);
       return stmt.run(params);
     }),
-    get: jest.fn((sql: string, params: unknown[] = []) => {
+    get: vi.fn((sql: string, params: unknown[] = []) => {
       if (!testDb) {
         const { getTestDatabase } = require('../helpers/testDatabase');
         testDb = getTestDatabase();
@@ -35,7 +36,7 @@ jest.mock('../../src/database', () => {
       const stmt = testDb.prepare(sql);
       return stmt.get(params);
     }),
-    initDb: jest.fn(),
+    initDb: vi.fn(),
   };
 });
 
@@ -56,7 +57,7 @@ describe('Help Command', () => {
   beforeEach(() => {
     cleanTestDatabase();
     bot = new Telegraf('test-token');
-    replyMock = jest.fn().mockResolvedValue({});
+    replyMock = vi.fn().mockResolvedValue({});
   });
 
   const simulateCommand = async (
@@ -88,7 +89,7 @@ describe('Help Command', () => {
     // Mock telegram
     bot.botInfo = { id: 123, is_bot: true, first_name: 'Bot', username: 'cacadminbot', can_join_groups: true, can_read_all_group_messages: true, supports_inline_queries: false };
     (bot as any).telegram = {
-      callApi: jest.fn(),
+      callApi: vi.fn(),
     };
 
     const ctx: any = await (bot as any).handleUpdate(update);

@@ -1,18 +1,22 @@
 /** Role checking and authorization utilities for permission system */
 
-import { User } from '../types';
-import { query } from '../database';
+import { query } from "../database";
+import type { User } from "../types";
 
 /** Check if user ID matches group owner ID */
-export const isGroupOwner = (userId: number, ownerId: number): boolean => userId === ownerId;
+export const isGroupOwner = (userId: number, ownerId: number): boolean =>
+	userId === ownerId;
 
 /**
  * Check if user has specific role (exact match, not hierarchy-aware)
  * For hierarchy checks, use checkIsElevated
  */
-export const hasRole = (userId: number, role: 'owner' | 'admin' | 'elevated' | 'default'): boolean => {
-  const user = query<User>('SELECT * FROM users WHERE id = ?', [userId])[0];
-  return user?.role === role;
+export const hasRole = (
+	userId: number,
+	role: "owner" | "admin" | "elevated" | "default",
+): boolean => {
+	const user = query<User>("SELECT * FROM users WHERE id = ?", [userId])[0];
+	return user?.role === role;
 };
 
 /**
@@ -22,8 +26,12 @@ export const hasRole = (userId: number, role: 'owner' | 'admin' | 'elevated' | '
  * Role hierarchy: owner > admin > elevated > pleb/default
  */
 export const checkIsElevated = (userId: number): boolean => {
-  const user = query<User>('SELECT * FROM users WHERE id = ?', [userId])[0];
-  return user?.role === 'owner' || user?.role === 'admin' || user?.role === 'elevated';
+	const user = query<User>("SELECT * FROM users WHERE id = ?", [userId])[0];
+	return (
+		user?.role === "owner" ||
+		user?.role === "admin" ||
+		user?.role === "elevated"
+	);
 };
 
 /**
@@ -31,6 +39,6 @@ export const checkIsElevated = (userId: number): boolean => {
  * Admins and owners cannot be jailed, warned, muted, banned, or restricted
  */
 export const isImmuneToModeration = (userId: number): boolean => {
-  const user = query<User>('SELECT * FROM users WHERE id = ?', [userId])[0];
-  return user?.role === 'owner' || user?.role === 'admin';
+	const user = query<User>("SELECT * FROM users WHERE id = ?", [userId])[0];
+	return user?.role === "owner" || user?.role === "admin";
 };

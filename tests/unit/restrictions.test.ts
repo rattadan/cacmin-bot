@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, Mock } from 'vitest';
 /**
  * Unit tests for restriction and blacklist handlers
  * Tests: src/handlers/restrictions.ts, src/handlers/actions.ts, src/handlers/blacklist.ts
@@ -5,15 +6,15 @@
  */
 
 // Mock the database module BEFORE any imports
-jest.mock('../../src/database', () => ({
-  query: jest.fn(),
-  execute: jest.fn(),
-  get: jest.fn(),
-  initDb: jest.fn(),
+vi.mock('../../src/database', () => ({
+  query: vi.fn(),
+  execute: vi.fn(),
+  get: vi.fn(),
+  initDb: vi.fn(),
 }));
 
 // Mock the config module to avoid loading real config
-jest.mock('../../src/config', () => ({
+vi.mock('../../src/config', () => ({
   config: {
     databasePath: ':memory:',
     botToken: 'test-token',
@@ -36,41 +37,66 @@ import { addUserRestriction, removeUserRestriction, getUserRestrictions } from '
 import { RestrictionService } from '../../src/services/restrictionService';
 import { User, UserRestriction, GlobalAction } from '../../src/types';
 
-const mockQuery = database.query as jest.MockedFunction<typeof database.query>;
-const mockExecute = database.execute as jest.MockedFunction<typeof database.execute>;
+const mockQuery = database.query as MockedFunction<typeof database.query>;
+const mockExecute = database.execute as MockedFunction<typeof database.execute>;
 
 // Mock hasRole utility
-jest.mock('../../src/utils/roles', () => ({
-  hasRole: jest.fn((userId: number, role: string) => {
+vi.mock('../../src/utils/roles', () => ({
+  hasRole: vi.fn((userId: number, role: string) => {
     // Owner: 111111111, Admin: 222222222, Elevated: 333333333, Pleb: 444444444
     if (role === 'owner') return userId === 111111111;
     if (role === 'admin') return userId === 222222222;
     if (role === 'elevated') return userId === 333333333;
     return false;
   }),
-  checkIsElevated: jest.fn((userId: number) => {
+  checkIsElevated: vi.fn((userId: number) => {
     return userId === 111111111 || userId === 222222222 || userId === 333333333;
   }),
 }));
 
 // Mock logger
-jest.mock('../../src/utils/logger', () => ({
+vi.mock('../../src/utils/logger', () => ({
   logger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+  },
+  StructuredLogger: {
+    logError: vi.fn(),
+    logUserAction: vi.fn(),
+    logTransaction: vi.fn(),
+    logWalletAction: vi.fn(),
+    logSecurityEvent: vi.fn(),
   },
 }));
 
 // Mock violation service
-jest.mock('../../src/services/violationService', () => ({
-  createViolation: jest.fn().mockResolvedValue(1),
+vi.mock('../../src/services/violationService', () => ({
+  createViolation: vi.fn().mockResolvedValue(1),
+}));
+
+// Mock safeRegex utility
+vi.mock('../../src/utils/safeRegex', () => ({
+  createPatternObject: vi.fn((pattern: string) => {
+    if (pattern === '[invalid(regex') return null;
+    return { regex: new RegExp(pattern, 'i') };
+  }),
+  testPatternSafely: vi.fn(async (regex: RegExp, text: string) => {
+    return regex.test(text);
+  }),
+}));
+
+// Mock JailService
+vi.mock('../../src/services/jailService', () => ({
+  JailService: {
+    jail: vi.fn(),
+  },
 }));
 
 describe('User Restrictions Handler Tests', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('/addrestriction command', () => {
@@ -79,22 +105,22 @@ describe('User Restrictions Handler Tests', () => {
 
       mockExecute.mockReturnValue({ changes: 1, lastInsertRowid: 1 } as any);
 
-      await addUserRestriction(444444444, 'no_stickers', 'pack123', undefined, 1700000000);
+      addUserRestriction(444444444, 'no_stickers', 'pack123', undefined, 1700000000);
 
       expect(mockExecute).toHaveBeenCalledWith(
-        'INSERT INTO user_restrictions (user_id, restriction, restricted_action, metadata, restricted_until) VALUES (?, ?, ?, ?, ?)',
-        [444444444, 'no_stickers', 'pack123', null, 1700000000]
+        'INSERT INTO user_restrictions (user_id, restriction, restricted_action, metadata, restricted_until, severity, violation_threshold, auto_jail_duration, auto_jail_fine) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [444444444, 'no_stickers', 'pack123', null, 1700000000, 'delete', 5, 2880, 10.0]
       );
     });
 
     it('should add a restriction without optional parameters', async () => {
       mockExecute.mockReturnValue({ changes: 1, lastInsertRowid: 1 } as any);
 
-      await addUserRestriction(444444444, 'no_urls');
+      addUserRestriction(444444444, 'no_urls');
 
       expect(mockExecute).toHaveBeenCalledWith(
-        'INSERT INTO user_restrictions (user_id, restriction, restricted_action, metadata, restricted_until) VALUES (?, ?, ?, ?, ?)',
-        [444444444, 'no_urls', null, null, null]
+        'INSERT INTO user_restrictions (user_id, restriction, restricted_action, metadata, restricted_until, severity, violation_threshold, auto_jail_duration, auto_jail_fine) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [444444444, 'no_urls', null, null, null, 'delete', 5, 2880, 10.0]
       );
     });
 
@@ -102,11 +128,11 @@ describe('User Restrictions Handler Tests', () => {
       mockExecute.mockReturnValue({ changes: 1, lastInsertRowid: 1 } as any);
       const metadata = { reason: 'spam', severity: 'high' };
 
-      await addUserRestriction(444444444, 'regex_block', 'spam.*pattern', metadata);
+      addUserRestriction(444444444, 'regex_block', 'spam.*pattern', metadata);
 
       expect(mockExecute).toHaveBeenCalledWith(
-        'INSERT INTO user_restrictions (user_id, restriction, restricted_action, metadata, restricted_until) VALUES (?, ?, ?, ?, ?)',
-        [444444444, 'regex_block', 'spam.*pattern', JSON.stringify(metadata), null]
+        'INSERT INTO user_restrictions (user_id, restriction, restricted_action, metadata, restricted_until, severity, violation_threshold, auto_jail_duration, auto_jail_fine) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [444444444, 'regex_block', 'spam.*pattern', JSON.stringify(metadata), null, 'delete', 5, 2880, 10.0]
       );
     });
 
@@ -114,33 +140,33 @@ describe('User Restrictions Handler Tests', () => {
       mockExecute.mockReturnValue({ changes: 1, lastInsertRowid: 1 } as any);
       const futureTimestamp = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
 
-      await addUserRestriction(444444444, 'muted', undefined, undefined, futureTimestamp);
+      addUserRestriction(444444444, 'muted', undefined, undefined, futureTimestamp);
 
       expect(mockExecute).toHaveBeenCalledWith(
-        'INSERT INTO user_restrictions (user_id, restriction, restricted_action, metadata, restricted_until) VALUES (?, ?, ?, ?, ?)',
-        [444444444, 'muted', null, null, futureTimestamp]
+        'INSERT INTO user_restrictions (user_id, restriction, restricted_action, metadata, restricted_until, severity, violation_threshold, auto_jail_duration, auto_jail_fine) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [444444444, 'muted', null, null, futureTimestamp, 'delete', 5, 2880, 10.0]
       );
     });
 
     it('should add URL restriction with specific domain', async () => {
       mockExecute.mockReturnValue({ changes: 1, lastInsertRowid: 1 } as any);
 
-      await addUserRestriction(444444444, 'no_urls', 'spam.com');
+      addUserRestriction(444444444, 'no_urls', 'spam.com');
 
       expect(mockExecute).toHaveBeenCalledWith(
-        'INSERT INTO user_restrictions (user_id, restriction, restricted_action, metadata, restricted_until) VALUES (?, ?, ?, ?, ?)',
-        [444444444, 'no_urls', 'spam.com', null, null]
+        'INSERT INTO user_restrictions (user_id, restriction, restricted_action, metadata, restricted_until, severity, violation_threshold, auto_jail_duration, auto_jail_fine) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [444444444, 'no_urls', 'spam.com', null, null, 'delete', 5, 2880, 10.0]
       );
     });
 
     it('should add regex restriction with pattern', async () => {
       mockExecute.mockReturnValue({ changes: 1, lastInsertRowid: 1 } as any);
 
-      await addUserRestriction(444444444, 'regex_block', 'buy.*crypto.*now');
+      addUserRestriction(444444444, 'regex_block', 'buy.*crypto.*now');
 
       expect(mockExecute).toHaveBeenCalledWith(
-        'INSERT INTO user_restrictions (user_id, restriction, restricted_action, metadata, restricted_until) VALUES (?, ?, ?, ?, ?)',
-        [444444444, 'regex_block', 'buy.*crypto.*now', null, null]
+        'INSERT INTO user_restrictions (user_id, restriction, restricted_action, metadata, restricted_until, severity, violation_threshold, auto_jail_duration, auto_jail_fine) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [444444444, 'regex_block', 'buy.*crypto.*now', null, null, 'delete', 5, 2880, 10.0]
       );
     });
 
@@ -150,7 +176,7 @@ describe('User Restrictions Handler Tests', () => {
       const restrictions = ['no_stickers', 'no_urls', 'no_media', 'no_gifs', 'no_voice', 'no_forwarding', 'muted'];
 
       for (const restriction of restrictions) {
-        await addUserRestriction(444444444, restriction);
+        addUserRestriction(444444444, restriction);
       }
 
       expect(mockExecute).toHaveBeenCalledTimes(restrictions.length);
@@ -161,7 +187,7 @@ describe('User Restrictions Handler Tests', () => {
     it('should remove a user restriction', async () => {
       mockExecute.mockReturnValue({ changes: 1, lastInsertRowid: 0 } as any);
 
-      await removeUserRestriction(444444444, 'no_stickers');
+      removeUserRestriction(444444444, 'no_stickers');
 
       expect(mockExecute).toHaveBeenCalledWith(
         'DELETE FROM user_restrictions WHERE user_id = ? AND restriction = ?',
@@ -172,7 +198,7 @@ describe('User Restrictions Handler Tests', () => {
     it('should handle removing non-existent restriction', async () => {
       mockExecute.mockReturnValue({ changes: 0, lastInsertRowid: 0 } as any);
 
-      await removeUserRestriction(444444444, 'no_stickers');
+      removeUserRestriction(444444444, 'no_stickers');
 
       expect(mockExecute).toHaveBeenCalledWith(
         'DELETE FROM user_restrictions WHERE user_id = ? AND restriction = ?',
@@ -183,7 +209,7 @@ describe('User Restrictions Handler Tests', () => {
     it('should remove specific restriction types', async () => {
       mockExecute.mockReturnValue({ changes: 1, lastInsertRowid: 0 } as any);
 
-      await removeUserRestriction(444444444, 'regex_block');
+      removeUserRestriction(444444444, 'regex_block');
 
       expect(mockExecute).toHaveBeenCalledWith(
         'DELETE FROM user_restrictions WHERE user_id = ? AND restriction = ?',
@@ -287,7 +313,7 @@ describe('User Restrictions Handler Tests', () => {
 
 describe('Global Actions Handler Tests', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('/addaction command', () => {
@@ -433,7 +459,7 @@ describe('Global Actions Handler Tests', () => {
 
 describe('Blacklist Handler Tests', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('/addblacklist command', () => {
@@ -584,7 +610,7 @@ describe('Blacklist Handler Tests', () => {
 
 describe('RestrictionService Tests', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('checkMessage - User Restrictions', () => {
@@ -1076,7 +1102,7 @@ describe('RestrictionService Tests', () => {
         timestamp: Date.now(),
       };
 
-      await addUserRestriction(444444444, 'no_urls', 'spam.com', metadata);
+      addUserRestriction(444444444, 'no_urls', 'spam.com', metadata);
 
       expect(mockExecute).toHaveBeenCalledWith(
         expect.any(String),
@@ -1087,7 +1113,7 @@ describe('RestrictionService Tests', () => {
     it('should handle null metadata', async () => {
       mockExecute.mockReturnValue({ changes: 1, lastInsertRowid: 1 } as any);
 
-      await addUserRestriction(444444444, 'no_urls');
+      addUserRestriction(444444444, 'no_urls');
 
       expect(mockExecute).toHaveBeenCalledWith(
         expect.any(String),
@@ -1109,7 +1135,7 @@ describe('RestrictionService Tests', () => {
         },
       };
 
-      await addUserRestriction(444444444, 'regex_block', 'spam.*', metadata);
+      addUserRestriction(444444444, 'regex_block', 'spam.*', metadata);
 
       const metadataJson = JSON.stringify(metadata);
       expect(mockExecute).toHaveBeenCalledWith(
@@ -1122,30 +1148,30 @@ describe('RestrictionService Tests', () => {
 
 describe('Permission Validation Tests', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should allow elevated users to manage restrictions', async () => {
-    const { hasRole } = require('../../src/utils/roles');
+    const { hasRole } = await import('../../src/utils/roles');
 
     expect(hasRole(333333333, 'elevated')).toBe(true);
   });
 
   it('should allow admins to manage restrictions', async () => {
-    const { hasRole } = require('../../src/utils/roles');
+    const { hasRole } = await import('../../src/utils/roles');
 
     expect(hasRole(222222222, 'admin')).toBe(true);
   });
 
   it('should deny plebs from managing restrictions', async () => {
-    const { hasRole } = require('../../src/utils/roles');
+    const { hasRole } = await import('../../src/utils/roles');
 
     expect(hasRole(444444444, 'elevated')).toBe(false);
     expect(hasRole(444444444, 'admin')).toBe(false);
   });
 
   it('should check elevated status correctly', async () => {
-    const { checkIsElevated } = require('../../src/utils/roles');
+    const { checkIsElevated } = await import('../../src/utils/roles');
 
     expect(checkIsElevated(111111111)).toBe(true); // Owner
     expect(checkIsElevated(222222222)).toBe(true); // Admin
@@ -1156,14 +1182,14 @@ describe('Permission Validation Tests', () => {
 
 describe('Integration Tests - Restriction Workflows', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should handle full restriction lifecycle: add, list, remove', async () => {
     mockExecute.mockReturnValue({ changes: 1, lastInsertRowid: 1 } as any);
 
     // Add restriction
-    await addUserRestriction(444444444, 'no_stickers', 'pack123');
+    addUserRestriction(444444444, 'no_stickers', 'pack123');
 
     expect(mockExecute).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO user_restrictions'),
@@ -1187,7 +1213,7 @@ describe('Integration Tests - Restriction Workflows', () => {
     expect(restrictions[0].restriction).toBe('no_stickers');
 
     // Remove restriction
-    await removeUserRestriction(444444444, 'no_stickers');
+    removeUserRestriction(444444444, 'no_stickers');
 
     expect(mockExecute).toHaveBeenCalledWith(
       'DELETE FROM user_restrictions WHERE user_id = ? AND restriction = ?',
@@ -1199,9 +1225,9 @@ describe('Integration Tests - Restriction Workflows', () => {
     mockExecute.mockReturnValue({ changes: 1, lastInsertRowid: 1 } as any);
 
     // Add multiple restrictions
-    await addUserRestriction(444444444, 'no_stickers');
-    await addUserRestriction(444444444, 'no_urls', 'spam.com');
-    await addUserRestriction(444444444, 'regex_block', 'buy.*now');
+    addUserRestriction(444444444, 'no_stickers');
+    addUserRestriction(444444444, 'no_urls', 'spam.com');
+    addUserRestriction(444444444, 'regex_block', 'buy.*now');
 
     expect(mockExecute).toHaveBeenCalledTimes(3);
 

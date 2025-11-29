@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, Mock } from 'vitest';
 /**
  * Unit tests for jail and moderation commands
  */
@@ -22,8 +23,8 @@ import {
 } from '../helpers/testDatabase';
 
 // Mock database module
-jest.mock('../../src/database', () => {
-  const testDb = require('../helpers/testDatabase');
+vi.mock('../../src/database', async () => {
+  const testDb = await import('../helpers/testDatabase');
   return {
     query: (sql: string, params: any[] = []) => {
       const db = testDb.getTestDatabase();
@@ -41,7 +42,7 @@ jest.mock('../../src/database', () => {
 });
 
 // Mock config
-jest.mock('../../src/config', () => ({
+vi.mock('../../src/config', () => ({
   config: {
     botToken: 'test-token',
     groupChatId: -1001234567890,
@@ -50,24 +51,32 @@ jest.mock('../../src/config', () => ({
     userFundsAddress: 'juno1testuserfundsaddress',
     userFundsMnemonic: 'test mnemonic',
   },
-  validateConfig: jest.fn(),
+  validateConfig: vi.fn(),
 }));
 
 // Mock logger
-jest.mock('../../src/utils/logger', () => ({
+vi.mock('../../src/utils/logger', () => ({
   logger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+  },
+  StructuredLogger: {
+    logError: vi.fn(),
+    logUserAction: vi.fn(),
+    logTransaction: vi.fn(),
+    logWalletAction: vi.fn(),
+    logSecurityEvent: vi.fn(),
+    logDebug: vi.fn(),
   },
 }));
 
 // Mock JunoService
-jest.mock('../../src/services/junoService', () => ({
+vi.mock('../../src/services/junoService', () => ({
   JunoService: {
-    getPaymentAddress: jest.fn().mockReturnValue('juno1testtreasuryaddress'),
-    verifyPayment: jest.fn().mockResolvedValue(true),
+    getPaymentAddress: vi.fn().mockReturnValue('juno1testtreasuryaddress'),
+    verifyPayment: vi.fn().mockResolvedValue(true),
   },
 }));
 
@@ -75,28 +84,32 @@ jest.mock('../../src/services/junoService', () => ({
 // Just mock the bot-specific methods if needed
 
 // Mock user resolver
-jest.mock('../../src/utils/userResolver', () => ({
-  resolveUserId: jest.fn((identifier: string) => {
-    if (identifier.startsWith('@')) {
-      const username = identifier.slice(1);
-      const db = require('../helpers/testDatabase').getTestDatabase();
-      const user = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
-      return user?.id;
-    }
-    const userId = parseInt(identifier);
-    return isNaN(userId) ? null : userId;
-  }),
-  formatUserIdDisplay: jest.fn((userId: number) => {
-    const db = require('../helpers/testDatabase').getTestDatabase();
-    const user = db.prepare('SELECT username FROM users WHERE id = ?').get(userId);
-    return user?.username ? `@${user.username}` : `${userId}`;
-  }),
-}));
+vi.mock('../../src/utils/userResolver', async () => {
+  const testDb = await import('../helpers/testDatabase');
+  return {
+    resolveUserId: vi.fn((identifier: string) => {
+      if (identifier.startsWith('@')) {
+        const username = identifier.slice(1);
+        const db = testDb.getTestDatabase();
+        const user = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+        return user?.id;
+      }
+      const userId = parseInt(identifier);
+      return isNaN(userId) ? null : userId;
+    }),
+    formatUserIdDisplay: vi.fn((userId: number) => {
+      const db = testDb.getTestDatabase();
+      const user = db.prepare('SELECT username FROM users WHERE id = ?').get(userId);
+      return user?.username ? `@${user.username}` : `${userId}`;
+    }),
+  };
+});
 
 import { registerJailCommands } from '../../src/commands/jail';
 import { registerModerationCommands } from '../../src/commands/moderation';
 import { JailService } from '../../src/services/jailService';
 import Telegraf from 'telegraf';
+import * as db from '../../src/database';
 
 describe('Jail Commands', () => {
   beforeAll(() => {
@@ -122,8 +135,7 @@ describe('Jail Commands', () => {
 
       // Simulate command execution
       const userId = ctx.from?.id!;
-      const { get } = require('../../src/database');
-      const user = get('SELECT * FROM users WHERE id = ?', [userId]);
+      const user = db.get('SELECT * FROM users WHERE id = ?', [userId]);
 
       expect(user).toBeDefined();
       expect(user.role).toBe('pleb');
@@ -135,8 +147,7 @@ describe('Jail Commands', () => {
       const futureTime = Math.floor(Date.now() / 1000) + 3600; // 1 hour
       jailTestUser(userId, 222222222, 10, futureTime);
 
-      const { get } = require('../../src/database');
-      const user = get('SELECT * FROM users WHERE id = ?', [userId]);
+      const user = db.get('SELECT * FROM users WHERE id = ?', [userId]);
 
       expect(user.muted_until).toBe(futureTime);
       expect(user.muted_until).toBeGreaterThan(Math.floor(Date.now() / 1000));
@@ -147,8 +158,7 @@ describe('Jail Commands', () => {
       createTestViolation(userId, 'no_stickers', 2.0, 0);
       createTestViolation(userId, 'no_urls', 3.0, 0);
 
-      const { query } = require('../../src/database');
-      const violations = query(
+      const violations = db.query(
         'SELECT * FROM violations WHERE user_id = ? AND paid = 0',
         [userId]
       );
@@ -182,8 +192,7 @@ describe('Jail Commands', () => {
       const now = Math.floor(Date.now() / 1000);
       const pastTime = now - 100; // Expired
 
-      const { execute } = require('../../src/database');
-      execute(
+      db.execute(
         'UPDATE users SET muted_until = ? WHERE id = ?',
         [pastTime, 555555555]
       );
@@ -199,27 +208,24 @@ describe('Jail Commands', () => {
       const futureTime = now + 600; // 10 minutes
       const userId = 555555555;
 
-      const { execute } = require('../../src/database');
-      execute(
+      db.execute(
         'UPDATE users SET muted_until = ? WHERE id = ?',
         [futureTime, userId]
       );
 
-      const { get } = require('../../src/database');
-      const user = get('SELECT * FROM users WHERE id = ?', [userId]);
+      const user = db.get('SELECT * FROM users WHERE id = ?', [userId]);
 
       expect(user.muted_until).toBe(futureTime);
 
       const timeRemaining = user.muted_until - now;
-      const bailAmount = JailService.calculateBailAmount(Math.ceil(timeRemaining / 60));
+      const bailAmount = JailService.calculateBailAmountSync(Math.ceil(timeRemaining / 60));
 
       expect(bailAmount).toBeGreaterThanOrEqual(1.0);
     });
 
     it('should return message when user is not jailed', () => {
       const userId = 444444444;
-      const { get } = require('../../src/database');
-      const user = get('SELECT * FROM users WHERE id = ?', [userId]);
+      const user = db.get('SELECT * FROM users WHERE id = ?', [userId]);
 
       expect(user.muted_until).toBeFalsy();
     });
@@ -231,21 +237,18 @@ describe('Jail Commands', () => {
       const futureTime = now + 1200; // 20 minutes
       const targetUserId = 555555555;
 
-      const { execute } = require('../../src/database');
-      execute(
+      db.execute(
         'UPDATE users SET muted_until = ? WHERE id = ?',
         [futureTime, targetUserId]
       );
 
-      const { get } = require('../../src/database');
-      const user = get('SELECT * FROM users WHERE id = ?', [targetUserId]);
+      const user = db.get('SELECT * FROM users WHERE id = ?', [targetUserId]);
       expect(user.muted_until).toBe(futureTime);
     });
 
     it('should reject when user is not jailed', () => {
       const targetUserId = 444444444;
-      const { get } = require('../../src/database');
-      const user = get('SELECT * FROM users WHERE id = ?', [targetUserId]);
+      const user = db.get('SELECT * FROM users WHERE id = ?', [targetUserId]);
 
       expect(user.muted_until).toBeFalsy();
     });
@@ -257,19 +260,18 @@ describe('Jail Commands', () => {
       const futureTime = now + 600;
       const userId = 555555555;
 
-      const { execute, get } = require('../../src/database');
-      execute(
+      db.execute(
         'UPDATE users SET muted_until = ? WHERE id = ?',
         [futureTime, userId]
       );
 
       // Simulate successful verification
-      execute(
+      db.execute(
         'UPDATE users SET muted_until = NULL WHERE id = ?',
         [userId]
       );
 
-      const user = get('SELECT * FROM users WHERE id = ?', [userId]);
+      const user = db.get('SELECT * FROM users WHERE id = ?', [userId]);
       expect(user.muted_until).toBeNull();
     });
 
@@ -280,8 +282,7 @@ describe('Jail Commands', () => {
 
       JailService.logJailEvent(userId, 'bail_paid', undefined, undefined, bailAmount, userId, txHash);
 
-      const { query } = require('../../src/database');
-      const events = query(
+      const events = db.query(
         'SELECT * FROM jail_events WHERE user_id = ? AND event_type = ?',
         [userId, 'bail_paid']
       );
@@ -317,22 +318,20 @@ describe('Moderation Commands', () => {
       const targetUserId = 555555555;
       const minutes = 30;
 
-      const { execute, get } = require('../../src/database');
       const mutedUntil = Math.floor(Date.now() / 1000) + (minutes * 60);
 
-      execute(
+      db.execute(
         'UPDATE users SET muted_until = ? WHERE id = ?',
         [mutedUntil, targetUserId]
       );
 
-      const user = get('SELECT * FROM users WHERE id = ?', [targetUserId]);
+      const user = db.get('SELECT * FROM users WHERE id = ?', [targetUserId]);
       expect(user.muted_until).toBe(mutedUntil);
     });
 
     it('should deny pleb from jailing', () => {
       const plebId = 444444444;
-      const { get } = require('../../src/database');
-      const user = get('SELECT * FROM users WHERE id = ?', [plebId]);
+      const user = db.get('SELECT * FROM users WHERE id = ?', [plebId]);
 
       expect(user.role).toBe('pleb');
       // Permission check would fail
@@ -340,14 +339,14 @@ describe('Moderation Commands', () => {
 
     it('should calculate correct bail amount', () => {
       const minutes = 60;
-      const bailAmount = JailService.calculateBailAmount(minutes);
+      const bailAmount = JailService.calculateBailAmountSync(minutes);
 
       expect(bailAmount).toBe(6.0); // 60 * 0.1 = 6.0
     });
 
     it('should enforce minimum bail of 1.0 JUNO', () => {
       const minutes = 5;
-      const bailAmount = JailService.calculateBailAmount(minutes);
+      const bailAmount = JailService.calculateBailAmountSync(minutes);
 
       expect(bailAmount).toBe(1.0); // minimum
     });
@@ -356,12 +355,11 @@ describe('Moderation Commands', () => {
       const adminId = 222222222;
       const targetUserId = 555555555;
       const minutes = 30;
-      const bailAmount = JailService.calculateBailAmount(minutes);
+      const bailAmount = JailService.calculateBailAmountSync(minutes);
 
       JailService.logJailEvent(targetUserId, 'jailed', adminId, minutes, bailAmount);
 
-      const { query } = require('../../src/database');
-      const events = query(
+      const events = db.query(
         'SELECT * FROM jail_events WHERE user_id = ? AND event_type = ?',
         [targetUserId, 'jailed']
       );
@@ -380,19 +378,18 @@ describe('Moderation Commands', () => {
 
       // First jail the user
       const futureTime = Math.floor(Date.now() / 1000) + 1800;
-      const { execute, get } = require('../../src/database');
-      execute(
+      db.execute(
         'UPDATE users SET muted_until = ? WHERE id = ?',
         [futureTime, targetUserId]
       );
 
       // Then unjail
-      execute(
+      db.execute(
         'UPDATE users SET muted_until = NULL WHERE id = ?',
         [targetUserId]
       );
 
-      const user = get('SELECT * FROM users WHERE id = ?', [targetUserId]);
+      const user = db.get('SELECT * FROM users WHERE id = ?', [targetUserId]);
       expect(user.muted_until).toBeNull();
     });
 
@@ -402,8 +399,7 @@ describe('Moderation Commands', () => {
 
       JailService.logJailEvent(targetUserId, 'unjailed', adminId);
 
-      const { query } = require('../../src/database');
-      const events = query(
+      const events = db.query(
         'SELECT * FROM jail_events WHERE user_id = ? AND event_type = ?',
         [targetUserId, 'unjailed']
       );
@@ -419,23 +415,20 @@ describe('Moderation Commands', () => {
       const targetUserId = 555555555;
       const reason = 'Spam posting';
 
-      const { execute, get } = require('../../src/database');
-
-      execute(
+      db.execute(
         'INSERT INTO violations (user_id, restriction, message, bail_amount) VALUES (?, ?, ?, ?)',
         [targetUserId, 'warning', reason, 0]
       );
 
-      execute(
+      db.execute(
         'UPDATE users SET warning_count = warning_count + 1 WHERE id = ?',
         [targetUserId]
       );
 
-      const user = get('SELECT * FROM users WHERE id = ?', [targetUserId]);
+      const user = db.get('SELECT * FROM users WHERE id = ?', [targetUserId]);
       expect(user.warning_count).toBe(1);
 
-      const { query } = require('../../src/database');
-      const violations = query(
+      const violations = db.query(
         'SELECT * FROM violations WHERE user_id = ? AND restriction = ?',
         [targetUserId, 'warning']
       );
@@ -447,24 +440,23 @@ describe('Moderation Commands', () => {
 
     it('should increment warning count correctly', () => {
       const targetUserId = 555555555;
-      const { execute, get } = require('../../src/database');
 
       // First warning
-      execute(
+      db.execute(
         'UPDATE users SET warning_count = warning_count + 1 WHERE id = ?',
         [targetUserId]
       );
 
-      let user = get('SELECT * FROM users WHERE id = ?', [targetUserId]);
+      let user = db.get('SELECT * FROM users WHERE id = ?', [targetUserId]);
       expect(user.warning_count).toBe(1);
 
       // Second warning
-      execute(
+      db.execute(
         'UPDATE users SET warning_count = warning_count + 1 WHERE id = ?',
         [targetUserId]
       );
 
-      user = get('SELECT * FROM users WHERE id = ?', [targetUserId]);
+      user = db.get('SELECT * FROM users WHERE id = ?', [targetUserId]);
       expect(user.warning_count).toBe(2);
     });
   });
@@ -474,39 +466,35 @@ describe('Moderation Commands', () => {
       const ownerId = 111111111;
       const targetUserId = 555555555;
 
-      const { execute, query, get } = require('../../src/database');
-
       // Create violations
-      execute(
+      db.execute(
         'INSERT INTO violations (user_id, restriction, message, bail_amount) VALUES (?, ?, ?, ?)',
         [targetUserId, 'warning', 'Test 1', 0]
       );
-      execute(
+      db.execute(
         'INSERT INTO violations (user_id, restriction, message, bail_amount) VALUES (?, ?, ?, ?)',
         [targetUserId, 'no_stickers', 'Test 2', 2.0]
       );
 
-      execute('UPDATE users SET warning_count = 2 WHERE id = ?', [targetUserId]);
+      db.execute('UPDATE users SET warning_count = 2 WHERE id = ?', [targetUserId]);
 
       // Clear violations
-      execute('DELETE FROM violations WHERE user_id = ?', [targetUserId]);
-      execute('UPDATE users SET warning_count = 0 WHERE id = ?', [targetUserId]);
+      db.execute('DELETE FROM violations WHERE user_id = ?', [targetUserId]);
+      db.execute('UPDATE users SET warning_count = 0 WHERE id = ?', [targetUserId]);
 
-      const violations = query('SELECT * FROM violations WHERE user_id = ?', [targetUserId]);
+      const violations = db.query('SELECT * FROM violations WHERE user_id = ?', [targetUserId]);
       expect(violations).toHaveLength(0);
 
-      const user = get('SELECT * FROM users WHERE id = ?', [targetUserId]);
+      const user = db.get('SELECT * FROM users WHERE id = ?', [targetUserId]);
       expect(user.warning_count).toBe(0);
     });
   });
 
   describe('/stats Command', () => {
     it('should show bot statistics', () => {
-      const { get } = require('../../src/database');
-
       const stats = {
-        totalUsers: get('SELECT COUNT(*) as count FROM users')?.count || 0,
-        totalViolations: get('SELECT COUNT(*) as count FROM violations')?.count || 0,
+        totalUsers: db.get('SELECT COUNT(*) as count FROM users')?.count || 0,
+        totalViolations: db.get('SELECT COUNT(*) as count FROM violations')?.count || 0,
       };
 
       expect(stats.totalUsers).toBe(5); // From beforeEach
@@ -534,15 +522,15 @@ describe('JailService', () => {
 
   describe('calculateBailAmount', () => {
     it('should calculate bail at 0.1 JUNO per minute', () => {
-      expect(JailService.calculateBailAmount(10)).toBe(1.0);
-      expect(JailService.calculateBailAmount(60)).toBe(6.0);
-      expect(JailService.calculateBailAmount(120)).toBe(12.0);
+      expect(JailService.calculateBailAmountSync(10)).toBe(1.0);
+      expect(JailService.calculateBailAmountSync(60)).toBe(6.0);
+      expect(JailService.calculateBailAmountSync(120)).toBe(12.0);
     });
 
     it('should enforce minimum bail of 1.0 JUNO', () => {
-      expect(JailService.calculateBailAmount(5)).toBe(1.0);
-      expect(JailService.calculateBailAmount(1)).toBe(1.0);
-      expect(JailService.calculateBailAmount(0)).toBe(1.0);
+      expect(JailService.calculateBailAmountSync(5)).toBe(1.0);
+      expect(JailService.calculateBailAmountSync(1)).toBe(1.0);
+      expect(JailService.calculateBailAmountSync(0)).toBe(1.0);
     });
   });
 
@@ -551,8 +539,7 @@ describe('JailService', () => {
       const now = Math.floor(Date.now() / 1000);
       const futureTime = now + 3600;
 
-      const { execute } = require('../../src/database');
-      execute(
+      db.execute(
         'UPDATE users SET muted_until = ? WHERE id = ?',
         [futureTime, 555555555]
       );
@@ -567,8 +554,7 @@ describe('JailService', () => {
       const now = Math.floor(Date.now() / 1000);
       const pastTime = now - 100;
 
-      const { execute } = require('../../src/database');
-      execute(
+      db.execute(
         'UPDATE users SET muted_until = ? WHERE id = ?',
         [pastTime, 555555555]
       );
@@ -626,8 +612,7 @@ describe('JailService', () => {
 
       JailService.logJailEvent(userId, 'jailed', adminId, durationMinutes, bailAmount, undefined, undefined, metadata);
 
-      const { query } = require('../../src/database');
-      const events = query(
+      const events = db.query(
         'SELECT * FROM jail_events WHERE user_id = ?',
         [userId]
       );
@@ -648,8 +633,7 @@ describe('JailService', () => {
 
       JailService.logJailEvent(userId, 'bail_paid', undefined, undefined, bailAmount, payerId, txHash);
 
-      const { query } = require('../../src/database');
-      const events = query(
+      const events = db.query(
         'SELECT * FROM jail_events WHERE user_id = ? AND event_type = ?',
         [userId, 'bail_paid']
       );

@@ -5,10 +5,9 @@
  * Requires bot instance initialization and admin chat ID configuration.
  */
 
-import { Telegraf } from 'telegraf';
-import { config } from '../config';
-import { logger } from './logger';
-import { escapeMarkdownV2 } from './markdown';
+import type { Telegraf } from "telegraf";
+import { config } from "../config";
+import { logger } from "./logger";
 
 let botInstance: Telegraf | null = null;
 
@@ -23,7 +22,7 @@ let botInstance: Telegraf | null = null;
  * setBotInstance(bot);  // Now notifyAdmin() can send messages
  */
 export function setBotInstance(bot: Telegraf): void {
-  botInstance = bot;
+	botInstance = bot;
 }
 
 /**
@@ -49,23 +48,23 @@ export function setBotInstance(bot: Telegraf): void {
  * //  Critical: Withdrawal system offline"
  */
 export async function notifyAdmin(message: string): Promise<void> {
-  if (!botInstance) {
-    logger.warn('Bot instance not set, cannot send admin notification');
-    return;
-  }
+	if (!botInstance) {
+		logger.warn("Bot instance not set, cannot send admin notification");
+		return;
+	}
 
-  if (!config.adminChatId) {
-    logger.warn('Admin chat ID not configured, cannot send notification');
-    return;
-  }
+	if (!config.adminChatId) {
+		logger.warn("Admin chat ID not configured, cannot send notification");
+		return;
+	}
 
-  try {
-    await botInstance.telegram.sendMessage(
-      config.adminChatId,
-      ` *Admin Alert*\n\n${escapeMarkdownV2(message)}`,
-      { parse_mode: 'MarkdownV2' }
-    );
-  } catch (error) {
-    logger.error('Failed to send admin notification', { error, message });
-  }
+	try {
+		await botInstance.telegram.sendMessage(
+			config.adminChatId,
+			` *Admin Alert*\n\n${message}`,
+			{ parse_mode: "Markdown" },
+		);
+	} catch (error) {
+		logger.error("Failed to send admin notification", { error, message });
+	}
 }

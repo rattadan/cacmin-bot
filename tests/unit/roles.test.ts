@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll, Mock } from 'vitest';
 /**
  * Unit tests for role management commands
  * Tests src/handlers/roles.ts and src/utils/roles.ts
@@ -22,31 +23,22 @@ import { User } from '../../src/types';
 import { config } from '../../src/config';
 
 // Mock the database module to use test database
-jest.mock('../../src/database', () => {
-  let testDb: any = null;
+vi.mock('../../src/database', async () => {
+  const { getTestDatabase } = await import('../helpers/testDatabase');
 
   return {
-    query: jest.fn((sql: string, params: unknown[] = []) => {
-      if (!testDb) {
-        const { getTestDatabase } = require('../helpers/testDatabase');
-        testDb = getTestDatabase();
-      }
+    query: vi.fn((sql: string, params: unknown[] = []) => {
+      const testDb = getTestDatabase();
       const stmt = testDb.prepare(sql);
       return stmt.all(params);
     }),
-    execute: jest.fn((sql: string, params: unknown[] = []) => {
-      if (!testDb) {
-        const { getTestDatabase } = require('../helpers/testDatabase');
-        testDb = getTestDatabase();
-      }
+    execute: vi.fn((sql: string, params: unknown[] = []) => {
+      const testDb = getTestDatabase();
       const stmt = testDb.prepare(sql);
       return stmt.run(params);
     }),
-    get: jest.fn((sql: string, params: unknown[] = []) => {
-      if (!testDb) {
-        const { getTestDatabase } = require('../helpers/testDatabase');
-        testDb = getTestDatabase();
-      }
+    get: vi.fn((sql: string, params: unknown[] = []) => {
+      const testDb = getTestDatabase();
       const stmt = testDb.prepare(sql);
       return stmt.get(params);
     }),
@@ -54,12 +46,18 @@ jest.mock('../../src/database', () => {
 });
 
 // Mock logger
-jest.mock('../../src/utils/logger', () => ({
+vi.mock('../../src/utils/logger', () => ({
   logger: {
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+  },
+  StructuredLogger: {
+    logError: vi.fn(),
+    logUserAction: vi.fn(),
+    logTransaction: vi.fn(),
+    logWalletAction: vi.fn(),
   },
 }));
 

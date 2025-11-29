@@ -6,7 +6,7 @@
  */
 
 import { config } from "../config";
-import { execute, get, query } from "../database";
+import { execute, get } from "../database";
 import { logger } from "../utils/logger";
 import { LedgerService } from "./ledgerService";
 
@@ -132,7 +132,11 @@ export class DepositMonitor {
 	 */
 	static async checkForDeposits(): Promise<DepositCheckResult> {
 		if (!DepositMonitor.walletAddress) {
-			return { success: false, depositsFound: 0, error: "Wallet not configured" };
+			return {
+				success: false,
+				depositsFound: 0,
+				error: "Wallet not configured",
+			};
 		}
 
 		try {
@@ -165,7 +169,11 @@ export class DepositMonitor {
 		txHash: string,
 	): Promise<TransactionCheckResult> {
 		// Check if already processed
-		const existing = get<{ processed: number; user_id: number; amount: number }>(
+		const existing = get<{
+			processed: number;
+			user_id: number;
+			amount: number;
+		}>(
 			"SELECT processed, user_id, amount FROM processed_deposits WHERE tx_hash = ?",
 			[txHash],
 		);
@@ -191,14 +199,22 @@ export class DepositMonitor {
 		// Fetch from blockchain
 		try {
 			const response = await fetch(
-				`${DepositMonitor.rpcEndpoint.replace('/rpc', '/api')}/cosmos/tx/v1beta1/txs/${txHash}`,
+				`${DepositMonitor.rpcEndpoint.replace("/rpc", "/api")}/cosmos/tx/v1beta1/txs/${txHash}`,
 			);
 
 			if (!response.ok) {
 				if (response.status === 404) {
-					return { found: false, processed: false, error: "Transaction not found on chain" };
+					return {
+						found: false,
+						processed: false,
+						error: "Transaction not found on chain",
+					};
 				}
-				return { found: false, processed: false, error: `API error: ${response.status}` };
+				return {
+					found: false,
+					processed: false,
+					error: `API error: ${response.status}`,
+				};
 			}
 
 			const data = (await response.json()) as any;
@@ -235,7 +251,9 @@ export class DepositMonitor {
 					if (msg.to_address === DepositMonitor.walletAddress) {
 						toCorrectAddress = true;
 						fromAddress = msg.from_address;
-						const junoAmount = msg.amount?.find((a: any) => a.denom === "ujuno");
+						const junoAmount = msg.amount?.find(
+							(a: any) => a.denom === "ujuno",
+						);
 						if (junoAmount) {
 							amount = parseFloat(junoAmount.amount) / 1_000_000;
 						}
@@ -487,13 +505,16 @@ export class DepositMonitor {
 				}
 
 				if (strLength >= 1) {
-					const str = buffer.slice(strStart, strStart + strLength).toString("utf8");
+					const str = buffer
+						.slice(strStart, strStart + strLength)
+						.toString("utf8");
 					strings.push({ str, position: strStart });
 				}
 			}
 
 			// Find position of amount
-			const amountPos = strings.find((s) => s.str === amountInUjuno)?.position || -1;
+			const amountPos =
+				strings.find((s) => s.str === amountInUjuno)?.position || -1;
 
 			// Look for numeric memo after amount
 			const numericMemo = strings.find((s) => {

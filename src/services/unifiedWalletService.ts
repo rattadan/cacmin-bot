@@ -1684,7 +1684,7 @@ export class UnifiedWalletService {
 		userId: number,
 		toAddress: string,
 		amount: number,
-		description?: string,
+		_description?: string,
 	): Promise<{
 		success: boolean;
 		txHash?: string;

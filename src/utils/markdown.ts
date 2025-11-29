@@ -10,7 +10,7 @@
 /**
  * Characters that must be escaped in MarkdownV2.
  */
-const MARKDOWN_V2_SPECIAL_CHARS = /([_*\[\]()~`>#+\-=|{}.!\\])/g;
+const MARKDOWN_V2_SPECIAL_CHARS = /([_*[\]()~`>#+\-=|{}.!\\])/g;
 
 /**
  * Escapes special characters for Telegram MarkdownV2 format.

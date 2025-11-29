@@ -1458,31 +1458,53 @@ export class UnifiedWalletService {
 	/**
 	 * Gets ledger statistics
 	 *
-	 * @returns Statistics object
+	 * @returns Statistics object with totalUsers, activeUsers, totalBalance, recentDeposits, recentWithdrawals
 	 */
-	static async getLedgerStats(): Promise<any> {
-		const totalUserBalance = await LedgerService.getTotalUserBalance();
-		const systemBalances = await UnifiedWalletService.getSystemBalances();
-		const userCount =
+	static async getLedgerStats(): Promise<{
+		totalUsers: number;
+		activeUsers: number;
+		totalBalance: number;
+		recentDeposits: number;
+		recentWithdrawals: number;
+	}> {
+		const totalBalance = await LedgerService.getTotalUserBalance();
+
+		const totalUsers =
 			get<{ count: number }>(
 				"SELECT COUNT(*) as count FROM user_balances WHERE user_id > 0",
 				[],
 			)?.count || 0;
 
-		const transactionStats = query<any>(
-			`SELECT
-        transaction_type,
-        COUNT(*) as count,
-        SUM(amount) as total_amount
-       FROM transactions
-       GROUP BY transaction_type`,
-		);
+		// Active users = users with balance > 0
+		const activeUsers =
+			get<{ count: number }>(
+				"SELECT COUNT(*) as count FROM user_balances WHERE user_id > 0 AND balance > 0",
+				[],
+			)?.count || 0;
+
+		// Recent deposits/withdrawals in last 24h
+		const oneDayAgo = Math.floor(Date.now() / 1000) - 86400;
+
+		const recentDeposits =
+			get<{ count: number }>(
+				`SELECT COUNT(*) as count FROM transactions
+				WHERE transaction_type = 'deposit' AND created_at > ?`,
+				[oneDayAgo],
+			)?.count || 0;
+
+		const recentWithdrawals =
+			get<{ count: number }>(
+				`SELECT COUNT(*) as count FROM transactions
+				WHERE transaction_type = 'withdrawal' AND created_at > ?`,
+				[oneDayAgo],
+			)?.count || 0;
 
 		return {
-			totalUserBalance,
-			systemBalances,
-			userCount,
-			transactionStats,
+			totalUsers,
+			activeUsers,
+			totalBalance,
+			recentDeposits,
+			recentWithdrawals,
 		};
 	}
 

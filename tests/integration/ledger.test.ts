@@ -178,16 +178,15 @@ function initIntegrationDb(): void {
     );
 
     CREATE TABLE IF NOT EXISTS transaction_locks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
+      user_id INTEGER PRIMARY KEY,
       lock_type TEXT NOT NULL,
-      locked_at INTEGER DEFAULT (strftime('%s', 'now')),
-      expires_at INTEGER,
       amount REAL DEFAULT 0,
+      target_address TEXT,
       tx_hash TEXT,
+      status TEXT DEFAULT 'pending',
       metadata TEXT,
-      created_at INTEGER DEFAULT (strftime('%s', 'now')),
-      FOREIGN KEY (user_id) REFERENCES users(id)
+      locked_at INTEGER DEFAULT (strftime('%s', 'now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS price_history (

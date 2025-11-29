@@ -186,20 +186,19 @@ export function initTestDatabase(): Database.Database {
     );
 
     CREATE TABLE IF NOT EXISTS transaction_locks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
+      user_id INTEGER PRIMARY KEY,
       lock_type TEXT NOT NULL,
-      locked_at INTEGER DEFAULT (strftime('%s', 'now')),
-      expires_at INTEGER,
       amount REAL DEFAULT 0,
+      target_address TEXT,
       tx_hash TEXT,
+      status TEXT DEFAULT 'pending',
       metadata TEXT,
-      created_at INTEGER DEFAULT (strftime('%s', 'now')),
-      FOREIGN KEY (user_id) REFERENCES users(id)
+      locked_at INTEGER DEFAULT (strftime('%s', 'now')),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
-    CREATE INDEX IF NOT EXISTS idx_transaction_locks_user_id ON transaction_locks(user_id);
-    CREATE INDEX IF NOT EXISTS idx_transaction_locks_expires_at ON transaction_locks(expires_at);
+    CREATE INDEX IF NOT EXISTS idx_transaction_locks_status ON transaction_locks(status);
+    CREATE INDEX IF NOT EXISTS idx_transaction_locks_locked_at ON transaction_locks(locked_at);
 
     CREATE TABLE IF NOT EXISTS jail (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

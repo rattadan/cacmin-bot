@@ -323,11 +323,39 @@ export const initDb = (): void => {
     CREATE TABLE IF NOT EXISTS transaction_locks (
       user_id INTEGER PRIMARY KEY,
       lock_type TEXT NOT NULL,
+      amount REAL DEFAULT 0,
+      target_address TEXT,
+      tx_hash TEXT,
+      status TEXT DEFAULT 'pending',
       metadata TEXT,
       locked_at INTEGER DEFAULT (strftime('%s', 'now')),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
   `);
+
+	// Add new columns to existing transaction_locks table if they don't exist
+	try {
+		db.exec(`ALTER TABLE transaction_locks ADD COLUMN amount REAL DEFAULT 0`);
+	} catch (_e) {
+		// Column already exists
+	}
+	try {
+		db.exec(`ALTER TABLE transaction_locks ADD COLUMN target_address TEXT`);
+	} catch (_e) {
+		// Column already exists
+	}
+	try {
+		db.exec(`ALTER TABLE transaction_locks ADD COLUMN tx_hash TEXT`);
+	} catch (_e) {
+		// Column already exists
+	}
+	try {
+		db.exec(
+			`ALTER TABLE transaction_locks ADD COLUMN status TEXT DEFAULT 'pending'`,
+		);
+	} catch (_e) {
+		// Column already exists
+	}
 
 	// Price history table for JUNO price tracking
 	db.exec(`

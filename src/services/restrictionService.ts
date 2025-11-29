@@ -288,9 +288,9 @@ export class RestrictionService {
 				default:
 					// Just delete + warn (already done above)
 					await ctx.reply(
-						`⚠️ Your message was deleted for violating restriction: ${restriction.restriction}\n\n` +
+						`Your message was deleted for violating restriction: ${restriction.restriction}\n\n` +
 							`Violations in last hour: ${recentViolations.length}/${threshold}\n` +
-							`${recentViolations.length >= threshold - 1 ? "🚨 Warning: One more violation will result in automatic 2-day jail with a 10 JUNO fine!\n" : ""}` +
+							`${recentViolations.length >= threshold - 1 ? "WARNING: One more violation will result in automatic 2-day jail with a 10 JUNO fine!\n" : ""}` +
 							`\nUse /violations to check your status.\n` +
 							`If you get jailed, use /paybail to pay your fine and get unjailed immediately.`,
 					);
@@ -384,10 +384,10 @@ export class RestrictionService {
 
 			// Notify user with payment guidance
 			await ctx.reply(
-				`🚨 *AUTOMATIC JAIL - Spam Detection*\n\n` +
+				`*AUTOMATIC JAIL - Spam Detection*\n\n` +
 					`You have been automatically jailed for ${duration} minutes (${Math.round(duration / 1440)} days) due to repeated violations of: ${restriction.restriction}\n\n` +
 					`**Fine Amount:** ${fine} JUNO\n\n` +
-					`💰 **To get unjailed immediately:**\n` +
+					`**To get unjailed immediately:**\n` +
 					`1. Check your balance: \`/balance\`\n` +
 					`2. Deposit JUNO if needed: \`/deposit\`\n` +
 					`3. Pay your bail: \`/paybail\`\n\n` +
@@ -469,10 +469,10 @@ export class RestrictionService {
 			}
 
 			await ctx.reply(
-				`🔒 *JAILED - Restriction Violation*\n\n` +
+				`*JAILED - Restriction Violation*\n\n` +
 					`You have been jailed for ${duration} minutes for violating: ${restriction.restriction}\n\n` +
 					`**Fine: ${fine} JUNO**\n\n` +
-					`💰 **To get unjailed immediately:**\n` +
+					`**To get unjailed immediately:**\n` +
 					`1. Check your balance: \`/balance\`\n` +
 					`2. Deposit JUNO if needed: \`/deposit\`\n` +
 					`3. Pay your bail: \`/paybail\`\n\n` +
@@ -532,10 +532,10 @@ export class RestrictionService {
 			]);
 
 			await ctx.reply(
-				`🔇 *MUTED - Restriction Violation*\n\n` +
+				`*MUTED - Restriction Violation*\n\n` +
 					`You have been temporarily muted for ${duration} minutes.\n\n` +
 					`You will not be able to send messages until the mute expires.\n\n` +
-					`⚠️ **Warning:** Continued violations will result in automatic jail with a fine that can only be removed by paying in JUNO.\n\n` +
+					`**Warning:** Continued violations will result in automatic jail with a fine that can only be removed by paying in JUNO.\n\n` +
 					`View your violations: \`/violations\``,
 				{ parse_mode: "Markdown" },
 			);

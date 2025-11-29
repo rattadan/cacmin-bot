@@ -97,7 +97,7 @@ export async function handleDeposit(ctx: Context): Promise<void> {
 
 		// Send experimental warning
 		await ctx.reply(
-			`⚠️ *EXPERIMENTAL SOFTWARE WARNING* ⚠️\n\n` +
+			`*EXPERIMENTAL SOFTWARE WARNING*\n\n` +
 				`This bot is **highly experimental** and under active development.\n\n` +
 				`**DO NOT deposit funds you are not prepared to immediately lose.**\n\n` +
 				`By depositing, you acknowledge:\n` +

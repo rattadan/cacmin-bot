@@ -46,7 +46,7 @@ ${walletAddress}
 
  CRITICAL - MEMO REQUIRED 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-➤ MEMO: ${memo}
+MEMO: ${memo}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
  WARNING: Deposits WITHOUT the correct memo CANNOT be credited to your account!
@@ -54,9 +54,9 @@ ${walletAddress}
  This is YOUR user ID - do not use any other number!
 
 DOUBLE CHECK:
-✓ Address: ${walletAddress}
-✓ Memo: ${memo}
-✓ Do NOT include any extra text in the memo
+- Address: ${walletAddress}
+- Memo: ${memo}
+- Do NOT include any extra text in the memo
 
 Deposits without the correct memo will go to an unclaimed pool and require manual processing.
 `;

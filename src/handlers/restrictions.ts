@@ -64,7 +64,7 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
 		// If no arguments, show interactive keyboard
 		if (!userId || !restriction) {
 			return ctx.reply(
-				"🚫 *Add User Restriction*\n\n" +
+				"*Add User Restriction*\n\n" +
 					"Select a restriction type to apply:\n\n" +
 					"**Restriction Types:**\n" +
 					"• **No Stickers** - Block all stickers or specific packs\n" +
@@ -287,19 +287,19 @@ export const registerRestrictionHandlers = (bot: Telegraf<Context>) => {
 	 * @param ctx - Telegraf context
 	 */
 	bot.command("regexhelp", adminOrHigher, async (ctx) => {
-		const helpMessage = `📝 *Regex Pattern Guide*
+		const helpMessage = `*Regex Pattern Guide*
 
 *Pattern Types:*
 
-1️⃣ *Simple Text* (exact phrase, case-insensitive)
+*Simple Text* (exact phrase, case-insensitive)
 \`/addrestriction 123456 regex_block "buy now"\`
 Blocks: "buy now", "BUY NOW", "Buy Now"
 
-2️⃣ *Wildcards* (* = any chars, ? = one char)
+*Wildcards* (* = any chars, ? = one char)
 \`/addrestriction 123456 regex_block "*crypto scam*"\`
 \`/addrestriction 123456 regex_block "test?pattern"\`
 
-3️⃣ *Full Regex* (/pattern/flags format)
+*Full Regex* (/pattern/flags format)
 \`/addrestriction 123456 regex_block "/spam.*here/i"\`
 
 ━━━━━━━━━━━━━━━━━━

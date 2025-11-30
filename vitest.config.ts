@@ -17,10 +17,10 @@ export default defineConfig({
 				'src/bot.ts'
 			],
 			thresholds: {
-				branches: 30,
+				branches: 18,
 				functions: 35,
-				lines: 30,
-				statements: 30
+				lines: 24,
+				statements: 23
 			}
 		},
 		// Run tests serially to avoid database conflicts

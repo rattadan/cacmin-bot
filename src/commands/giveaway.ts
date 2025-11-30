@@ -1,16 +1,37 @@
 /**
  * Giveaway command handlers for the CAC Admin Bot.
- * Provides admin commands for checking wallet balances, distributing giveaways,
- * and viewing treasury and ledger status.
+ * Provides open giveaway system where users can claim slots.
  *
  * @module commands/giveaway
  */
 
 import type { Context, Telegraf } from "telegraf";
 import { config } from "../config";
+import { execute, get, query } from "../database";
 import { ownerOnly } from "../middleware/index";
-import { UnifiedWalletService } from "../services/unifiedWalletService";
+import { LedgerService } from "../services/ledgerService";
+import {
+	SYSTEM_USER_IDS,
+	UnifiedWalletService,
+} from "../services/unifiedWalletService";
 import { logger, StructuredLogger } from "../utils/logger";
+import { AmountPrecision } from "../utils/precision";
+import { hasRole } from "../utils/roles";
+
+interface Giveaway {
+	id: number;
+	created_by: number;
+	funded_by: number;
+	total_amount: number;
+	amount_per_slot: number;
+	total_slots: number;
+	claimed_slots: number;
+	chat_id: number;
+	message_id: number | null;
+	status: "active" | "completed" | "cancelled";
+	created_at: number;
+	completed_at: number | null;
+}
 
 /**
  * Registers all giveaway-related commands with the bot.
@@ -67,114 +88,290 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
 
 	/**
 	 * Command: /giveaway
-	 * Distribute JUNO tokens to a user's internal balance.
+	 * Create an open giveaway that users can claim by clicking a button.
 	 *
-	 * Permission: Admin or higher
-	 * Syntax: /giveaway <@username|userId> <amount>
+	 * Permission: All users (funded from own balance)
+	 *             Owners/Admins can also fund from treasury
+	 * Syntax: /giveaway <amount>
 	 *
-	 * Note: This credits the user's internal ledger balance. The bot treasury
-	 * (on-chain balance) is separate and used for backing withdrawals.
-	 *
-	 * @example
-	 * User: /giveaway @alice 10.5
-	 * Bot: Giveaway Sent!
-	 *      Recipient: @alice (123456)
-	 *      Amount: 10.500000 JUNO
-	 *      Tokens have been credited to the user's internal balance.
-	 *
-	 * @example
-	 * User: /giveaway 123456789 5
-	 * Bot: Giveaway Sent!
-	 *      Recipient: 123456789 (123456789)
-	 *      Amount: 5.000000 JUNO
+	 * Creates an open giveaway where the total amount is split into slots.
+	 * Users click the "Claim" button to receive their share.
+	 * Each user can only claim once per giveaway.
 	 */
-	bot.command("giveaway", ownerOnly, async (ctx) => {
+	bot.command("giveaway", async (ctx) => {
+		const userId = ctx.from?.id;
+		if (!userId) return;
+
 		const args = ctx.message?.text.split(" ").slice(1);
 
-		if (!args || args.length < 2) {
+		if (!args || args.length < 1) {
 			return ctx.reply(
-				" *Giveaway Command*\n\n" +
-					"Usage: `/giveaway <@username|userId> <amount>`\n\n" +
-					"Example: `/giveaway @alice 10.5`\n" +
-					"Example: `/giveaway 123456789 5`",
+				"*Open Giveaway*\n\n" +
+					"Usage: `/giveaway <total_amount>`\n\n" +
+					"Example: `/giveaway 100`\n" +
+					"Creates a giveaway for 100 JUNO split among claimants.\n\n" +
+					"Funds come from your wallet balance.",
 				{ parse_mode: "Markdown" },
 			);
 		}
 
-		const identifier = args[0];
-		const amount = parseFloat(args[1]);
+		const totalAmount = parseFloat(args[0]);
 
-		if (Number.isNaN(amount) || amount <= 0) {
-			return ctx.reply(" Invalid amount. Must be a positive number.");
+		if (Number.isNaN(totalAmount) || totalAmount <= 0) {
+			return ctx.reply("Invalid amount. Must be a positive number.");
 		}
 
 		try {
-			// Resolve userId from identifier
-			let targetUserId: number;
-			if (/^\d+$/.test(identifier)) {
-				// Direct userId
-				targetUserId = parseInt(identifier, 10);
-			} else {
-				// Username lookup
-				const username = identifier.startsWith("@")
-					? identifier.substring(1)
-					: identifier;
-				const { query } = await import("../database");
-				type UserRecord = { id: number };
-				const user = query<UserRecord>(
-					"SELECT id FROM users WHERE username = ?",
-					[username],
-				)[0];
+			AmountPrecision.validateAmount(totalAmount);
+		} catch {
+			return ctx.reply("Invalid amount precision. Max 6 decimal places.");
+		}
 
-				if (!user) {
-					return ctx.reply(
-						` User ${identifier} not found. They must have interacted with the bot first.`,
+		// Check user's balance
+		const userBalance = await LedgerService.getUserBalance(userId);
+		const isOwnerOrAdmin = hasRole(userId, "owner") || hasRole(userId, "admin");
+
+		// Get treasury balance for owners/admins
+		let treasuryBalance = 0;
+		if (isOwnerOrAdmin) {
+			treasuryBalance = await LedgerService.getUserBalance(
+				SYSTEM_USER_IDS.BOT_TREASURY,
+			);
+		}
+
+		// Check if user can afford it from their balance
+		const canAffordFromBalance = userBalance >= totalAmount;
+		const canAffordFromTreasury =
+			isOwnerOrAdmin && treasuryBalance >= totalAmount;
+
+		if (!canAffordFromBalance && !canAffordFromTreasury) {
+			let msg = `Insufficient balance.\nYour balance: ${userBalance.toFixed(6)} JUNO`;
+			if (isOwnerOrAdmin) {
+				msg += `\nTreasury balance: ${treasuryBalance.toFixed(6)} JUNO`;
+			}
+			return ctx.reply(msg);
+		}
+
+		// Build slot selection keyboard
+		const slotOptions = [10, 25, 50, 100];
+		const slotInfo = slotOptions
+			.map((s) => `- ${s} slots = ${(totalAmount / s).toFixed(6)} JUNO each`)
+			.join("\n");
+
+		// For owners/admins who can afford from both sources, show funding choice
+		if (isOwnerOrAdmin && canAffordFromBalance && canAffordFromTreasury) {
+			await ctx.reply(
+				`*Create Giveaway: ${totalAmount} JUNO*\n\n` +
+					"Select funding source:\n" +
+					`Your balance: ${userBalance.toFixed(6)} JUNO\n` +
+					`Treasury: ${treasuryBalance.toFixed(6)} JUNO`,
+				{
+					parse_mode: "Markdown",
+					reply_markup: {
+						inline_keyboard: [
+							[
+								{
+									text: "Fund from My Balance",
+									callback_data: `giveaway_fund_${totalAmount}_self`,
+								},
+							],
+							[
+								{
+									text: "Fund from Treasury",
+									callback_data: `giveaway_fund_${totalAmount}_treasury`,
+								},
+							],
+							[{ text: "Cancel", callback_data: "cancel" }],
+						],
+					},
+				},
+			);
+		} else if (
+			isOwnerOrAdmin &&
+			canAffordFromTreasury &&
+			!canAffordFromBalance
+		) {
+			// Admin can only use treasury
+			await ctx.reply(
+				`*Create Giveaway: ${totalAmount} JUNO*\n\n` +
+					`Funding from Treasury (${treasuryBalance.toFixed(6)} JUNO)\n\n` +
+					`Select number of slots:\n${slotInfo}`,
+				{
+					parse_mode: "Markdown",
+					reply_markup: {
+						inline_keyboard: [
+							[
+								{
+									text: "10 slots",
+									callback_data: `giveaway_create_${totalAmount}_10_treasury`,
+								},
+								{
+									text: "25 slots",
+									callback_data: `giveaway_create_${totalAmount}_25_treasury`,
+								},
+							],
+							[
+								{
+									text: "50 slots",
+									callback_data: `giveaway_create_${totalAmount}_50_treasury`,
+								},
+								{
+									text: "100 slots",
+									callback_data: `giveaway_create_${totalAmount}_100_treasury`,
+								},
+							],
+							[{ text: "Cancel", callback_data: "cancel" }],
+						],
+					},
+				},
+			);
+		} else {
+			// Regular user or admin using own balance
+			await ctx.reply(
+				`*Create Giveaway: ${totalAmount} JUNO*\n\n` +
+					`Funding from your balance (${userBalance.toFixed(6)} JUNO)\n\n` +
+					`Select number of slots:\n${slotInfo}`,
+				{
+					parse_mode: "Markdown",
+					reply_markup: {
+						inline_keyboard: [
+							[
+								{
+									text: "10 slots",
+									callback_data: `giveaway_create_${totalAmount}_10_self`,
+								},
+								{
+									text: "25 slots",
+									callback_data: `giveaway_create_${totalAmount}_25_self`,
+								},
+							],
+							[
+								{
+									text: "50 slots",
+									callback_data: `giveaway_create_${totalAmount}_50_self`,
+								},
+								{
+									text: "100 slots",
+									callback_data: `giveaway_create_${totalAmount}_100_self`,
+								},
+							],
+							[{ text: "Cancel", callback_data: "cancel" }],
+						],
+					},
+				},
+			);
+		}
+	});
+
+	/**
+	 * Command: /cancelgiveaway
+	 * Cancel an active giveaway (unclaimed funds returned to funder)
+	 *
+	 * Permission: Owner, or the user who created the giveaway
+	 * Syntax: /cancelgiveaway <giveaway_id>
+	 */
+	bot.command("cancelgiveaway", async (ctx) => {
+		const userId = ctx.from?.id;
+		if (!userId) return;
+
+		const args = ctx.message?.text.split(" ").slice(1);
+		const isOwner = hasRole(userId, "owner");
+
+		if (!args || args.length < 1) {
+			// Show active giveaways (owner sees all, users see their own)
+			const activeGiveaways = isOwner
+				? query<Giveaway>(
+						"SELECT * FROM giveaways WHERE status = 'active' ORDER BY created_at DESC LIMIT 10",
+					)
+				: query<Giveaway>(
+						"SELECT * FROM giveaways WHERE status = 'active' AND created_by = ? ORDER BY created_at DESC LIMIT 10",
+						[userId],
 					);
-				}
-				targetUserId = user.id;
+
+			if (activeGiveaways.length === 0) {
+				return ctx.reply("No active giveaways.");
 			}
 
-			// NOTE: This credits the user's internal balance in the ledger system.
-			// The bot treasury (on-chain balance) is separate and used for backing withdrawals.
-			// Future enhancement: Transfer from treasury to userFunds wallet to back these credits.
+			const list = activeGiveaways
+				.map(
+					(g) =>
+						`ID ${g.id}: ${g.total_amount} JUNO (${g.claimed_slots}/${g.total_slots} claimed)`,
+				)
+				.join("\n");
 
-			// Distribute giveaway using internal ledger
-			const result = await UnifiedWalletService.distributeGiveaway(
-				[targetUserId],
-				amount,
-				`Giveaway from admin ${ctx.from?.username || ctx.from?.id}`,
+			return ctx.reply(
+				`*Active Giveaways*\n\n${list}\n\nUsage: \`/cancelgiveaway <id>\``,
+				{ parse_mode: "Markdown" },
+			);
+		}
+
+		const giveawayId = parseInt(args[0], 10);
+		if (Number.isNaN(giveawayId)) {
+			return ctx.reply("Invalid giveaway ID.");
+		}
+
+		const giveaway = get<Giveaway>(
+			"SELECT * FROM giveaways WHERE id = ? AND status = 'active'",
+			[giveawayId],
+		);
+
+		if (!giveaway) {
+			return ctx.reply("Giveaway not found or already completed/cancelled.");
+		}
+
+		// Check permission: must be owner or the creator
+		if (!isOwner && giveaway.created_by !== userId) {
+			return ctx.reply("You can only cancel your own giveaways.");
+		}
+
+		const unclaimed = giveaway.total_slots - giveaway.claimed_slots;
+		const unclaimedAmount = unclaimed * giveaway.amount_per_slot;
+
+		// Refund unclaimed amount FROM SYSTEM_RESERVE back TO the funder
+		if (unclaimedAmount > 0) {
+			const refundResult = await LedgerService.transferBetweenUsers(
+				SYSTEM_USER_IDS.SYSTEM_RESERVE,
+				giveaway.funded_by,
+				unclaimedAmount,
+				`Refund from cancelled giveaway #${giveawayId}`,
 			);
 
-			if (result.succeeded.length > 0) {
-				await ctx.reply(
-					` *Giveaway Sent!*\n\n` +
-						`Recipient: ${identifier} (${targetUserId})\n` +
-						`Amount: ${amount.toFixed(6)} JUNO\n\n` +
-						` Tokens have been credited to the user's internal balance.\n` +
-						`They can check their balance with /mybalance`,
-					{ parse_mode: "Markdown" },
-				);
-
-				StructuredLogger.logUserAction("Giveaway completed", {
-					userId: ctx.from?.id,
-					username: ctx.from?.username,
-					operation: "giveaway",
-					targetUserId: targetUserId,
-					amount: amount.toString(),
-					recipient: identifier,
+			if (!refundResult.success) {
+				logger.error("Failed to refund giveaway funds", {
+					giveawayId,
+					fundedBy: giveaway.funded_by,
+					unclaimedAmount,
 				});
-			} else {
-				await ctx.reply(
-					` *Giveaway Failed*\n\n` +
-						`Unable to credit user ${identifier} (${targetUserId})\n\n` +
-						`Please check logs or try again later.`,
-					{ parse_mode: "Markdown" },
+				return ctx.reply(
+					"Error refunding giveaway funds. Please contact admin.",
 				);
 			}
-		} catch (error) {
-			logger.error("Error processing giveaway", error);
-			await ctx.reply(" Error processing giveaway.");
 		}
+
+		// Mark as cancelled
+		execute(
+			"UPDATE giveaways SET status = 'cancelled', completed_at = ? WHERE id = ?",
+			[Math.floor(Date.now() / 1000), giveawayId],
+		);
+
+		const refundTarget =
+			giveaway.funded_by === SYSTEM_USER_IDS.BOT_TREASURY
+				? "Treasury"
+				: `User ${giveaway.funded_by}`;
+
+		StructuredLogger.logUserAction("Giveaway cancelled", {
+			userId,
+			operation: "cancel_giveaway",
+			giveawayId,
+			unclaimedSlots: unclaimed,
+			unclaimedAmount,
+			refundedTo: giveaway.funded_by,
+		});
+
+		await ctx.reply(
+			`Giveaway #${giveawayId} cancelled.\n` +
+				`${unclaimed} unclaimed slots (${unclaimedAmount.toFixed(6)} JUNO) refunded to ${refundTarget}.`,
+		);
 	});
 
 	/**

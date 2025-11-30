@@ -7,8 +7,25 @@
 
 import type { Context, Telegraf } from "telegraf";
 import type { CallbackQuery } from "telegraf/types";
-import { mainMenuKeyboard } from "../utils/keyboards";
-import { logger } from "../utils/logger";
+import { execute, get } from "../database";
+import { LedgerService } from "../services/ledgerService";
+import { SYSTEM_USER_IDS } from "../services/unifiedWalletService";
+import { giveawayClaimKeyboard, mainMenuKeyboard } from "../utils/keyboards";
+import { logger, StructuredLogger } from "../utils/logger";
+import { AmountPrecision } from "../utils/precision";
+
+interface Giveaway {
+	id: number;
+	created_by: number;
+	funded_by: number;
+	total_amount: number;
+	amount_per_slot: number;
+	total_slots: number;
+	claimed_slots: number;
+	chat_id: number;
+	message_id: number | null;
+	status: "active" | "completed" | "cancelled";
+}
 
 // Store for tracking multi-step interactions
 interface SessionData {
@@ -95,8 +112,17 @@ export function registerCallbackHandlers(bot: Telegraf<Context>): void {
 				await handleJailCallback(ctx, data, userId);
 			} else if (data.startsWith("duration_")) {
 				await handleDurationCallback(ctx, data, userId);
+			} else if (data.startsWith("giveaway_fund_")) {
+				await handleGiveawayFundCallback(ctx, data, userId);
+			} else if (data.startsWith("giveaway_create_")) {
+				await handleGiveawayCreateCallback(ctx, data, userId);
+			} else if (data.startsWith("claim_giveaway_")) {
+				await handleGiveawayClaimCallback(ctx, data, userId);
 			} else if (data.startsWith("give_")) {
 				await handleGiveawayCallback(ctx, data, userId);
+			} else if (data === "noop") {
+				// No-op for completed giveaway buttons
+				return;
 			} else if (data.startsWith("action_")) {
 				await handleGlobalActionCallback(ctx, data, userId);
 			} else if (data.startsWith("role_")) {
@@ -455,4 +481,342 @@ async function handleUserSelectionCallback(
 	await ctx.editMessageText(
 		`User ${selectedUserId} selected. Proceeding with ${session.action}...`,
 	);
+}
+
+/**
+ * Handle funding source selection for admin giveaways
+ * Format: giveaway_fund_<amount>_<source>
+ * Shows slot selection after funding source is chosen
+ */
+async function handleGiveawayFundCallback(
+	ctx: Context,
+	data: string,
+	_userId: number,
+): Promise<void> {
+	// Parse: giveaway_fund_100_self or giveaway_fund_100_treasury
+	const parts = data.replace("giveaway_fund_", "").split("_");
+	if (parts.length !== 2) {
+		await ctx.editMessageText("Invalid giveaway data.");
+		return;
+	}
+
+	const totalAmount = parseFloat(parts[0]);
+	const fundingSource = parts[1]; // "self" or "treasury"
+
+	if (Number.isNaN(totalAmount)) {
+		await ctx.editMessageText("Invalid giveaway parameters.");
+		return;
+	}
+
+	const slotInfo = [10, 25, 50, 100]
+		.map((s) => `- ${s} slots = ${(totalAmount / s).toFixed(6)} JUNO each`)
+		.join("\n");
+
+	const sourceLabel =
+		fundingSource === "treasury" ? "Treasury" : "Your Balance";
+
+	await ctx.editMessageText(
+		`*Create Giveaway: ${totalAmount} JUNO*\n\n` +
+			`Funding from: ${sourceLabel}\n\n` +
+			`Select number of slots:\n${slotInfo}`,
+		{
+			parse_mode: "Markdown",
+			reply_markup: {
+				inline_keyboard: [
+					[
+						{
+							text: "10 slots",
+							callback_data: `giveaway_create_${totalAmount}_10_${fundingSource}`,
+						},
+						{
+							text: "25 slots",
+							callback_data: `giveaway_create_${totalAmount}_25_${fundingSource}`,
+						},
+					],
+					[
+						{
+							text: "50 slots",
+							callback_data: `giveaway_create_${totalAmount}_50_${fundingSource}`,
+						},
+						{
+							text: "100 slots",
+							callback_data: `giveaway_create_${totalAmount}_100_${fundingSource}`,
+						},
+					],
+					[{ text: "Cancel", callback_data: "cancel" }],
+				],
+			},
+		},
+	);
+}
+
+/**
+ * Handle giveaway creation (slot count selection)
+ * Format: giveaway_create_<amount>_<slots>_<source>
+ *
+ * IMPORTANT: This function debits funds IMMEDIATELY from the funder.
+ * Funds are held in the giveaway until claimed or cancelled.
+ */
+async function handleGiveawayCreateCallback(
+	ctx: Context,
+	data: string,
+	userId: number,
+): Promise<void> {
+	// Parse: giveaway_create_100_10_self -> amount=100, slots=10, source=self
+	const parts = data.replace("giveaway_create_", "").split("_");
+	if (parts.length !== 3) {
+		await ctx.editMessageText("Invalid giveaway data.");
+		return;
+	}
+
+	const totalAmount = parseFloat(parts[0]);
+	const totalSlots = parseInt(parts[1], 10);
+	const fundingSource = parts[2]; // "self" or "treasury"
+
+	if (Number.isNaN(totalAmount) || Number.isNaN(totalSlots)) {
+		await ctx.editMessageText("Invalid giveaway parameters.");
+		return;
+	}
+
+	const amountPerSlot = AmountPrecision.toExact6Decimals(
+		totalAmount / totalSlots,
+	);
+
+	const chatId = ctx.chat?.id;
+	if (!chatId) {
+		await ctx.editMessageText("Cannot create giveaway: no chat context.");
+		return;
+	}
+
+	// Determine who pays for this giveaway
+	const fundedBy =
+		fundingSource === "treasury" ? SYSTEM_USER_IDS.BOT_TREASURY : userId;
+
+	try {
+		// STEP 1: Verify balance AGAIN (could have changed since command)
+		const currentBalance = await LedgerService.getUserBalance(fundedBy);
+		if (currentBalance < totalAmount) {
+			const source =
+				fundedBy === SYSTEM_USER_IDS.BOT_TREASURY ? "Treasury" : "Your balance";
+			await ctx.editMessageText(
+				`Insufficient funds.\n${source}: ${currentBalance.toFixed(6)} JUNO\nRequired: ${totalAmount.toFixed(6)} JUNO`,
+			);
+			return;
+		}
+
+		// STEP 2: Debit funds from the funder IMMEDIATELY (synchronous)
+		// This creates a transaction that moves funds OUT of their balance
+		const debitResult = await LedgerService.transferBetweenUsers(
+			fundedBy,
+			SYSTEM_USER_IDS.SYSTEM_RESERVE, // Hold funds in reserve during giveaway
+			totalAmount,
+			`Giveaway funding - pending distribution`,
+		);
+
+		if (!debitResult.success) {
+			await ctx.editMessageText("Failed to reserve funds for giveaway.");
+			return;
+		}
+
+		// STEP 3: Create giveaway record (funds are now locked)
+		const result = execute(
+			`INSERT INTO giveaways (created_by, funded_by, total_amount, amount_per_slot, total_slots, claimed_slots, chat_id, status)
+			 VALUES (?, ?, ?, ?, ?, 0, ?, 'active')`,
+			[userId, fundedBy, totalAmount, amountPerSlot, totalSlots, chatId],
+		);
+
+		const giveawayId = result.lastInsertRowid as number;
+
+		const sourceLabel =
+			fundedBy === SYSTEM_USER_IDS.BOT_TREASURY ? "Treasury" : "your balance";
+
+		// Edit the original message to show creation confirmation
+		await ctx.editMessageText(
+			`Giveaway #${giveawayId} created!\n` +
+				`Total: ${totalAmount} JUNO (debited from ${sourceLabel})\n` +
+				`Slots: ${totalSlots}\n` +
+				`Per slot: ${amountPerSlot.toFixed(6)} JUNO`,
+		);
+
+		// Send the actual giveaway message with claim button
+		const giveawayMsg = await ctx.reply(
+			`*JUNO Giveaway*\n\n` +
+				`${amountPerSlot.toFixed(6)} JUNO per claim\n` +
+				`Slots: ${totalSlots}/${totalSlots} available\n\n` +
+				`Click below to claim your share!`,
+			{
+				parse_mode: "Markdown",
+				reply_markup: giveawayClaimKeyboard(giveawayId, 0, totalSlots),
+			},
+		);
+
+		// Store the message ID for later updates
+		execute("UPDATE giveaways SET message_id = ? WHERE id = ?", [
+			giveawayMsg.message_id,
+			giveawayId,
+		]);
+
+		StructuredLogger.logUserAction("Open giveaway created", {
+			userId,
+			operation: "create_giveaway",
+			giveawayId,
+			totalAmount,
+			totalSlots,
+			amountPerSlot,
+			fundedBy,
+			fundingSource,
+		});
+	} catch (error) {
+		logger.error("Failed to create giveaway", { userId, error });
+		await ctx.editMessageText("Failed to create giveaway. Please try again.");
+	}
+}
+
+/**
+ * Handle giveaway claim button press
+ * Format: claim_giveaway_<giveawayId>
+ *
+ * IMPORTANT: Funds are transferred FROM SYSTEM_RESERVE TO the claimer.
+ * The funds were already debited from the funder when the giveaway was created.
+ */
+async function handleGiveawayClaimCallback(
+	ctx: Context,
+	data: string,
+	userId: number,
+): Promise<void> {
+	const giveawayId = parseInt(data.replace("claim_giveaway_", ""), 10);
+
+	if (Number.isNaN(giveawayId)) {
+		await ctx.answerCbQuery("Invalid giveaway.");
+		return;
+	}
+
+	// Fetch giveaway
+	const giveaway = get<Giveaway>(
+		"SELECT * FROM giveaways WHERE id = ? AND status = 'active'",
+		[giveawayId],
+	);
+
+	if (!giveaway) {
+		await ctx.answerCbQuery("This giveaway has ended.");
+		return;
+	}
+
+	// Check if user already claimed
+	const existingClaim = get<{ id: number }>(
+		"SELECT id FROM giveaway_claims WHERE giveaway_id = ? AND user_id = ?",
+		[giveawayId, userId],
+	);
+
+	if (existingClaim) {
+		await ctx.answerCbQuery("You already claimed from this giveaway!");
+		return;
+	}
+
+	// Check slots available
+	if (giveaway.claimed_slots >= giveaway.total_slots) {
+		await ctx.answerCbQuery("All slots have been claimed!");
+		return;
+	}
+
+	try {
+		// Ensure user exists in database (create if new)
+		const { ensureUserExists } = await import("../services/userService");
+		const username = ctx.from?.username || `user_${userId}`;
+		ensureUserExists(userId, username);
+
+		// Transfer funds FROM SYSTEM_RESERVE TO the claimer
+		// Funds were placed in reserve when giveaway was created
+		const result = await LedgerService.transferBetweenUsers(
+			SYSTEM_USER_IDS.SYSTEM_RESERVE,
+			userId,
+			giveaway.amount_per_slot,
+			`Giveaway #${giveawayId} claim`,
+		);
+
+		if (!result.success) {
+			await ctx.answerCbQuery("Failed to process claim. Try again.");
+			return;
+		}
+
+		// Record claim
+		execute(
+			"INSERT INTO giveaway_claims (giveaway_id, user_id, amount) VALUES (?, ?, ?)",
+			[giveawayId, userId, giveaway.amount_per_slot],
+		);
+
+		// Update claimed count
+		const newClaimedSlots = giveaway.claimed_slots + 1;
+		execute("UPDATE giveaways SET claimed_slots = ? WHERE id = ?", [
+			newClaimedSlots,
+			giveawayId,
+		]);
+
+		// Check if giveaway complete
+		const isComplete = newClaimedSlots >= giveaway.total_slots;
+		if (isComplete) {
+			execute(
+				"UPDATE giveaways SET status = 'completed', completed_at = ? WHERE id = ?",
+				[Math.floor(Date.now() / 1000), giveawayId],
+			);
+		}
+
+		// Update the giveaway message
+		const remaining = giveaway.total_slots - newClaimedSlots;
+		try {
+			if (isComplete) {
+				await ctx.editMessageText(
+					`*JUNO Giveaway Complete*\n\n` +
+						`${giveaway.amount_per_slot.toFixed(6)} JUNO per claim\n` +
+						`All ${giveaway.total_slots} slots claimed!\n\n` +
+						`Total distributed: ${giveaway.total_amount.toFixed(6)} JUNO`,
+					{
+						parse_mode: "Markdown",
+						reply_markup: {
+							inline_keyboard: [
+								[{ text: "Giveaway Complete", callback_data: "noop" }],
+							],
+						},
+					},
+				);
+			} else {
+				await ctx.editMessageText(
+					`*JUNO Giveaway*\n\n` +
+						`${giveaway.amount_per_slot.toFixed(6)} JUNO per claim\n` +
+						`Slots: ${remaining}/${giveaway.total_slots} available\n\n` +
+						`Click below to claim your share!`,
+					{
+						parse_mode: "Markdown",
+						reply_markup: giveawayClaimKeyboard(
+							giveawayId,
+							newClaimedSlots,
+							giveaway.total_slots,
+						),
+					},
+				);
+			}
+		} catch (editError) {
+			// Message edit might fail if too many edits - that's ok
+			logger.warn("Failed to edit giveaway message", { giveawayId, editError });
+		}
+
+		await ctx.answerCbQuery(
+			`Claimed ${giveaway.amount_per_slot.toFixed(6)} JUNO!`,
+		);
+
+		StructuredLogger.logUserAction("Giveaway claimed", {
+			userId,
+			operation: "claim_giveaway",
+			giveawayId,
+			amount: giveaway.amount_per_slot.toString(),
+			newBalance: result.toBalance,
+		});
+	} catch (error) {
+		logger.error("Failed to process giveaway claim", {
+			userId,
+			giveawayId,
+			error,
+		});
+		await ctx.answerCbQuery("An error occurred. Please try again.");
+	}
 }

@@ -540,13 +540,16 @@ export class UnifiedWalletService {
 		);
 
 		if (existingTx) {
-			logger.warn("Deposit tx_hash already exists in transactions table, skipping to prevent duplicate credit", {
-				txHash: deposit.txHash,
-				existingToUser: existingTx.to_user_id,
-				existingAmount: existingTx.amount,
-				attemptedUserId: deposit.userId,
-				attemptedAmount: deposit.amount,
-			});
+			logger.warn(
+				"Deposit tx_hash already exists in transactions table, skipping to prevent duplicate credit",
+				{
+					txHash: deposit.txHash,
+					existingToUser: existingTx.to_user_id,
+					existingAmount: existingTx.amount,
+					attemptedUserId: deposit.userId,
+					attemptedAmount: deposit.amount,
+				},
+			);
 			// Add to processed_deposits to prevent future attempts
 			execute(
 				`INSERT OR IGNORE INTO processed_deposits (

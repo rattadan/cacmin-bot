@@ -64,25 +64,48 @@ export const jailDurationKeyboard: InlineKeyboardMarkup = {
 };
 
 /**
- * Giveaway amount presets
+ * Giveaway slot count options (how many users can claim)
  */
-export const giveawayAmountKeyboard: InlineKeyboardMarkup = {
+export const giveawaySlotKeyboard: InlineKeyboardMarkup = {
 	inline_keyboard: [
 		[
-			{ text: "1 JUNO", callback_data: "give_1" },
-			{ text: "5 JUNO", callback_data: "give_5" },
-			{ text: "10 JUNO", callback_data: "give_10" },
+			{ text: "10 slots", callback_data: "giveaway_slots_10" },
+			{ text: "25 slots", callback_data: "giveaway_slots_25" },
 		],
 		[
-			{ text: "25 JUNO", callback_data: "give_25" },
-			{ text: "50 JUNO", callback_data: "give_50" },
-			{ text: "100 JUNO", callback_data: "give_100" },
+			{ text: "50 slots", callback_data: "giveaway_slots_50" },
+			{ text: "100 slots", callback_data: "giveaway_slots_100" },
 		],
-		[
-			{ text: "Custom Amount", callback_data: "give_custom" },
-			{ text: "Cancel", callback_data: "cancel" },
-		],
+		[{ text: "Cancel", callback_data: "cancel" }],
 	],
+};
+
+/**
+ * Generate claim button for active giveaway
+ */
+export function giveawayClaimKeyboard(
+	giveawayId: number,
+	claimedSlots: number,
+	totalSlots: number,
+): InlineKeyboardMarkup {
+	const remaining = totalSlots - claimedSlots;
+	return {
+		inline_keyboard: [
+			[
+				{
+					text: `Claim (${remaining}/${totalSlots} left)`,
+					callback_data: `claim_giveaway_${giveawayId}`,
+				},
+			],
+		],
+	};
+}
+
+/**
+ * Giveaway completed (no more slots)
+ */
+export const giveawayCompletedKeyboard: InlineKeyboardMarkup = {
+	inline_keyboard: [[{ text: "Giveaway Complete", callback_data: "noop" }]],
 };
 
 /**

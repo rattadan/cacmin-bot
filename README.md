@@ -1,193 +1,197 @@
-# **CAC Admin Bot**
+# CAC Admin Bot
 
-Cosmos Airdrops Chat **Improved Admin Bot** built with [Telegraf](https://telegraf.js.org/) in TypeScript. It provides excessively granular, advanced administrative features for managing the leading Cosmos Telegram group, including individual user restrictions, highly specific actions blacklisting, and arguably reckless role-based permissions.
+Cosmos Airdrops Chat administration bot built with [Telegraf](https://telegraf.js.org/) in TypeScript. Combines advanced moderation features with a unified wallet system for JUNO cryptocurrency, using an internal ledger architecture backed by SQLite.
 
-## **Features**
+## Features
 
-- **Role Management**:
-  - **Four-tier role hierarchy**: `owner` > `admin` > `elevated` > `pleb`
-  - **Owner**: Full control including wallet/treasury access, role promotions, and bot configuration
-  - **Admin**: Moderation powers (jail, restrictions, blacklist) but NO access to funds, treasury, or config
-  - **Elevated**: Basic user with wallet access, can view lists and statistics, minor perks
-  - **Pleb**: Default role for all users
-  - Owners can promote users to admin or elevated roles
-  - Admins can promote users to elevated role and revoke elevated privileges
+### Role Management
+- **Four-tier role hierarchy**: `owner` > `admin` > `elevated` > `pleb`
+- **Owner**: Full control including wallet/treasury access, role promotions, bot configuration
+- **Admin**: Moderation powers (jail, restrictions, blacklist) but NO access to funds, treasury, or config
+- **Elevated**: Basic user with wallet access, can view lists and statistics
+- **Pleb**: Default role for all users
 
-- **User Restrictions**:
-  - Restrict specific users from performing actions like:
-    - Sending stickers or specific sticker packs.
-    - Sharing URLs (globally or for specific domains).
-    - Sending messages containing specific text patterns (via regex).
-  - Restrictions can have expiration timestamps for temporary penalties.
+### Unified Wallet System
+- Single JUNO wallet with internal ledger for all users
+- Automatic deposit detection via RPC monitoring with memo-based routing
+- Instant, fee-free internal transfers between users
+- Secure withdrawal flow with transaction locking
+- Complete audit trail of all financial operations
+- See [LEDGER.md](LEDGER.md) for technical details
+- See [ADMIN_MANUAL.md](ADMIN_MANUAL.md) for operational documentation
 
-- **Blacklist Management**:
-  - Blacklist users to apply additional global restrictions.
-  - View, add, and remove blacklisted users.
+### Open Giveaway System
+- Any user can create giveaways funded from their own balance
+- Owners/admins can fund giveaways from treasury
+- Configurable slot counts (10, 25, 50, 100 users)
+- Users claim slots via inline button
+- Per-giveaway escrow accounts for fund isolation
+- Creators can cancel and reclaim unclaimed funds
 
-- **Global Action Management**:
-  - Add or remove global restrictions affecting all users.
+### Content Moderation
+- **User Restrictions**: Block specific users from stickers, URLs, media, regex patterns
+- **Global Restrictions**: Apply content rules to all non-elevated users
+- **Jail System**: Temporary mutes with configurable duration and bail payments
+- **Safe Regex**: Timeout-protected pattern matching prevents ReDoS attacks
+- See [REGEX_PATTERNS.md](REGEX_PATTERNS.md) for pattern examples
 
-- **Violation Tracking**:
-  - Log user violations and enforce penalties.
-  - Enable users to view and pay fines (e.g., in JUNO tokens) to reduce penalties.
+### Violation Tracking
+- Log user violations with configurable penalties
+- Fine system with USD-to-JUNO conversion
+- Bail payments for early jail release
 
-- **Unified Wallet System**:
-  - Single JUNO wallet with internal ledger for all users
-  - Automatic deposit detection via RPC monitoring with memo-based routing
-  - Structural protobuf parsing for reliable memo extraction
-  - Instant, fee-free internal transfers between users
-  - Secure withdrawal flow with transaction locking
-  - Complete audit trail of all financial operations
-  - Balance reconciliation and treasury monitoring
-  - Shared account support for multi-user wallets
-  - Manual deposit processing and unclaimed deposit management
-  - **See [ADMIN_MANUAL.md](ADMIN_MANUAL.md) for operational documentation**
-
-## **Installation**
+## Installation
 
 ```bash
-# Clone and setup
 git clone <repo-url> && cd cacmin-bot
 yarn install
-
-# Configure .env
 cp .env.example .env
-# Edit .env with: BOT_TOKEN, BOT_USERNAME, OWNER_ID, ADMIN_ID, BOT_TREASURY_ADDRESS, BOT_TREASURY_MNEMONIC, JUNO_RPC_URL
-
-# Initialize and run
+# Edit .env with required configuration
 yarn setup-db
 ./rebuild.sh          # Production
 ./rebuild.sh --dev    # Development
 ```
 
-**Rebuild options**: `./rebuild.sh [--dev|--quick|--full]` or use `yarn rebuild[:dev|:quick|:full]`
+**Required Environment Variables:**
+- `BOT_TOKEN`: Telegram Bot API token
+- `OWNER_ID`: Primary owner Telegram user ID
+- `BOT_TREASURY_ADDRESS`: Juno wallet address
+- `BOT_TREASURY_MNEMONIC`: Wallet seed phrase (24 words)
+- `JUNO_RPC_URL`: Primary Juno RPC endpoint
 
----
+**Rebuild Options:** `./rebuild.sh [--dev|--quick|--full]`
 
-## **Production Deployment**
+## Production Deployment
 
-For deploying to a production server (Raspberry Pi, VPS, etc.):
-
-### **Option 1: GitHub Release (Recommended)**
-
-Download and deploy the latest pre-built release:
+### GitHub Release (Recommended)
 
 ```bash
-# Download latest release
 wget https://github.com/cac-group/cacmin-bot/releases/latest/download/cacmin-bot-dist.tar.gz
-
-# Extract and run installer
 tar -xzf cacmin-bot-dist.tar.gz
 sudo ./install.sh
 ```
 
-The installer will:
-- Create a dedicated system user (`cacmin-bot`)
-- Install to `/opt/cacmin-bot` with proper permissions
-- Set up systemd service for auto-start
-- Configure secure file permissions
+The installer creates a systemd service at `/opt/cacmin-bot` with proper permissions.
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for complete deployment documentation.
 
-### **Option 2: Build Your Own Release**
-
-Build and package locally, then deploy:
+### Manual Build
 
 ```bash
-# Build locally
-yarn install
-yarn build
-
-# Run installer on target server
+yarn install && yarn build
 sudo ./install.sh
 ```
 
-### **GitHub Actions Workflow**
-
-The project includes a GitHub Actions workflow that automatically:
-- Builds the TypeScript code
-- Creates a release tarball with all necessary files
-- Uploads artifacts and creates GitHub releases
-- Triggered by version tags (e.g., `v1.0.0`) or manual dispatch
-
-To create a new release:
+### Service Management
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+sudo systemctl status cacmin-bot
+sudo systemctl restart cacmin-bot
+sudo journalctl -u cacmin-bot -f
 ```
 
-The workflow builds on `ubuntu-latest` which is compatible with ARM64 servers like Raspberry Pi 4.
-
----
-
-## **Usage**
+## Commands
 
 Use `/help` in a DM with the bot for a comprehensive, role-based command reference.
 
-### **Key Commands**
+### Wallet (All Users)
+- `/balance` - View your balance
+- `/deposit` - Get deposit address and memo
+- `/send <user> <amount>` - Internal transfer
+- `/withdraw <address> <amount>` - Withdraw to external wallet
+- `/transactions` - View transaction history
 
-**Wallet** (All Users):
-- `/balance`, `/deposit`, `/send`, `/withdraw`, `/transactions`
+### Giveaways (All Users)
+- `/giveaway <amount>` - Create open giveaway (funded from your balance)
+- `/cancelgiveaway <id>` - Cancel your giveaway (unclaimed funds returned)
 
-**Moderation** (Admin+):
-- `/jail <user> <minutes>`, `/unjail <user>`, `/warn <userId> <reason>`
-- `/addrestriction`, `/addblacklist`, `/addwhitelist`
+### Moderation (Admin+)
+- `/jail <user> <minutes>` - Temporarily mute user
+- `/unjail <user>` - Release user from jail
+- `/warn <user> <reason>` - Issue warning
+- `/addrestriction <user> <type>` - Add content restriction
+- `/addblacklist <user>` - Add to blacklist
+- `/addwhitelist <user>` - Add to whitelist
+- `/regexhelp` - Regex pattern guide
 
-**Treasury** (Owner Only):
-- `/botbalance`, `/treasury`, `/giveaway`, `/walletstats`, `/reconcile`
+### Treasury (Owner Only)
+- `/botbalance` - On-chain wallet balance
+- `/treasury` - Treasury and ledger overview
+- `/walletstats` - Detailed reconciliation stats
+- `/reconcile` - Force balance reconciliation
+- `/processdeposit` - Manually process unclaimed deposit
 
-**Role Management** (Owner):
-- `/setowner`, `/makeadmin <user>`, `/elevate <user>`, `/revoke <user>`
+### Role Management (Owner)
+- `/setowner <user>` - Transfer ownership
+- `/makeadmin <user>` - Promote to admin
+- `/elevate <user>` - Promote to elevated
+- `/revoke <user>` - Remove role
 
----
+## Architecture
 
-## **Testing**
+```
+src/
+  bot.ts              # Entry point, handler registration, periodic tasks
+  config.ts           # Environment configuration
+  database.ts         # SQLite schema and query functions
+  commands/           # Command handlers by feature
+    giveaway.ts       # Giveaway creation and management
+    wallet.ts         # Balance, deposit, withdraw, send
+    moderation.ts     # Jail, restrictions, warnings
+    roles.ts          # Role management
+  handlers/           # Feature-specific handlers
+    callbacks.ts      # Inline keyboard callback handlers
+    restrictions.ts   # Content filter logic
+  services/           # Business logic layer
+    ledgerService.ts          # Internal balance operations
+    unifiedWalletService.ts   # On-chain wallet operations
+    jailService.ts            # Jail/bail management
+    transactionLockService.ts # Concurrency control
+  middleware/         # Request pipeline
+    auth.ts           # User identification
+    permissions.ts    # Role-based access control
+    messageFilter.ts  # Content restriction enforcement
+  utils/              # Shared utilities
+    precision.ts      # Cryptocurrency math (6 decimals)
+    safeRegex.ts      # Timeout-protected regex
+    keyboards.ts      # Inline keyboard builders
+```
+
+### Key Patterns
+
+- **Service-oriented**: Stateless services with static methods
+- **Double-entry accounting**: Every transaction creates balanced ledger entries
+- **Transaction locks**: Prevent double-spending during withdrawals
+- **Escrow accounts**: Per-giveaway fund isolation
+- **Protobuf parsing**: Structural memo extraction from RPC data
+
+See [LEDGER.md](LEDGER.md) for detailed token flow documentation.
+
+## Testing
 
 ```bash
-yolo
+yarn test                    # Run all tests
+yarn test:watch              # Watch mode
+yarn test:coverage           # Coverage report
+yarn test tests/unit         # Unit tests only
+yarn test tests/integration  # Integration tests only
 ```
 
----
+## Documentation
 
-## **Development Notes**
+- [LEDGER.md](LEDGER.md) - Internal ledger and token management system
+- [ADMIN_MANUAL.md](ADMIN_MANUAL.md) - Operational guide for administrators
+- [DEPLOYMENT.md](DEPLOYMENT.md) - Production deployment instructions
+- [REGEX_PATTERNS.md](REGEX_PATTERNS.md) - Content filter pattern examples
+- [CLAUDE.md](CLAUDE.md) - Development guidelines and codebase reference
 
-### **Project Structure**
+## Contributing
 
-```plaintext
-.
-├── bot.ts                  # Entry point for the bot
-├── config.ts               # Configuration file
-├── database.ts             # Database setup and queries
-├── handlers/               # Command handlers
-│   ├── actions.ts          # Global restrictions
-│   ├── blacklist.ts        # Blacklist management
-│   ├── restrictions.ts     # User-specific restrictions
-│   ├── roles.ts            # Role management
-│   └── violations.ts       # Violation tracking
-├── middleware/             # Middleware for authorization and user management
-├── services/               # Services for database operations
-├── types.ts                # Type definitions
-└── utils/                  # Utility functions
-    └── roles.ts            # Role validation utilities
-```
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Make granular commits with clear messages
+4. Open a pull request
 
----
+## License
 
-## **Contributing**
-
-1. Fork the repository.
-2. Create a feature branch:
-
-   ```bash
-   git checkout -b feature/your-feature
-   ```
-
-3. Commit changes and push to your fork.
-4. Open a pull request.
-
----
-
-## **License**
-
-This project is licensed under the MIT License. See `LICENSE` for details.
+MIT License. See `LICENSE` for details.

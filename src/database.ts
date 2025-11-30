@@ -366,6 +366,40 @@ export const initDb = (): void => {
     );
   `);
 
+	// Open giveaways table
+	db.exec(`
+    CREATE TABLE IF NOT EXISTS giveaways (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_by INTEGER NOT NULL,
+      funded_by INTEGER NOT NULL,
+      total_amount REAL NOT NULL,
+      amount_per_slot REAL NOT NULL,
+      total_slots INTEGER NOT NULL,
+      claimed_slots INTEGER DEFAULT 0,
+      chat_id INTEGER NOT NULL,
+      message_id INTEGER,
+      status TEXT DEFAULT 'active' CHECK(status IN ('active', 'completed', 'cancelled')),
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      completed_at INTEGER,
+      FOREIGN KEY (created_by) REFERENCES users(id),
+      FOREIGN KEY (funded_by) REFERENCES users(id)
+    );
+  `);
+
+	// Giveaway claims tracking table
+	db.exec(`
+    CREATE TABLE IF NOT EXISTS giveaway_claims (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      giveaway_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      claimed_at INTEGER DEFAULT (strftime('%s', 'now')),
+      UNIQUE(giveaway_id, user_id),
+      FOREIGN KEY (giveaway_id) REFERENCES giveaways(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+  `);
+
 	// Fine configuration table for USD-based fine amounts
 	db.exec(`
     CREATE TABLE IF NOT EXISTS fine_config (
@@ -448,6 +482,12 @@ export const initDb = (): void => {
 
     -- Price tracking indexes
     CREATE INDEX IF NOT EXISTS idx_price_history_timestamp ON price_history(timestamp);
+
+    -- Giveaway indexes
+    CREATE INDEX IF NOT EXISTS idx_giveaways_status ON giveaways(status);
+    CREATE INDEX IF NOT EXISTS idx_giveaways_chat ON giveaways(chat_id);
+    CREATE INDEX IF NOT EXISTS idx_giveaway_claims_giveaway ON giveaway_claims(giveaway_id);
+    CREATE INDEX IF NOT EXISTS idx_giveaway_claims_user ON giveaway_claims(user_id);
   `);
 
 	logger.info("Database initialized successfully");

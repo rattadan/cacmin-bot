@@ -13,7 +13,15 @@ export const SYSTEM_USER_IDS = {
 	BOT_TREASURY: -1, // Bot treasury account in internal ledger
 	SYSTEM_RESERVE: -2, // System reserve for discrepancies
 	UNCLAIMED: -3, // Unclaimed deposits (no memo/invalid userId)
+	// Giveaway escrow accounts use IDs: -1000 - giveawayId
+	// e.g., giveaway 1 = -1001, giveaway 2 = -1002, etc.
+	GIVEAWAY_ESCROW_BASE: -1000,
 };
+
+/** Get escrow user ID for a specific giveaway */
+export function getGiveawayEscrowId(giveawayId: number): number {
+	return SYSTEM_USER_IDS.GIVEAWAY_ESCROW_BASE - giveawayId;
+}
 
 interface User {
 	id: number;
@@ -540,13 +548,16 @@ export class UnifiedWalletService {
 		);
 
 		if (existingTx) {
-			logger.warn("Deposit tx_hash already exists in transactions table, skipping to prevent duplicate credit", {
-				txHash: deposit.txHash,
-				existingToUser: existingTx.to_user_id,
-				existingAmount: existingTx.amount,
-				attemptedUserId: deposit.userId,
-				attemptedAmount: deposit.amount,
-			});
+			logger.warn(
+				"Deposit tx_hash already exists in transactions table, skipping to prevent duplicate credit",
+				{
+					txHash: deposit.txHash,
+					existingToUser: existingTx.to_user_id,
+					existingAmount: existingTx.amount,
+					attemptedUserId: deposit.userId,
+					attemptedAmount: deposit.amount,
+				},
+			);
 			// Add to processed_deposits to prevent future attempts
 			execute(
 				`INSERT OR IGNORE INTO processed_deposits (

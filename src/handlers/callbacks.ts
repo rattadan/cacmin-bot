@@ -9,7 +9,10 @@ import type { Context, Telegraf } from "telegraf";
 import type { CallbackQuery } from "telegraf/types";
 import { execute, get } from "../database";
 import { LedgerService } from "../services/ledgerService";
-import { SYSTEM_USER_IDS } from "../services/unifiedWalletService";
+import {
+	getGiveawayEscrowId,
+	SYSTEM_USER_IDS,
+} from "../services/unifiedWalletService";
 import { giveawayClaimKeyboard, mainMenuKeyboard } from "../utils/keyboards";
 import { logger, StructuredLogger } from "../utils/logger";
 import { AmountPrecision } from "../utils/precision";
@@ -604,28 +607,41 @@ async function handleGiveawayCreateCallback(
 			return;
 		}
 
-		// STEP 2: Debit funds from the funder IMMEDIATELY (synchronous)
-		// This creates a transaction that moves funds OUT of their balance
-		const debitResult = await LedgerService.transferBetweenUsers(
-			fundedBy,
-			SYSTEM_USER_IDS.SYSTEM_RESERVE, // Hold funds in reserve during giveaway
-			totalAmount,
-			`Giveaway funding - pending distribution`,
-		);
-
-		if (!debitResult.success) {
-			await ctx.editMessageText("Failed to reserve funds for giveaway.");
-			return;
-		}
-
-		// STEP 3: Create giveaway record (funds are now locked)
+		// STEP 2: Create giveaway record FIRST to get the ID
 		const result = execute(
 			`INSERT INTO giveaways (created_by, funded_by, total_amount, amount_per_slot, total_slots, claimed_slots, chat_id, status)
 			 VALUES (?, ?, ?, ?, ?, 0, ?, 'active')`,
 			[userId, fundedBy, totalAmount, amountPerSlot, totalSlots, chatId],
 		);
-
 		const giveawayId = result.lastInsertRowid as number;
+
+		// STEP 3: Create dedicated escrow account for this giveaway
+		const escrowId = getGiveawayEscrowId(giveawayId);
+		const { createUser, userExists } = await import("../services/userService");
+		if (!userExists(escrowId)) {
+			createUser(
+				escrowId,
+				`GIVEAWAY_ESCROW_${giveawayId}`,
+				"system",
+				"giveaway",
+			);
+			await LedgerService.ensureUserBalance(escrowId);
+		}
+
+		// STEP 4: Transfer funds to dedicated escrow account
+		const debitResult = await LedgerService.transferBetweenUsers(
+			fundedBy,
+			escrowId,
+			totalAmount,
+			`Giveaway #${giveawayId} escrow funding`,
+		);
+
+		if (!debitResult.success) {
+			// Rollback: delete the giveaway record
+			execute("DELETE FROM giveaways WHERE id = ?", [giveawayId]);
+			await ctx.editMessageText("Failed to reserve funds for giveaway.");
+			return;
+		}
 
 		const sourceLabel =
 			fundedBy === SYSTEM_USER_IDS.BOT_TREASURY ? "Treasury" : "your balance";
@@ -660,6 +676,7 @@ async function handleGiveawayCreateCallback(
 			userId,
 			operation: "create_giveaway",
 			giveawayId,
+			escrowId,
 			totalAmount,
 			totalSlots,
 			amountPerSlot,
@@ -725,10 +742,10 @@ async function handleGiveawayClaimCallback(
 		const username = ctx.from?.username || `user_${userId}`;
 		ensureUserExists(userId, username);
 
-		// Transfer funds FROM SYSTEM_RESERVE TO the claimer
-		// Funds were placed in reserve when giveaway was created
+		// Transfer funds FROM giveaway's escrow account TO the claimer
+		const escrowId = getGiveawayEscrowId(giveawayId);
 		const result = await LedgerService.transferBetweenUsers(
-			SYSTEM_USER_IDS.SYSTEM_RESERVE,
+			escrowId,
 			userId,
 			giveaway.amount_per_slot,
 			`Giveaway #${giveawayId} claim`,

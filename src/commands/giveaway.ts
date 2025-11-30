@@ -11,6 +11,7 @@ import { execute, get, query } from "../database";
 import { ownerOnly } from "../middleware/index";
 import { LedgerService } from "../services/ledgerService";
 import {
+	getGiveawayEscrowId,
 	SYSTEM_USER_IDS,
 	UnifiedWalletService,
 } from "../services/unifiedWalletService";
@@ -327,10 +328,11 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
 		const unclaimed = giveaway.total_slots - giveaway.claimed_slots;
 		const unclaimedAmount = unclaimed * giveaway.amount_per_slot;
 
-		// Refund unclaimed amount FROM SYSTEM_RESERVE back TO the funder
+		// Refund unclaimed amount FROM giveaway's escrow back TO the funder
 		if (unclaimedAmount > 0) {
+			const escrowId = getGiveawayEscrowId(giveawayId);
 			const refundResult = await LedgerService.transferBetweenUsers(
-				SYSTEM_USER_IDS.SYSTEM_RESERVE,
+				escrowId,
 				giveaway.funded_by,
 				unclaimedAmount,
 				`Refund from cancelled giveaway #${giveawayId}`,
@@ -339,6 +341,7 @@ export function registerGiveawayCommands(bot: Telegraf<Context>): void {
 			if (!refundResult.success) {
 				logger.error("Failed to refund giveaway funds", {
 					giveawayId,
+					escrowId,
 					fundedBy: giveaway.funded_by,
 					unclaimedAmount,
 				});

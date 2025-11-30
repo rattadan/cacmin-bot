@@ -194,14 +194,3 @@ giveaway_claims      # Claim records
 processed_deposits   # Ensures idempotent deposit handling
 transaction_locks    # Prevents concurrent double-spend
 ```
-
----
-
-# Security Guarantees
-
-1. **Isolation** — Escrow accounts isolate giveaway funds.
-2. **Atomicity** — All balance updates occur inside SQLite transactions.
-3. **Idempotency** — Deposits keyed by tx_hash prevent double-credit.
-4. **Authorization** — Role checks on sensitive or admin-only actions.
-5. **Auditability** — Every balance change logged.
-6. **No Minting** — Only real on-chain deposits increase supply (except SYSTEM_RESERVE adjustments in the event of some accounting error).

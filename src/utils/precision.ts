@@ -89,8 +89,12 @@ export class AmountPrecision {
 	/** Add two amounts with exact precision (integer math in uJUNO) */
 	static add(amount1: number, amount2: number): number {
 		// Sanitize and validate both amounts
-		const validated1 = AmountPrecision.validateAmount(AmountPrecision.sanitize(amount1));
-		const validated2 = AmountPrecision.validateAmount(AmountPrecision.sanitize(amount2));
+		const validated1 = AmountPrecision.validateAmount(
+			AmountPrecision.sanitize(amount1),
+		);
+		const validated2 = AmountPrecision.validateAmount(
+			AmountPrecision.sanitize(amount2),
+		);
 
 		// Convert to micro for exact integer math
 		const micro1 = AmountPrecision.toMicroJuno(validated1);
@@ -106,8 +110,12 @@ export class AmountPrecision {
 	/** Subtract amounts with exact precision (throws if negative result) */
 	static subtract(amount1: number, amount2: number): number {
 		// Sanitize and validate both amounts
-		const validated1 = AmountPrecision.validateAmount(AmountPrecision.sanitize(amount1));
-		const validated2 = AmountPrecision.validateAmount(AmountPrecision.sanitize(amount2));
+		const validated1 = AmountPrecision.validateAmount(
+			AmountPrecision.sanitize(amount1),
+		);
+		const validated2 = AmountPrecision.validateAmount(
+			AmountPrecision.sanitize(amount2),
+		);
 
 		// Convert to micro for exact integer math
 		const micro1 = AmountPrecision.toMicroJuno(validated1);
@@ -135,7 +143,9 @@ export class AmountPrecision {
 
 		// Multiplier must be a positive integer
 		if (!Number.isInteger(multiplier) || multiplier < 0) {
-			throw new Error(`Multiplier must be a non-negative integer, got ${multiplier}`);
+			throw new Error(
+				`Multiplier must be a non-negative integer, got ${multiplier}`,
+			);
 		}
 
 		// Convert to micro for exact integer math
@@ -150,8 +160,12 @@ export class AmountPrecision {
 	static equals(amount1: number, amount2: number): boolean {
 		try {
 			// Sanitize to handle floating-point artifacts from DB
-			const micro1 = AmountPrecision.toMicroJuno(AmountPrecision.sanitize(amount1));
-			const micro2 = AmountPrecision.toMicroJuno(AmountPrecision.sanitize(amount2));
+			const micro1 = AmountPrecision.toMicroJuno(
+				AmountPrecision.sanitize(amount1),
+			);
+			const micro2 = AmountPrecision.toMicroJuno(
+				AmountPrecision.sanitize(amount2),
+			);
 			return micro1 === micro2;
 		} catch {
 			return false;
@@ -161,16 +175,24 @@ export class AmountPrecision {
 	/** Check if amount1 > amount2 at micro precision */
 	static isGreaterThan(amount1: number, amount2: number): boolean {
 		// Sanitize to handle floating-point artifacts from DB
-		const micro1 = AmountPrecision.toMicroJuno(AmountPrecision.sanitize(amount1));
-		const micro2 = AmountPrecision.toMicroJuno(AmountPrecision.sanitize(amount2));
+		const micro1 = AmountPrecision.toMicroJuno(
+			AmountPrecision.sanitize(amount1),
+		);
+		const micro2 = AmountPrecision.toMicroJuno(
+			AmountPrecision.sanitize(amount2),
+		);
 		return micro1 > micro2;
 	}
 
 	/** Check if amount1 >= amount2 at micro precision */
 	static isGreaterOrEqual(amount1: number, amount2: number): boolean {
 		// Sanitize to handle floating-point artifacts from DB
-		const micro1 = AmountPrecision.toMicroJuno(AmountPrecision.sanitize(amount1));
-		const micro2 = AmountPrecision.toMicroJuno(AmountPrecision.sanitize(amount2));
+		const micro1 = AmountPrecision.toMicroJuno(
+			AmountPrecision.sanitize(amount1),
+		);
+		const micro2 = AmountPrecision.toMicroJuno(
+			AmountPrecision.sanitize(amount2),
+		);
 		return micro1 >= micro2;
 	}
 

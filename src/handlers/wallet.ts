@@ -23,6 +23,7 @@ import {
 	SYSTEM_USER_IDS,
 	UnifiedWalletService,
 } from "../services/unifiedWalletService";
+import { autoDeleteInGroup } from "../utils/autoDelete";
 import { logger, StructuredLogger } from "../utils/logger";
 import { AmountPrecision } from "../utils/precision";
 import { checkIsElevated } from "../utils/roles";
@@ -48,11 +49,12 @@ export async function handleBalance(ctx: Context): Promise<void> {
 			? `@${ctx.from.username}`
 			: `User ${userId}`;
 
-		await ctx.reply(
+		const msg = await ctx.reply(
 			fmt`${bold(`Balance for ${username}`)}
 
 Current balance: ${code(`${balance.toFixed(6)} JUNO`)}`,
 		);
+		autoDeleteInGroup(ctx, msg.message_id);
 
 		StructuredLogger.logUserAction("Balance queried", {
 			userId,
@@ -65,7 +67,8 @@ Current balance: ${code(`${balance.toFixed(6)} JUNO`)}`,
 			userId: ctx.from?.id,
 			operation: "check_balance",
 		});
-		await ctx.reply("Failed to fetch balance");
+		const msg = await ctx.reply("Failed to fetch balance");
+		autoDeleteInGroup(ctx, msg.message_id);
 	}
 }
 
@@ -637,17 +640,25 @@ export async function handleWalletStats(ctx: Context): Promise<void> {
 
 		// Check if user is elevated
 		if (!userId || !checkIsElevated(userId)) {
-			await ctx.reply(" This command requires elevated permissions.");
+			const msg = await ctx.reply(
+				" This command requires elevated permissions.",
+			);
+			autoDeleteInGroup(ctx, msg.message_id);
 			return;
 		}
 
-		await ctx.reply(" Fetching wallet statistics...");
+		const loadingMsg = await ctx.reply(" Fetching wallet statistics...");
 
 		const systemBalances = await UnifiedWalletService.getSystemBalances();
 		const ledgerStats = await UnifiedWalletService.getLedgerStats();
 		const reconciliation = await UnifiedWalletService.reconcileBalances();
 
-		await ctx.reply(
+		// Delete the loading message
+		try {
+			await ctx.telegram.deleteMessage(ctx.chat!.id, loadingMsg.message_id);
+		} catch {}
+
+		const msg = await ctx.reply(
 			fmt`${bold("Wallet System Statistics")}
 
 ${bold("System Wallets:")}
@@ -668,6 +679,7 @@ On-chain Total: ${code(`${reconciliation.onChainTotal.toFixed(6)} JUNO`)}
 Difference: ${code(`${reconciliation.difference.toFixed(6)} JUNO`)}
 Status: ${reconciliation.matched ? "Balanced" : "Mismatch"}`,
 		);
+		autoDeleteInGroup(ctx, msg.message_id);
 
 		StructuredLogger.logUserAction("Wallet statistics viewed", {
 			userId,
@@ -683,7 +695,8 @@ Status: ${reconciliation.matched ? "Balanced" : "Mismatch"}`,
 			userId: ctx.from?.id,
 			operation: "view_wallet_stats",
 		});
-		await ctx.reply("Failed to fetch stats");
+		const msg = await ctx.reply("Failed to fetch stats");
+		autoDeleteInGroup(ctx, msg.message_id);
 	}
 }
 
@@ -1132,7 +1145,7 @@ export async function handleTreasuryBalance(ctx: Context): Promise<void> {
 			SYSTEM_USER_IDS.BOT_TREASURY,
 		);
 
-		await ctx.reply(
+		const msg = await ctx.reply(
 			fmt`${bold("Game Treasury Balance")}
 
 Available: ${code(AmountPrecision.format(treasuryBalance))} JUNO
@@ -1140,6 +1153,7 @@ Available: ${code(AmountPrecision.format(treasuryBalance))} JUNO
 This balance is used for game payouts (e.g., /roll wins).
 When treasury is low, games become unavailable.`,
 		);
+		autoDeleteInGroup(ctx, msg.message_id);
 
 		StructuredLogger.logUserAction("Treasury balance checked", {
 			userId,
@@ -1151,17 +1165,18 @@ When treasury is low, games become unavailable.`,
 			userId: ctx.from?.id,
 			operation: "check_treasury_balance",
 		});
-		await ctx.reply("Failed to fetch treasury balance.");
+		const msg = await ctx.reply("Failed to fetch treasury balance.");
+		autoDeleteInGroup(ctx, msg.message_id);
 	}
 }
 
 /**
  * Handles the /fundtreasury command.
- * Allows owners to fund the game treasury either by:
+ * Allows any user to fund the game treasury either by:
  * 1. Transferring from their own balance
  * 2. Getting deposit instructions for external funding
  *
- * Permission: Owner only
+ * Permission: All users
  *
  * @param ctx - Telegraf context
  *
@@ -1183,7 +1198,7 @@ export async function handleFundTreasury(ctx: Context): Promise<void> {
 
 		// No args - show help and current balance
 		if (args.length === 0) {
-			await ctx.reply(
+			const msg = await ctx.reply(
 				fmt`${bold("Fund Game Treasury")}
 
 Current treasury: ${code(AmountPrecision.format(treasuryBalance))} JUNO
@@ -1196,6 +1211,7 @@ ${bold("Examples:")}
 ${code("/fundtreasury 100")} - Add 100 JUNO from your wallet
 ${code("/fundtreasury deposit")} - Deposit from external wallet`,
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
 			return;
 		}
 
@@ -1205,11 +1221,12 @@ ${code("/fundtreasury deposit")} - Deposit from external wallet`,
 			const treasuryMemo = SYSTEM_USER_IDS.BOT_TREASURY.toString();
 
 			if (!depositAddress) {
-				await ctx.reply("Treasury address not configured.");
+				const msg = await ctx.reply("Treasury address not configured.");
+				autoDeleteInGroup(ctx, msg.message_id);
 				return;
 			}
 
-			await ctx.reply(
+			const msg = await ctx.reply(
 				fmt`${bold("Treasury External Deposit")}
 
 To fund the treasury from an external wallet:
@@ -1222,6 +1239,7 @@ ${code(treasuryMemo)}
 
 The deposit will be credited to the game treasury once confirmed on-chain.`,
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
 
 			StructuredLogger.logUserAction(
 				"Treasury deposit instructions requested",
@@ -1238,26 +1256,29 @@ The deposit will be credited to the game treasury once confirmed on-chain.`,
 		try {
 			amount = AmountPrecision.parseUserInput(args[0]);
 		} catch {
-			await ctx.reply(
+			const msg = await ctx.reply(
 				"Invalid amount. Use a number with up to 6 decimal places.",
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
 			return;
 		}
 
 		if (amount <= 0) {
-			await ctx.reply("Amount must be positive.");
+			const msg = await ctx.reply("Amount must be positive.");
+			autoDeleteInGroup(ctx, msg.message_id);
 			return;
 		}
 
 		// Check user's balance
 		const userBalance = await LedgerService.getUserBalance(userId);
 		if (!AmountPrecision.isGreaterOrEqual(userBalance, amount)) {
-			await ctx.reply(
+			const msg = await ctx.reply(
 				fmt`${bold("Oh no, looks like you're broke!")}
 
 Your balance: ${code(AmountPrecision.format(userBalance))} JUNO
 Requested: ${code(AmountPrecision.format(amount))} JUNO`,
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
 			return;
 		}
 
@@ -1270,7 +1291,8 @@ Requested: ${code(AmountPrecision.format(amount))} JUNO`,
 		);
 
 		if (!result.success) {
-			await ctx.reply(`Failed to fund treasury: ${result.error}`);
+			const msg = await ctx.reply(`Failed to fund treasury: ${result.error}`);
+			autoDeleteInGroup(ctx, msg.message_id);
 			return;
 		}
 
@@ -1278,15 +1300,16 @@ Requested: ${code(AmountPrecision.format(amount))} JUNO`,
 			SYSTEM_USER_IDS.BOT_TREASURY,
 		);
 
-		await ctx.reply(
+		const msg = await ctx.reply(
 			fmt`${bold("Treasury Funded")}
 
 Amount: ${code(AmountPrecision.format(amount))} JUNO
 Your new balance: ${code(AmountPrecision.format(result.fromBalance))} JUNO
 Treasury balance: ${code(AmountPrecision.format(newTreasuryBalance))} JUNO`,
 		);
+		autoDeleteInGroup(ctx, msg.message_id);
 
-		StructuredLogger.logTransaction("Treasury funded by owner", {
+		StructuredLogger.logTransaction("Treasury funded by user", {
 			userId,
 			operation: "fund_treasury",
 			amount: AmountPrecision.format(amount),
@@ -1297,7 +1320,8 @@ Treasury balance: ${code(AmountPrecision.format(newTreasuryBalance))} JUNO`,
 			userId: ctx.from?.id,
 			operation: "fund_treasury",
 		});
-		await ctx.reply("Failed to fund treasury.");
+		const msg = await ctx.reply("Failed to fund treasury.");
+		autoDeleteInGroup(ctx, msg.message_id);
 	}
 }
 

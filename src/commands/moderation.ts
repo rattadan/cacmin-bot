@@ -11,6 +11,7 @@ import { bold, code, fmt } from "telegraf/format";
 import { execute, get } from "../database";
 import { adminOrHigher, ownerOnly } from "../middleware/index";
 import { JailService } from "../services/jailService";
+import { autoDeleteInGroup } from "../utils/autoDelete";
 import { getCommandArgs, getUserIdentifier } from "../utils/commandHelper";
 import { logger, StructuredLogger } from "../utils/logger";
 import { isImmuneToModeration } from "../utils/roles";
@@ -81,16 +82,20 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
 			: getCommandArgs(ctx, true);
 
 		if (!userIdentifier) {
-			return ctx.reply(
+			const msg = await ctx.reply(
 				fmt`⚠️ ${bold("Usage:")}
 • Reply to a user: ${code("/jail <minutes>")}
 • Direct: ${code("/jail <@username|userId> <minutes>")}
 • Alias: ${code("/silence")}`,
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		if (args.length < 1) {
-			return ctx.reply("⚠️ Please specify duration in minutes.");
+			const msg = await ctx.reply("⚠️ Please specify duration in minutes.");
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		const minutesStr = args[0];
@@ -99,23 +104,29 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
 		// Resolve username or userId to numeric ID
 		const userId = resolveUserId(userIdentifier);
 		if (!userId) {
-			return ctx.reply(
+			const msg = await ctx.reply(
 				"⚠️ User not found. Please use a valid @username or userId.",
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		// Check if target user is immune to moderation
 		if (isImmuneToModeration(userId)) {
 			const userDisplay = formatUserIdDisplay(userId);
-			return ctx.reply(
+			const msg = await ctx.reply(
 				fmt`⛔ Cannot jail ${userDisplay} - admins and owners are immune to moderation actions.`,
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		if (Number.isNaN(minutes) || minutes < 1) {
-			return ctx.reply(
+			const msg = await ctx.reply(
 				"⚠️ Invalid duration. Minutes must be a positive number.",
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		// Check if bot has admin permissions in this chat
@@ -132,11 +143,12 @@ export function registerModerationCommands(bot: Telegraf<Context>): void {
 					botMember.can_delete_messages;
 
 				if (!canDelete) {
-					await ctx.reply(
+					const msg = await ctx.reply(
 						fmt`⚠️ Warning: Bot is not an administrator or lacks "Delete Messages" permission.
 User will be marked as jailed, but messages cannot be deleted automatically.
 Please make the bot an admin with delete permissions.`,
 					);
+					autoDeleteInGroup(ctx, msg.message_id);
 				}
 			} catch (error) {
 				logger.error("Failed to check bot permissions", {
@@ -197,21 +209,23 @@ Please make the bot an admin with delete permissions.`,
 				});
 				const errorMsg =
 					error instanceof Error ? error.message : "Unknown error";
-				await ctx.reply(
+				const msg = await ctx.reply(
 					fmt`⚠️ Database updated but failed to restrict user in Telegram.
 Error: ${errorMsg}
 The bot may lack admin permissions or the user may have left.`,
 				);
+				autoDeleteInGroup(ctx, msg.message_id);
 			}
 		}
 
 		const userDisplay = formatUserIdDisplay(userId);
-		await ctx.reply(
+		const msg = await ctx.reply(
 			fmt`🔒 User ${userDisplay} has been jailed for ${minutes} minutes.
 Bail amount: ${bailAmount.toFixed(2)} JUNO
 
 They can pay bail using /paybail or check their status with /mystatus`,
 		);
+		autoDeleteInGroup(ctx, msg.message_id);
 		logger.info("User jailed", { adminId, userId, minutes, bailAmount });
 	};
 
@@ -244,9 +258,11 @@ They can pay bail using /paybail or check their status with /mystatus`,
 		const target = resolveTargetUser(ctx, args);
 
 		if (!target) {
-			return ctx.reply(
+			const msg = await ctx.reply(
 				"Usage: /unjail <@username|userId> or reply to a user's message with /unjail",
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		const userId = target.userId;
@@ -298,16 +314,20 @@ They can pay bail using /paybail or check their status with /mystatus`,
 				});
 				const errorMsg =
 					error instanceof Error ? error.message : "Unknown error";
-				await ctx.reply(
+				const msg = await ctx.reply(
 					fmt`⚠️ Database updated but failed to restore user permissions in Telegram.
 Error: ${errorMsg}
 The bot may lack admin permissions or the user may have left.`,
 				);
+				autoDeleteInGroup(ctx, msg.message_id);
 			}
 		}
 
 		const userDisplay = formatUserIdDisplay(userId);
-		await ctx.reply(fmt`🔓 User ${userDisplay} has been released from jail.`);
+		const msg = await ctx.reply(
+			fmt`🔓 User ${userDisplay} has been released from jail.`,
+		);
+		autoDeleteInGroup(ctx, msg.message_id);
 		logger.info("User unjailed", { adminId, userId });
 	};
 
@@ -334,25 +354,31 @@ The bot may lack admin permissions or the user may have left.`,
 		const target = resolveTargetUser(ctx, args);
 
 		if (!target) {
-			return ctx.reply(
+			const msg = await ctx.reply(
 				"Usage: /warn <@username|userId> <reason> or reply to a user's message with /warn <reason>",
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		const remainingArgs = getRemainingArgs(args, target);
 		const reason = remainingArgs.join(" ");
 
 		if (!reason) {
-			return ctx.reply("Please provide a reason for the warning.");
+			const msg = await ctx.reply("Please provide a reason for the warning.");
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		const userId = target.userId;
 
 		// Check if target user is immune to moderation
 		if (isImmuneToModeration(userId)) {
-			return ctx.reply(
+			const msg = await ctx.reply(
 				fmt`⛔ Cannot warn user ${userId} - admins and owners are immune to moderation actions.`,
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		// Create warning violation
@@ -366,10 +392,11 @@ The bot may lack admin permissions or the user may have left.`,
 			[Math.floor(Date.now() / 1000), userId],
 		);
 
-		await ctx.reply(
+		const msg = await ctx.reply(
 			fmt`⚠️ User ${userId} has been warned.
 Reason: ${reason}`,
 		);
+		autoDeleteInGroup(ctx, msg.message_id);
 
 		// Try to notify the user
 		try {
@@ -405,9 +432,11 @@ Please follow the group rules.`,
 		const target = resolveTargetUser(ctx, args);
 
 		if (!target) {
-			return ctx.reply(
+			const msg = await ctx.reply(
 				"Usage: /clearviolations <@username|userId> or reply to a user's message",
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		const userId = target.userId;
@@ -418,7 +447,10 @@ Please follow the group rules.`,
 			userId,
 		]);
 
-		await ctx.reply(fmt`All violations cleared for @${target.username}.`);
+		const msg = await ctx.reply(
+			fmt`All violations cleared for @${target.username}.`,
+		);
+		autoDeleteInGroup(ctx, msg.message_id);
 		logger.info("Violations cleared", { ownerId, userId });
 	});
 
@@ -503,7 +535,7 @@ Please follow the group rules.`,
 				)?.total || 0,
 		};
 
-		await ctx.reply(
+		const msg = await ctx.reply(
 			fmt`📊 ${bold("Bot Statistics")}
 
 ${bold("Users")}
@@ -524,5 +556,6 @@ Total Bail Revenue: ${stats.totalBailAmount.toFixed(2)} JUNO
 
 Active Restrictions: ${stats.activeRestrictions}`,
 		);
+		autoDeleteInGroup(ctx, msg.message_id);
 	});
 }

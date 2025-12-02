@@ -18,6 +18,7 @@ import {
 	getUnpaidViolations,
 } from "../services/violationService";
 import type { User } from "../types";
+import { autoDeleteInGroup } from "../utils/autoDelete";
 import { logger, StructuredLogger } from "../utils/logger";
 import { escapeNumber } from "../utils/markdown";
 import {
@@ -123,16 +124,20 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 			// Show stats for specific user
 			const targetUserId = resolveUserId(userIdentifier);
 			if (!targetUserId) {
-				return ctx.reply(
+				const msg = await ctx.reply(
 					fmt`User not found. Please use a valid @username or userId.`,
 				);
+				autoDeleteInGroup(ctx, msg.message_id);
+				return;
 			}
 
 			const user = get<User>("SELECT * FROM users WHERE id = ?", [
 				targetUserId,
 			]);
 			if (!user) {
-				return ctx.reply(fmt`User not found in database.`);
+				const msg = await ctx.reply(fmt`User not found in database.`);
+				autoDeleteInGroup(ctx, msg.message_id);
+				return;
 			}
 
 			const userDisplay = formatUserIdDisplay(targetUserId);
@@ -205,7 +210,8 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 			parts.push(`Bails Paid: ${totalBailsPaid}\n`);
 			parts.push(`Total Bail Spent: ${escapeNumber(totalBailSpent, 2)} JUNO\n`);
 
-			await ctx.reply(fmt(parts));
+			const msg = await ctx.reply(fmt(parts));
+			autoDeleteInGroup(ctx, msg.message_id);
 			return;
 		}
 
@@ -280,7 +286,8 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 			`${italic("Use /jailstats <username> to view a specific user's jail history")}`,
 		);
 
-		await ctx.reply(fmt(parts));
+		const msg = await ctx.reply(fmt(parts));
+		autoDeleteInGroup(ctx, msg.message_id);
 	});
 
 	/**
@@ -313,7 +320,9 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 
 		const user = get<User>("SELECT * FROM users WHERE id = ?", [userId]);
 		if (!user) {
-			return ctx.reply(fmt`User not found in database.`);
+			const msg = await ctx.reply(fmt`User not found in database.`);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		const now = Math.floor(Date.now() / 1000);
@@ -352,7 +361,8 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 			parts.push("No unpaid fines\n");
 		}
 
-		await ctx.reply(fmt(parts));
+		const msg = await ctx.reply(fmt(parts));
+		autoDeleteInGroup(ctx, msg.message_id);
 	});
 
 	/**
@@ -377,7 +387,9 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 		const activeJails = JailService.getActiveJails();
 
 		if (activeJails.length === 0) {
-			return ctx.reply(fmt`No users currently jailed.`);
+			const msg = await ctx.reply(fmt`No users currently jailed.`);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		const parts = [bold(`Active Jails (${activeJails.length})`), "\n\n"];
@@ -398,7 +410,8 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 
 		parts.push("Anyone can pay bail for any user using /paybailfor <userId>");
 
-		await ctx.reply(fmt(parts));
+		const msg = await ctx.reply(fmt(parts));
+		autoDeleteInGroup(ctx, msg.message_id);
 	});
 
 	/**
@@ -427,13 +440,19 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 
 		const user = get<User>("SELECT * FROM users WHERE id = ?", [userId]);
 		if (!user) {
-			return ctx.reply(fmt`User not found in database.`);
+			const msg = await ctx.reply(fmt`User not found in database.`);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		const now = Math.floor(Date.now() / 1000);
 
 		if (!user.muted_until || user.muted_until <= now) {
-			return ctx.reply(fmt`You are not currently jailed. No bail required!`);
+			const msg = await ctx.reply(
+				fmt`You are not currently jailed. No bail required!`,
+			);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		const timeRemaining = user.muted_until - now;
@@ -452,7 +471,8 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 		parts.push("/verifybail <transaction_hash>\n\n");
 		parts.push("Payment will release you from jail immediately!");
 
-		await ctx.reply(fmt(parts));
+		const msg = await ctx.reply(fmt(parts));
+		autoDeleteInGroup(ctx, msg.message_id);
 	});
 
 	/**
@@ -483,24 +503,30 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 		const target = resolveTargetUser(ctx, args);
 
 		if (!target) {
-			return ctx.reply(
+			const msg = await ctx.reply(
 				"Usage: /paybailfor <@username|userId> or reply to a user's message",
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		const targetUserId = target.userId;
 
 		const user = get<User>("SELECT * FROM users WHERE id = ?", [targetUserId]);
 		if (!user) {
-			return ctx.reply(fmt`User not found in database.`);
+			const msg = await ctx.reply(fmt`User not found in database.`);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		const now = Math.floor(Date.now() / 1000);
 
 		if (!user.muted_until || user.muted_until <= now) {
-			return ctx.reply(
+			const msg = await ctx.reply(
 				fmt`${formatUserIdDisplay(targetUserId)} is not currently jailed.`,
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		const timeRemaining = user.muted_until - now;
@@ -522,7 +548,8 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 		parts.push(`/verifybailfor ${targetUserId} <transaction_hash>\n\n`);
 		parts.push("Payment will release them from jail immediately!");
 
-		await ctx.reply(fmt(parts));
+		const msg = await ctx.reply(fmt(parts));
+		autoDeleteInGroup(ctx, msg.message_id);
 	});
 
 	/**
@@ -545,20 +572,26 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 
 		const txHash = ctx.message?.text.split(" ")[1];
 		if (!txHash) {
-			return ctx.reply("Usage: /verifybail <txHash>");
+			const msg = await ctx.reply("Usage: /verifybail <txHash>");
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		const user = get<User>("SELECT * FROM users WHERE id = ?", [userId]);
 		if (!user) {
-			return ctx.reply(fmt`User not found in database.`);
+			const msg = await ctx.reply(fmt`User not found in database.`);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		const now = Math.floor(Date.now() / 1000);
 
 		if (!user.muted_until || user.muted_until <= now) {
-			return ctx.reply(
+			const msg = await ctx.reply(
 				fmt`You are not currently jailed. No bail payment needed.`,
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		const timeRemaining = user.muted_until - now;
@@ -570,9 +603,11 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 		const verified = await JunoService.verifyPayment(txHash, bailAmount);
 
 		if (!verified) {
-			return ctx.reply(
+			const msg = await ctx.reply(
 				fmt`Payment could not be verified. Please check the transaction hash and amount.`,
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		// Release from jail
@@ -631,7 +666,8 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 		parts.push("You have been released from jail.\n");
 		parts.push(`Transaction: ${code(txHash)}`);
 
-		await ctx.reply(fmt(parts));
+		const msg = await ctx.reply(fmt(parts));
+		autoDeleteInGroup(ctx, msg.message_id);
 
 		StructuredLogger.logTransaction("Bail paid and verified", {
 			userId,
@@ -664,33 +700,41 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 		const target = resolveTargetUser(ctx, args);
 
 		if (!target) {
-			return ctx.reply(
+			const msg = await ctx.reply(
 				"Usage: /verifybailfor <@username|userId> <txHash> or reply to a user's message with /verifybailfor <txHash>",
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		const remainingArgs = getRemainingArgs(args, target);
 		const txHash = remainingArgs[0];
 
 		if (!txHash) {
-			return ctx.reply(
+			const msg = await ctx.reply(
 				"Usage: /verifybailfor <@username|userId> <txHash> or reply with /verifybailfor <txHash>",
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		const targetUserId = target.userId;
 
 		const user = get<User>("SELECT * FROM users WHERE id = ?", [targetUserId]);
 		if (!user) {
-			return ctx.reply(fmt`User not found in database.`);
+			const msg = await ctx.reply(fmt`User not found in database.`);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		const now = Math.floor(Date.now() / 1000);
 
 		if (!user.muted_until || user.muted_until <= now) {
-			return ctx.reply(
+			const msg = await ctx.reply(
 				fmt`${formatUserIdDisplay(targetUserId)} is not currently jailed.`,
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		const timeRemaining = user.muted_until - now;
@@ -702,9 +746,11 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 		const verified = await JunoService.verifyPayment(txHash, bailAmount);
 
 		if (!verified) {
-			return ctx.reply(
+			const msg = await ctx.reply(
 				fmt`Payment could not be verified. Please check the transaction hash and amount.`,
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
+			return;
 		}
 
 		// Release from jail
@@ -787,7 +833,8 @@ export function registerJailCommands(bot: Telegraf<Context>): void {
 		parts.push(`Paid by: ${formatUserIdDisplay(payerId)}\n`);
 		parts.push(`Transaction: ${code(txHash)}`);
 
-		await ctx.reply(fmt(parts));
+		const msg = await ctx.reply(fmt(parts));
+		autoDeleteInGroup(ctx, msg.message_id);
 
 		StructuredLogger.logTransaction("Bail paid by another user and verified", {
 			userId: targetUserId,

@@ -16,6 +16,7 @@ import {
 	SYSTEM_USER_IDS,
 	UnifiedWalletService,
 } from "../services/unifiedWalletService";
+import { autoDeleteInGroup } from "../utils/autoDelete";
 import { logger, StructuredLogger } from "../utils/logger";
 import { createMenuSession, getActiveMenuSession } from "../utils/menuSession";
 import { AmountPrecision } from "../utils/precision";
@@ -459,7 +460,7 @@ Usage: ${code("/cancelgiveaway <id>")}`,
 			);
 			const totalUserBalances = internalBalances[0]?.total || 0;
 
-			await ctx.reply(
+			const msg = await ctx.reply(
 				fmt`${bold("Bot Wallet Status")}
 
 ${bold("On-Chain Balance:")} ${treasuryBalance?.toFixed(6) || "0"} JUNO
@@ -479,9 +480,11 @@ credited to the bot's internal treasury account.
 ${code("/walletstats")} - Full reconciliation details
 ${code("/giveaway")} - Distribute funds to users`,
 			);
+			autoDeleteInGroup(ctx, msg.message_id);
 		} catch (error) {
 			logger.error("Error fetching treasury info", error);
-			await ctx.reply("Error fetching treasury information.");
+			const msg = await ctx.reply("Error fetching treasury information.");
+			autoDeleteInGroup(ctx, msg.message_id);
 		}
 	});
 }

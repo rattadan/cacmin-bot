@@ -186,10 +186,10 @@ ${bold("Important:")}
 	 * Command: /fundtreasury
 	 * Fund the game treasury (transfer from own balance or get deposit instructions).
 	 *
-	 * Permission: Owner only
+	 * Permission: All users
 	 * Syntax: /fundtreasury <amount> | /fundtreasury deposit
 	 */
-	bot.command("fundtreasury", ownerOnly, handleFundTreasury);
+	bot.command("fundtreasury", handleFundTreasury);
 
 	/**
 	 * Command: /contributetreasury
